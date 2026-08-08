@@ -258,7 +258,7 @@ private fun StatCard(
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.Baseline) {
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = value,
                     style = MaterialTheme.typography.displaySmall,

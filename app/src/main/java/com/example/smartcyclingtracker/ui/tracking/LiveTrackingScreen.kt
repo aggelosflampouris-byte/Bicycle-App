@@ -125,7 +125,7 @@ fun LiveTrackingScreen(
                 )
 
                 // Auto-pause indicator overlay
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible = state.isPaused,
                     enter = fadeIn(),
                     exit = fadeOut(),
