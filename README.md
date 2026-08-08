@@ -71,7 +71,3 @@ Analyze this strictly for cycling progress. Keep it short, encouraging, and do n
 - `ACCESS_BACKGROUND_LOCATION` — Tracking with screen off
 - `POST_NOTIFICATIONS` — Persistent tracking notification (Android 13+)
 - `FOREGROUND_SERVICE_LOCATION` — Foreground service type
-
-## License
-
-MIT
