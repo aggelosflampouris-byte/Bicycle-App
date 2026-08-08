@@ -26,14 +26,6 @@ A **100% free-to-operate** Smart Cycling Tracker app built with Kotlin, Jetpack 
 | Networking | Retrofit2 + OkHttp |
 | DI | Hilt |
 
-## Setup
-
-1. Clone the repository
-2. Add your Gemini API key to `local.properties` (create if missing):
-   ```
-   GEMINI_API_KEY=your_gemini_api_key_here
-   ```
-3. Build with `./gradlew assembleDebug`
 
 ## Architecture
 
