@@ -1,0 +1,352 @@
+package com.example.smartcyclingtracker.ui.summary
+
+import android.content.Context
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
+import com.example.smartcyclingtracker.engine.PhysicsEngine
+import com.example.smartcyclingtracker.service.RoutePoint
+import com.example.smartcyclingtracker.theme.*
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Polyline
+import java.text.SimpleDateFormat
+import java.util.*
+
+@Composable
+fun PostWorkoutSummaryScreen(
+    sessionId: Long,
+    onAskVeloCoach: () -> Unit,
+    onBack: () -> Unit,
+    viewModel: SummaryViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    Box(modifier = Modifier.fillMaxSize().background(DeepNavy)) {
+        when {
+            uiState.isLoading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = ElectricGreen
+                )
+            }
+            uiState.session != null -> {
+                SummaryContent(
+                    session = uiState.session!!,
+                    context = context,
+                    onAskVeloCoach = onAskVeloCoach,
+                    onBack = onBack
+                )
+            }
+            else -> {
+                Text(
+                    text = uiState.error ?: "No data",
+                    color = TextSecondary,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryContent(
+    session: WorkoutSessionEntity,
+    context: Context,
+    onAskVeloCoach: () -> Unit,
+    onBack: () -> Unit
+) {
+    val dateFormat = SimpleDateFormat("EEEE, MMM dd yyyy", Locale.getDefault())
+    val gson = remember { Gson() }
+    val routePoints: List<RoutePoint> = remember(session.routePointsJson) {
+        try {
+            val type = object : TypeToken<List<RoutePoint>>() {}.type
+            gson.fromJson(session.routePointsJson, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Map with drawn route
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp)
+        ) {
+            SummaryMapView(
+                routePoints = routePoints,
+                context = context,
+                modifier = Modifier.fillMaxSize()
+            )
+            // Gradient overlay at bottom
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, DeepNavy)
+                        )
+                    )
+            )
+            // Back button
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .padding(16.dp)
+                    .align(Alignment.TopStart)
+                    .background(NavyCard.copy(alpha = 0.8f), CircleShape)
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+            }
+
+            // Workout complete badge
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = ElectricGreen)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = DeepNavy,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "WORKOUT COMPLETE!",
+                        color = DeepNavy,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = dateFormat.format(Date(session.startTime)),
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+
+            // Primary stat: distance
+            Text(
+                text = PhysicsEngine.formatDistance(session.totalDistanceMeters),
+                style = MaterialTheme.typography.displayMedium,
+                color = TextPrimary,
+                fontWeight = FontWeight.Black
+            )
+
+            // Stats grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                SummaryStatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Timer,
+                    label = "Duration",
+                    value = PhysicsEngine.formatDuration(session.durationSeconds),
+                    tint = WarningAmber
+                )
+                SummaryStatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Speed,
+                    label = "Avg Speed",
+                    value = "${"%.1f".format(session.avgSpeedKmh)} km/h",
+                    tint = VividCyan
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                SummaryStatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.LocalFireDepartment,
+                    label = "Calories",
+                    value = "${"%.0f".format(session.caloriesBurned)} kcal",
+                    tint = SpeedRed
+                )
+                SummaryStatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Terrain,
+                    label = "Elevation",
+                    value = "${"%.0f".format(session.elevationGainMeters)} m",
+                    tint = ElectricGreen
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                SummaryStatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.ElectricBolt,
+                    label = "Watts/kg",
+                    value = "${"%.2f".format(session.wattsPerKg)} W/kg",
+                    tint = WarningAmber
+                )
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            // Ask VeloCoach button
+            Button(
+                onClick = onAskVeloCoach,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NavyCard,
+                    contentColor = ElectricGreen
+                ),
+                border = BorderStroke(1.5.dp, ElectricGreen)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Psychology,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Ask VeloCoach AI",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+private fun SummaryStatCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    label: String,
+    value: String,
+    tint: Color
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, GlassBorder)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryMapView(
+    routePoints: List<RoutePoint>,
+    context: Context,
+    modifier: Modifier = Modifier
+) {
+    AndroidView(
+        factory = { ctx ->
+            MapView(ctx).apply {
+                setTileSource(TileSourceFactory.MAPNIK)
+                setMultiTouchControls(true)
+                controller.setZoom(14.0)
+            }
+        },
+        modifier = modifier,
+        update = { mapView ->
+            mapView.overlays.clear()
+            if (routePoints.isNotEmpty()) {
+                val geoPoints = routePoints.map { GeoPoint(it.lat, it.lng) }
+
+                val polyline = Polyline().apply {
+                    setPoints(geoPoints)
+                    outlinePaint.color = android.graphics.Color.parseColor("#00FF87")
+                    outlinePaint.strokeWidth = 10f
+                    outlinePaint.isAntiAlias = true
+                }
+                mapView.overlays.add(polyline)
+
+                // Fit map to route bounds
+                if (geoPoints.size >= 2) {
+                    val bbox = BoundingBox.fromGeoPoints(geoPoints)
+                    mapView.post {
+                        mapView.zoomToBoundingBox(bbox.increaseByScale(1.3f), true)
+                    }
+                } else {
+                    mapView.controller.setCenter(geoPoints.first())
+                }
+                mapView.invalidate()
+            }
+        }
+    )
+}
+
+private val CircleShape = RoundedCornerShape(50)

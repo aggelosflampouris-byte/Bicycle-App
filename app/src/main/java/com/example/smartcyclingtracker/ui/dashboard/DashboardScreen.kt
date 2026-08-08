@@ -1,0 +1,410 @@
+package com.example.smartcyclingtracker.ui.dashboard
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
+import com.example.smartcyclingtracker.engine.PhysicsEngine
+import com.example.smartcyclingtracker.theme.*
+import java.text.SimpleDateFormat
+import java.util.*
+
+@Composable
+fun DashboardScreen(
+    onStartWorkout: () -> Unit,
+    onSessionClick: (Long) -> Unit,
+    onOpenSettings: () -> Unit,
+    viewModel: DashboardViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DeepNavy)
+    ) {
+        // Decorative gradient orbs
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(ElectricGreen.copy(alpha = 0.08f), Color.Transparent),
+                    center = Offset(size.width * 0.8f, size.height * 0.1f),
+                    radius = size.width * 0.5f
+                ),
+                radius = size.width * 0.5f,
+                center = Offset(size.width * 0.8f, size.height * 0.1f)
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(VividCyan.copy(alpha = 0.05f), Color.Transparent),
+                    center = Offset(0f, size.height * 0.6f),
+                    radius = size.width * 0.4f
+                ),
+                radius = size.width * 0.4f,
+                center = Offset(0f, size.height * 0.6f)
+            )
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header
+            item {
+                DashboardHeader(
+                    userName = uiState.user.name,
+                    onSettingsClick = onOpenSettings
+                )
+            }
+
+            // Stats cards
+            item {
+                AnimatedVisibility(
+                    visible = !uiState.isLoading,
+                    enter = fadeIn() + slideInVertically()
+                ) {
+                    StatsRow(uiState = uiState)
+                }
+            }
+
+            // Start Workout button
+            item {
+                StartWorkoutButton(onClick = onStartWorkout)
+            }
+
+            // Recent sessions header
+            item {
+                if (uiState.sessions.isNotEmpty()) {
+                    Text(
+                        text = "Recent Rides",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Session list
+            items(
+                items = uiState.sessions,
+                key = { it.id }
+            ) { session ->
+                SessionCard(
+                    session = session,
+                    onClick = { onSessionClick(session.id) },
+                    onDelete = { viewModel.deleteSession(session.id) }
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(80.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun DashboardHeader(
+    userName: String,
+    onSettingsClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "Hello, $userName 👋",
+                style = MaterialTheme.typography.headlineMedium,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Ready to ride?",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+        }
+        IconButton(
+            onClick = onSettingsClick,
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(NavyCard)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Settings",
+                tint = TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatsRow(uiState: DashboardUiState) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StatCard(
+            modifier = Modifier.weight(1f),
+            label = "Total Distance",
+            value = "${"%.1f".format(uiState.totalDistanceKm)}",
+            unit = "km",
+            icon = Icons.Default.Route,
+            iconTint = ElectricGreen
+        )
+        StatCard(
+            modifier = Modifier.weight(1f),
+            label = "Avg Distance",
+            value = "${"%.1f".format(uiState.avgDistanceKm)}",
+            unit = "km",
+            icon = Icons.Default.ShowChart,
+            iconTint = VividCyan
+        )
+    }
+    Spacer(modifier = Modifier.height(12.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StatCard(
+            modifier = Modifier.weight(1f),
+            label = "Total Rides",
+            value = "${uiState.totalSessions}",
+            unit = "rides",
+            icon = Icons.Default.DirectionsBike,
+            iconTint = WarningAmber
+        )
+        StatCard(
+            modifier = Modifier.weight(1f),
+            label = "Calories Burned",
+            value = "${"%.0f".format(uiState.totalCalories)}",
+            unit = "kcal",
+            icon = Icons.Default.LocalFireDepartment,
+            iconTint = SpeedRed
+        )
+    }
+}
+
+@Composable
+private fun StatCard(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    unit: String,
+    icon: ImageVector,
+    iconTint: Color
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "glow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowAlpha"
+    )
+
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, GlassBorder)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(iconTint.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.Baseline) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 28.sp
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = unit,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun StartWorkoutButton(onClick: () -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.02f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = ElectricGreen,
+            contentColor = DeepNavy
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 8.dp,
+            pressedElevation = 2.dp
+        )
+    ) {
+        Icon(
+            imageVector = Icons.Default.DirectionsBike,
+            contentDescription = null,
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = "START WORKOUT",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 18.sp,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
+@Composable
+private fun SessionCard(
+    session: WorkoutSessionEntity,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy  HH:mm", Locale.getDefault())
+    val date = dateFormat.format(Date(session.startTime))
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, GlassBorder)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(ElectricGreen.copy(alpha = 0.3f), NavyLight)
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DirectionsBike,
+                    contentDescription = null,
+                    tint = ElectricGreen,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = PhysicsEngine.formatDistance(session.totalDistanceMeters),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "$date  •  ${PhysicsEngine.formatDuration(session.durationSeconds)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    MiniStat(label = "Avg", value = "${"%.1f".format(session.avgSpeedKmh)} km/h")
+                    MiniStat(label = "Cal", value = "${"%.0f".format(session.caloriesBurned)} kcal")
+                    MiniStat(label = "Elev", value = "${"%.0f".format(session.elevationGainMeters)}m")
+                }
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    tint = TextDisabled,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniStat(label: String, value: String) {
+    Column {
+        Text(text = value, style = MaterialTheme.typography.labelLarge, color = ElectricGreen)
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+    }
+}

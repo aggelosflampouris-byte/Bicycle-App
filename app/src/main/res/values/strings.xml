@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">VeloTrack — Smart Cycling</string>
+    <string name="notification_channel_name">GPS Tracking</string>
+    <string name="notification_title">🚴 VeloTrack Active</string>
+    <string name="permission_location_rationale">VeloTrack needs location access to track your cycling routes accurately.</string>
+    <string name="permission_notification_rationale">VeloTrack needs notification permission to show live tracking stats when the screen is off.</string>
+    <string name="tracking_started">Tracking started</string>
+    <string name="tracking_stopped">Workout saved!</string>
+    <string name="auto_paused">Auto-paused — waiting for movement</string>
+    <string name="velocoach_greeting">Hey! I'm VeloCoach, your AI cycling coach powered by Gemini.</string>
+</resources>
