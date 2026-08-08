@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,16 +13,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartcyclingtracker.theme.*
 import com.example.smartcyclingtracker.ui.chat.AiChatScreen
 import com.example.smartcyclingtracker.ui.dashboard.DashboardScreen
 import com.example.smartcyclingtracker.ui.onboarding.OnboardingScreen
+import com.example.smartcyclingtracker.updater.UpdateDialog
+import com.example.smartcyclingtracker.updater.UpdaterViewModel
 
 enum class MainTab(val label: String, val icon: ImageVector) {
-    DASHBOARD("Home", Icons.Default.DirectionsBike),
+    DASHBOARD("Home", Icons.AutoMirrored.Filled.DirectionsBike),
     AI_COACH("VeloCoach", Icons.Default.Psychology),
     HISTORY("Activities", Icons.Default.Assessment),
     PROFILE("Profile", Icons.Default.Person)
@@ -31,12 +37,28 @@ enum class MainTab(val label: String, val icon: ImageVector) {
 fun MainScreen(
     onStartWorkout: () -> Unit,
     onSessionClick: (Long) -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    updaterViewModel: UpdaterViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     var currentTab by remember { mutableStateOf(MainTab.DASHBOARD) }
+    val updateState by updaterViewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show feedback snackbar for update check results
+    LaunchedEffect(updateState.userMessage) {
+        updateState.userMessage?.let { msg ->
+            snackbarHostState.showSnackbar(
+                message = msg,
+                duration = SnackbarDuration.Short
+            )
+            updaterViewModel.clearMessage()
+        }
+    }
 
     Scaffold(
         containerColor = DeepNavy,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             NavigationBar(
                 containerColor = NavyDarker,
@@ -108,6 +130,21 @@ fun MainScreen(
                         onComplete = { currentTab = MainTab.DASHBOARD }
                     )
                 }
+            }
+
+            // In-App Update Dialog
+            if (updateState.showDialog && updateState.updateInfo != null) {
+                UpdateDialog(
+                    updateInfo = updateState.updateInfo!!,
+                    isDownloading = updateState.isDownloading,
+                    downloadProgress = updateState.downloadProgress,
+                    onConfirmUpdate = {
+                        updaterViewModel.startDownloadAndInstall(context)
+                    },
+                    onDismiss = {
+                        updaterViewModel.dismissDialog()
+                    }
+                )
             }
         }
     }

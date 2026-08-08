@@ -138,7 +138,101 @@ fun OnboardingScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // App Updates & Version Card
+            AppVersionUpdateCard()
+
             Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+@Composable
+private fun AppVersionUpdateCard(
+    updaterViewModel: com.example.smartcyclingtracker.updater.UpdaterViewModel = hiltViewModel()
+) {
+    val updateState by updaterViewModel.uiState.collectAsStateWithLifecycle()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, GlassBorder)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SystemUpdate,
+                        contentDescription = null,
+                        tint = VividCyan,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "VeloTrack v${com.example.smartcyclingtracker.BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (updateState.isUpToDate) {
+                    Text(
+                        text = "✓ Up to date",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = ElectricGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Text(
+                text = "Automatically checks GitHub Releases for new updates and features.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+
+            Button(
+                onClick = { updaterViewModel.checkForUpdates(silent = false) },
+                enabled = !updateState.isChecking && !updateState.isDownloading,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ElectricGreen.copy(alpha = 0.2f),
+                    contentColor = ElectricGreen
+                )
+            ) {
+                if (updateState.isChecking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = ElectricGreen,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Checking GitHub...")
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Check for Updates", fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }
