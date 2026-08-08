@@ -9,6 +9,7 @@ val ElectricGreenDarker = Color(0xFF00964C)
 
 // ── Surface / Background: Deep Navy ─────────────────────────────────────────
 val DeepNavy = Color(0xFF0A0E1A)
+val NavyDarker = Color(0xFF070A14)
 val NavyMedium = Color(0xFF111828)
 val NavyLight = Color(0xFF1A2235)
 val NavyCard = Color(0xFF1E2A3A)

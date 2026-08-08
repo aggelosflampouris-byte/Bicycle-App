@@ -41,9 +41,37 @@ class TrackingViewModel @Inject constructor(
         context.startForegroundService(intent)
     }
 
+    fun pauseTracking(context: Context) {
+        val intent = Intent(context, CyclingTrackingService::class.java).apply {
+            action = CyclingTrackingService.ACTION_PAUSE
+        }
+        context.startService(intent)
+    }
+
+    fun resumeTracking(context: Context) {
+        val intent = Intent(context, CyclingTrackingService::class.java).apply {
+            action = CyclingTrackingService.ACTION_RESUME
+        }
+        context.startService(intent)
+    }
+
+    fun togglePause(context: Context) {
+        val intent = Intent(context, CyclingTrackingService::class.java).apply {
+            action = CyclingTrackingService.ACTION_TOGGLE_PAUSE
+        }
+        context.startService(intent)
+    }
+
     fun stopTracking(context: Context) {
         val intent = Intent(context, CyclingTrackingService::class.java).apply {
             action = CyclingTrackingService.ACTION_STOP
+        }
+        context.startService(intent)
+    }
+
+    fun discardTracking(context: Context) {
+        val intent = Intent(context, CyclingTrackingService::class.java).apply {
+            action = CyclingTrackingService.ACTION_DISCARD
         }
         context.startService(intent)
     }

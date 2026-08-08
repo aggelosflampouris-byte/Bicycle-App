@@ -27,12 +27,11 @@ class MainActivity : ComponentActivity() {
 
     private var startDestination = Screen.Onboarding.route
 
-    // Runtime permission launchers
-    private val locationPermissionLauncher = registerForActivityResult(
+    // Unified permission launcher to avoid dialog cancellation
+    private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        // Request background location separately after fine is granted (Android 10+)
         if (fineGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
@@ -40,22 +39,18 @@ class MainActivity : ComponentActivity() {
 
     private val backgroundLocationLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* Background location granted or denied — handled gracefully */ }
-
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { /* Notification permission result */ }
+    ) { /* Background location result handled gracefully */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Request permissions in onCreate
-        requestPermissions()
+        // Request all required runtime permissions together
+        requestAllPermissions()
 
         // Determine start destination based on whether user has been set up
         lifecycleScope.launch {
             val user = userDao.getUserFlow().firstOrNull()
-            startDestination = if (user != null) Screen.Dashboard.route else Screen.Onboarding.route
+            startDestination = if (user != null) Screen.Main.route else Screen.Onboarding.route
 
             setContent {
                 SmartCyclingTrackerTheme {
@@ -70,17 +65,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestPermissions() {
-        // Request POST_NOTIFICATIONS on Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-
-        // Request location permissions
-        val locationPermissions = mutableListOf(
+    private fun requestAllPermissions() {
+        val permissions = mutableListOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
-        locationPermissionLauncher.launch(locationPermissions.toTypedArray())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        permissionLauncher.launch(permissions.toTypedArray())
     }
 }

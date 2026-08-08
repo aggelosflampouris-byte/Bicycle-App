@@ -1,33 +1,21 @@
 package com.example.smartcyclingtracker
 
-import android.Manifest
-import android.os.Build
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.ui.chat.AiChatScreen
 import com.example.smartcyclingtracker.ui.dashboard.DashboardScreen
+import com.example.smartcyclingtracker.ui.main.MainScreen
 import com.example.smartcyclingtracker.ui.onboarding.OnboardingScreen
 import com.example.smartcyclingtracker.ui.summary.PostWorkoutSummaryScreen
 import com.example.smartcyclingtracker.ui.tracking.LiveTrackingScreen
-import com.example.smartcyclingtracker.ui.onboarding.OnboardingViewModel
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.firstOrNull
-import javax.inject.Inject
 
 sealed class Screen(val route: String) {
     object Onboarding : Screen("onboarding")
+    object Main : Screen("main")
     object Dashboard : Screen("dashboard")
     object LiveTracking : Screen("live_tracking")
     object PostWorkoutSummary : Screen("summary/{sessionId}") {
@@ -51,9 +39,23 @@ fun CyclingNavGraph(
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
                 onComplete = {
-                    navController.navigate(Screen.Dashboard.route) {
+                    navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
+                }
+            )
+        }
+
+        composable(Screen.Main.route) {
+            MainScreen(
+                onStartWorkout = {
+                    navController.navigate(Screen.LiveTracking.route)
+                },
+                onSessionClick = { sessionId ->
+                    navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
+                },
+                onOpenSettings = {
+                    navController.navigate(Screen.Onboarding.route)
                 }
             )
         }
@@ -75,9 +77,18 @@ fun CyclingNavGraph(
         composable(Screen.LiveTracking.route) {
             LiveTrackingScreen(
                 onTrackingFinished = { sessionId ->
-                    navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId)) {
-                        popUpTo(Screen.LiveTracking.route) { inclusive = true }
+                    if (sessionId > 0) {
+                        navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId)) {
+                            popUpTo(Screen.LiveTracking.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.Main.route) {
+                            popUpTo(Screen.LiveTracking.route) { inclusive = true }
+                        }
                     }
+                },
+                onBack = {
+                    navController.popBackStack()
                 }
             )
         }

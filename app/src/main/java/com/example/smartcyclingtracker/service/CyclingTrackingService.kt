@@ -32,12 +32,14 @@ data class TrackingState(
     val elapsedSeconds: Long = 0L,
     val calories: Double = 0.0,
     val currentLat: Double = 0.0,
-    val currentLng: Double = 0.0
+    val currentLng: Double = 0.0,
+    val lastSavedSessionId: Long? = null
 )
 
 /**
  * Foreground GPS tracking service with:
  * - Auto-pause when displacement < 2m for 5 consecutive seconds
+ * - Manual pause / resume controls
  * - GPS filter: discard accuracy > 20m or speed > 100 km/h
  * - Batch DB writes every 50 GPS points
  * - Zero-crash policy with structured error handling
@@ -66,7 +68,7 @@ class CyclingTrackingService : Service() {
     private var gender = "male"
     private var age = 35
 
-    // Auto-pause state: if displacement < 2m for 5 sec → pause
+    // Auto-pause / manual pause state
     private var stationaryCounter = 0
     private val AUTO_PAUSE_SECONDS = 5
     private val AUTO_PAUSE_DISTANCE_M = 2.0
@@ -83,6 +85,10 @@ class CyclingTrackingService : Service() {
 
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_PAUSE = "ACTION_PAUSE"
+        const val ACTION_RESUME = "ACTION_RESUME"
+        const val ACTION_TOGGLE_PAUSE = "ACTION_TOGGLE_PAUSE"
+        const val ACTION_DISCARD = "ACTION_DISCARD"
 
         const val EXTRA_WEIGHT = "extra_weight"
         const val EXTRA_GENDER = "extra_gender"
@@ -104,9 +110,20 @@ class CyclingTrackingService : Service() {
                 age = intent.getIntExtra(EXTRA_AGE, 35)
                 startTracking()
             }
-            ACTION_STOP -> stopTracking()
+            ACTION_STOP -> stopTracking(save = true)
+            ACTION_DISCARD -> stopTracking(save = false)
+            ACTION_PAUSE -> setPaused(true)
+            ACTION_RESUME -> setPaused(false)
+            ACTION_TOGGLE_PAUSE -> setPaused(!_trackingState.value.isPaused)
         }
         return START_STICKY
+    }
+
+    private fun setPaused(paused: Boolean) {
+        _trackingState.value = _trackingState.value.copy(
+            isPaused = paused,
+            speedKmh = if (paused) 0.0 else _trackingState.value.speedKmh
+        )
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -267,12 +284,24 @@ class CyclingTrackingService : Service() {
         }
     }
 
-    private fun stopTracking() {
+    private fun stopTracking(save: Boolean = true) {
         timerJob?.cancel()
-        fusedLocationClient.removeLocationUpdates(locationCallback)
+        try {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing location updates: ${e.message}")
+        }
+
+        if (!save) {
+            _trackingState.value = TrackingState(isTracking = false)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
 
         // Save final session to DB
         serviceScope.launch(Dispatchers.IO) {
+            var savedId = -1L
             try {
                 val avgSpeed = if (totalDistanceMeters > 0 && elapsedSeconds > 0)
                     (totalDistanceMeters / 1000.0) / (elapsedSeconds / 3600.0) else 0.0
@@ -295,20 +324,17 @@ class CyclingTrackingService : Service() {
                     wattsPerKg = wattsPerKg,
                     routePointsJson = routeJson
                 )
-                val id = workoutSessionDao.insertSession(session)
-
-                // Notify UI with saved session ID
-                withContext(Dispatchers.Main) {
-                    _trackingState.value = TrackingState(
-                        isTracking = false,
-                        distanceMeters = totalDistanceMeters
-                    )
-                }
-                Log.d(TAG, "Session saved with id: $id")
+                savedId = workoutSessionDao.insertSession(session)
+                Log.d(TAG, "Session saved with id: $savedId")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save session: ${e.message}")
             } finally {
                 withContext(Dispatchers.Main) {
+                    _trackingState.value = TrackingState(
+                        isTracking = false,
+                        distanceMeters = totalDistanceMeters,
+                        lastSavedSessionId = if (savedId > 0) savedId else null
+                    )
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }

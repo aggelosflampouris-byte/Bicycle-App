@@ -8,13 +8,13 @@ import org.osmdroid.config.Configuration
 class CyclingApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        // Initialize osmdroid with app context and user agent
+        // Initialize osmdroid with compliant user agent (avoids OSM 403 Forbidden)
         Configuration.getInstance().apply {
             load(
                 this@CyclingApp,
                 getSharedPreferences("osmdroid", MODE_PRIVATE)
             )
-            userAgentValue = packageName
+            userAgentValue = "VeloTrack-CyclingTracker/1.0 (Linux; Android; SmartCyclingApp)"
         }
     }
 }

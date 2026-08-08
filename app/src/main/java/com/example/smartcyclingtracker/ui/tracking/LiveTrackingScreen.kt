@@ -1,7 +1,10 @@
 package com.example.smartcyclingtracker.ui.tracking
 
+import android.Manifest
 import android.content.Context
-import android.view.MotionEvent
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -26,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartcyclingtracker.engine.PhysicsEngine
@@ -42,14 +46,39 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 @Composable
 fun LiveTrackingScreen(
     onTrackingFinished: (Long) -> Unit,
+    onBack: (() -> Unit)? = null,
     viewModel: TrackingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val state by viewModel.trackingState.collectAsStateWithLifecycle()
 
-    var showStopConfirm by remember { mutableStateOf(false) }
-    var longPressProgress by remember { mutableStateOf(0f) }
-    var isLongPressing by remember { mutableStateOf(false) }
+    var showFinishDialog by remember { mutableStateOf(false) }
+
+    // Check location permission state
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        if (hasLocationPermission && !state.isTracking) {
+            viewModel.startTracking(context)
+        }
+    }
+
+    // Auto-start tracking if not active and permission is granted
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission && !state.isTracking) {
+            viewModel.startTracking(context)
+        }
+    }
 
     // Track route on map
     val routePoints = remember { mutableStateListOf<GeoPoint>() }
@@ -61,38 +90,25 @@ fun LiveTrackingScreen(
             val point = GeoPoint(state.currentLat, state.currentLng)
             routePoints.add(point)
             mapViewRef?.let { map ->
-                // Clear and redraw polyline
                 map.overlays.removeIf { it is Polyline }
                 if (routePoints.size >= 2) {
                     val polyline = Polyline().apply {
                         setPoints(routePoints)
                         outlinePaint.color = android.graphics.Color.parseColor("#00FF87")
-                        outlinePaint.strokeWidth = 8f
+                        outlinePaint.strokeWidth = 10f
                     }
                     map.overlays.add(polyline)
                 }
-                map.controller.setCenter(point)
+                map.controller.animateTo(point)
                 map.invalidate()
             }
         }
     }
 
-    // Long-press progress animation
-    LaunchedEffect(isLongPressing) {
-        if (isLongPressing) {
-            val steps = 50
-            repeat(steps) { step ->
-                longPressProgress = (step + 1f) / steps
-                delay(40L) // 2 seconds total (50 × 40ms)
-            }
-            if (longPressProgress >= 1f) {
-                // Stop tracking after confirmed long press
-                viewModel.stopTracking(context)
-                delay(1000L) // Give service time to save
-                onTrackingFinished(-1L)
-            }
-        } else {
-            longPressProgress = 0f
+    // Navigate to summary once session is saved
+    LaunchedEffect(state.lastSavedSessionId) {
+        state.lastSavedSessionId?.let { id ->
+            onTrackingFinished(id)
         }
     }
 
@@ -102,6 +118,97 @@ fun LiveTrackingScreen(
             .background(DeepNavy)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Top Bar with back/minimize
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onBack != null) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(NavyCard)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back to Menu",
+                            tint = TextPrimary
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.size(40.dp))
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(if (state.isPaused) WarningAmber else ElectricGreen)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (state.isPaused) "PAUSED" else "LIVE TRACKING",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (state.isPaused) WarningAmber else ElectricGreen
+                    )
+                }
+
+                Spacer(modifier = Modifier.size(40.dp))
+            }
+
+            // Permission Warning Banner if GPS not allowed
+            if (!hasLocationPermission) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = WarningAmber.copy(alpha = 0.2f)),
+                    border = BorderStroke(1.dp, WarningAmber),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Location Permission Required",
+                                color = WarningAmber,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                "Enable GPS to record speed, route & distance.",
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                permissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = WarningAmber, contentColor = DeepNavy),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Enable", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
             // Top stats panel
             TrackingStatsPanel(
                 speedKmh = state.speedKmh,
@@ -112,36 +219,32 @@ fun LiveTrackingScreen(
                 modifier = Modifier.weight(1f)
             )
 
-            // Map view (smaller section at bottom)
+            // Map view section
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .height(240.dp)
+                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(NavyCard)
             ) {
                 OsmMapView(
                     context = context,
                     onMapReady = { mapViewRef = it }
                 )
 
-                // Auto-pause indicator overlay
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = state.isPaused,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.TopCenter)
-                ) {
+                // Auto-pause overlay
+                if (state.isPaused) {
                     Card(
                         modifier = Modifier
                             .padding(8.dp)
                             .align(Alignment.TopCenter),
                         colors = CardDefaults.cardColors(
-                            containerColor = WarningAmber.copy(alpha = 0.9f)
+                            containerColor = WarningAmber.copy(alpha = 0.95f)
                         ),
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -150,33 +253,185 @@ fun LiveTrackingScreen(
                                 tint = DeepNavy,
                                 modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "AUTO-PAUSED",
+                                text = "WORKOUT PAUSED",
                                 color = DeepNavy,
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.ExtraBold
                             )
                         }
                     }
                 }
             }
+
+            // Bottom Action Control Bar
+            TrackingControlBar(
+                isPaused = state.isPaused,
+                onTogglePause = { viewModel.togglePause(context) },
+                onFinishClick = { showFinishDialog = true }
+            )
         }
 
-        // Long-press STOP button (floating, centered)
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 260.dp)
-        ) {
-            StopButton(
-                progress = longPressProgress,
-                isLongPressing = isLongPressing,
-                onLongPressStart = { isLongPressing = true },
-                onLongPressEnd = { isLongPressing = false }
+        // Finish Ride Confirmation Dialog
+        if (showFinishDialog) {
+            FinishRideDialog(
+                distanceMeters = state.distanceMeters,
+                elapsedSeconds = state.elapsedSeconds,
+                calories = state.calories,
+                onResume = { showFinishDialog = false },
+                onDiscard = {
+                    showFinishDialog = false
+                    viewModel.discardTracking(context)
+                    if (onBack != null) onBack() else onTrackingFinished(-1L)
+                },
+                onSaveAndFinish = {
+                    showFinishDialog = false
+                    viewModel.stopTracking(context)
+                }
             )
         }
     }
+}
+
+@Composable
+private fun TrackingControlBar(
+    isPaused: Boolean,
+    onTogglePause: () -> Unit,
+    onFinishClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(NavyDarker)
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Pause / Resume Button
+        Button(
+            onClick = onTogglePause,
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isPaused) ElectricGreen else WarningAmber,
+                contentColor = DeepNavy
+            )
+        ) {
+            Icon(
+                imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isPaused) "RESUME" else "PAUSE",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+
+        // Finish / Stop Button
+        Button(
+            onClick = onFinishClick,
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = SpeedRed,
+                contentColor = Color.White
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.Stop,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "FINISH",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun FinishRideDialog(
+    distanceMeters: Double,
+    elapsedSeconds: Long,
+    calories: Double,
+    onResume: () -> Unit,
+    onDiscard: () -> Unit,
+    onSaveAndFinish: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onResume,
+        containerColor = NavyCard,
+        shape = RoundedCornerShape(20.dp),
+        title = {
+            Text(
+                "Finish Workout?",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Great ride! Are you ready to save your workout summary and get feedback from VeloCoach AI?",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DeepNavy)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(PhysicsEngine.formatDistance(distanceMeters), color = VividCyan, fontWeight = FontWeight.Bold)
+                        Text("Distance", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(PhysicsEngine.formatDuration(elapsedSeconds), color = WarningAmber, fontWeight = FontWeight.Bold)
+                        Text("Time", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("${"%.0f".format(calories)} kcal", color = SpeedRed, fontWeight = FontWeight.Bold)
+                        Text("Calories", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSaveAndFinish,
+                colors = ButtonDefaults.buttonColors(containerColor = ElectricGreen, contentColor = DeepNavy),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Save & Finish", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onDiscard) {
+                    Text("Discard", color = SpeedRed)
+                }
+                TextButton(onClick = onResume) {
+                    Text("Resume", color = TextSecondary)
+                }
+            }
+        }
+    )
 }
 
 @Composable
@@ -191,9 +446,9 @@ private fun TrackingStatsPanel(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(24.dp),
+            .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
     ) {
         // Big speed display
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -256,7 +511,7 @@ private fun TrackingStatItem(
             imageVector = icon,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(24.dp)
         )
         Text(
             text = value,
@@ -273,92 +528,21 @@ private fun TrackingStatItem(
 }
 
 @Composable
-private fun StopButton(
-    progress: Float,
-    isLongPressing: Boolean,
-    onLongPressStart: () -> Unit,
-    onLongPressEnd: () -> Unit
-) {
-    val scale by animateFloatAsState(
-        targetValue = if (isLongPressing) 1.1f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "scale"
-    )
-
-    Box(
-        modifier = Modifier.scale(scale),
-        contentAlignment = Alignment.Center
-    ) {
-        // Progress ring around the stop button
-        if (isLongPressing) {
-            CircularProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.size(84.dp),
-                color = SpeedRed,
-                strokeWidth = 4.dp,
-                trackColor = Color.Transparent
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(SpeedRed, Color(0xFFAA0000))
-                    )
-                )
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onPress = {
-                            onLongPressStart()
-                            try {
-                                awaitRelease()
-                            } finally {
-                                onLongPressEnd()
-                            }
-                        }
-                    )
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Stop,
-                    contentDescription = "Long press to stop",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-                Text(
-                    text = "HOLD",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun OsmMapView(
     context: Context,
     onMapReady: (MapView) -> Unit
 ) {
     AndroidView(
         factory = { ctx ->
+            // Set user agent before MapView instantiation
+            Configuration.getInstance().userAgentValue = "VeloTrack-CyclingTracker/1.0 (Linux; Android; SmartCyclingApp)"
             MapView(ctx).apply {
                 setTileSource(TileSourceFactory.MAPNIK)
                 setMultiTouchControls(true)
-                controller.setZoom(16.0)
+                controller.setZoom(16.5)
                 zoomController.setVisibility(
                     org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER
                 )
-                // My location overlay
                 val myLocationOverlay = MyLocationNewOverlay(
                     GpsMyLocationProvider(ctx), this
                 ).apply {
@@ -370,6 +554,6 @@ private fun OsmMapView(
             }
         },
         modifier = Modifier.fillMaxSize(),
-        update = { /* Map updates handled via LaunchedEffect above */ }
+        update = { /* Map updates handled via LaunchedEffect */ }
     )
 }
