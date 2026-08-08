@@ -2,6 +2,13 @@
 
 A **100% free-to-operate** Smart Cycling Tracker app built with Kotlin, Jetpack Compose (Material 3), and modern Android architecture patterns.
 
+## 📥 Download APK
+
+You can download the ready-to-install `.apk` directly from:
+- **[GitHub Releases](https://github.com/aggelosflampouris-byte/Bicycle-App/releases)** (Recommended — download `app-debug.apk` under the latest release).
+- **GitHub Actions Tab** — Go to **Actions** -> click the latest workflow run -> download the **VeloTrack-Debug-APK** artifact.
+
+
 ## Features
 
 - 🚴 **Live GPS Tracking** — Foreground service with real-time speed, distance, and timer

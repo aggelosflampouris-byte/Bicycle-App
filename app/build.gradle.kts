@@ -17,14 +17,16 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Gemini API key — store actual key in local.properties (never commit to VCS)
+        // Gemini API key — read from local.properties or environment variable
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
             localProperties.load(localPropertiesFile.inputStream())
         }
-        buildConfigField("String", "GEMINI_API_KEY",
-            "\"${localProperties.getProperty("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")}\"")
+        val apiKey = localProperties.getProperty("GEMINI_API_KEY") 
+            ?: System.getenv("GEMINI_API_KEY") 
+            ?: "YOUR_GEMINI_API_KEY_HERE"
+        buildConfigField("String", "GEMINI_API_KEY", "\"$apiKey\"")
     }
 
     buildTypes {
