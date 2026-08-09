@@ -53,11 +53,7 @@ fun SettingsScreen(
         }
     }
 
-    LaunchedEffect(settingsState.isKeySaved) {
-        if (settingsState.isKeySaved) {
-            snackbarHostState.showSnackbar("✅ API key saved!", duration = SnackbarDuration.Short)
-        }
-    }
+
 
     Scaffold(
         containerColor = DeepNavy,

@@ -34,5 +34,6 @@ class SettingsViewModel @Inject constructor(
     fun setTheme(mode: ThemeMode) {
         viewModelScope.launch { settingsRepo.setThemeMode(mode) }
     }
+}
 
 
