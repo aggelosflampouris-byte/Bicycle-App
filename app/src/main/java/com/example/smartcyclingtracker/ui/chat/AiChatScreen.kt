@@ -176,6 +176,7 @@ fun AiChatScreen(
             onShareHistory = { viewModel.shareRideHistory() }
         )
     }
+    }
 }
 
 @Composable
