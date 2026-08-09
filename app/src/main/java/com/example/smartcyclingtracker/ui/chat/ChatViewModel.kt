@@ -6,12 +6,15 @@ import com.example.smartcyclingtracker.data.local.dao.ChatMessageDao
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
 import com.example.smartcyclingtracker.data.local.entity.ChatMessageEntity
+import com.example.smartcyclingtracker.data.local.entity.ChatSessionEntity
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
+import com.example.smartcyclingtracker.data.local.dao.ChatSessionDao
 import com.example.smartcyclingtracker.data.remote.GeminiRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 data class ChatMessage(
@@ -25,7 +28,9 @@ data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val streamingText: String = ""
+    val streamingText: String = "",
+    val activeSessionId: Long? = null,
+    val sessions: List<ChatSessionEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -33,7 +38,8 @@ class ChatViewModel @Inject constructor(
     private val geminiRepository: GeminiRepository,
     private val userDao: UserDao,
     private val sessionDao: WorkoutSessionDao,
-    private val chatDao: ChatMessageDao
+    private val chatDao: ChatMessageDao,
+    private val chatSessionDao: ChatSessionDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -41,34 +47,70 @@ class ChatViewModel @Inject constructor(
 
     private var currentUser: UserEntity = UserEntity()
     private var recentSession: WorkoutSessionEntity? = null
+    private var messageJob: Job? = null
 
     init {
         viewModelScope.launch {
             currentUser = userDao.getUser() ?: UserEntity()
             recentSession = sessionDao.getRecentSessions(1).firstOrNull()
 
-            // Collect history from DB
-            chatDao.getAllMessages().collect { dbMessages ->
-                if (dbMessages.isEmpty()) {
-                    // Insert greeting if DB is empty
-                    val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5-72B. " +
-                        "I've analyzed your recent session. Ask me anything about your performance!"
-                    chatDao.insertMessage(ChatMessageEntity(role = "model", text = greeting))
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        messages = dbMessages.map { ChatMessage(role = it.role, text = it.text, isStreaming = false) }
-                    )
+            chatSessionDao.getAllSessions().collect { sessions ->
+                _uiState.value = _uiState.value.copy(sessions = sessions)
+                
+                if (sessions.isEmpty()) {
+                    createNewChatSession()
+                } else if (_uiState.value.activeSessionId == null) {
+                    switchSession(sessions.first().id)
                 }
             }
         }
     }
 
+    fun switchSession(sessionId: Long) {
+        if (_uiState.value.activeSessionId == sessionId) return
+        _uiState.value = _uiState.value.copy(activeSessionId = sessionId, messages = emptyList())
+        
+        messageJob?.cancel()
+        messageJob = viewModelScope.launch {
+            chatDao.getMessagesForSession(sessionId).collect { dbMessages ->
+                _uiState.value = _uiState.value.copy(
+                    messages = dbMessages.map { ChatMessage(role = it.role, text = it.text, isStreaming = false) }
+                )
+            }
+        }
+    }
+
+    fun createNewChatSession() {
+        viewModelScope.launch {
+            val dateStr = java.text.SimpleDateFormat("MMM dd, HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+            val title = "Chat on $dateStr"
+            val newSession = ChatSessionEntity(title = title)
+            val id = chatSessionDao.insertSession(newSession)
+            
+            val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5-72B. " +
+                "I've analyzed your recent session. Ask me anything about your performance!"
+            chatDao.insertMessage(ChatMessageEntity(role = "model", text = greeting, sessionId = id))
+            
+            switchSession(id)
+        }
+    }
+
+    fun deleteSession(sessionId: Long) {
+        viewModelScope.launch {
+            chatSessionDao.deleteSession(sessionId)
+            if (_uiState.value.activeSessionId == sessionId) {
+                _uiState.value = _uiState.value.copy(activeSessionId = null)
+            }
+        }
+    }
+
     fun sendMessage(userText: String) {
+        val sessionId = _uiState.value.activeSessionId ?: return
         if (userText.isBlank() || _uiState.value.isLoading) return
 
         // 1. Insert user message into DB. Flow collection will automatically update the UI list.
         viewModelScope.launch {
-            chatDao.insertMessage(ChatMessageEntity(role = "user", text = userText))
+            chatDao.insertMessage(ChatMessageEntity(role = "user", text = userText, sessionId = sessionId))
             
             // Build history from current messages
             val history = _uiState.value.messages
@@ -95,7 +137,7 @@ class ChatViewModel @Inject constructor(
                 val finalResponse = responseText.ifBlank { "I'm having trouble responding right now. Please try again." }
                 
                 // 2. Insert bot response into DB
-                chatDao.insertMessage(ChatMessageEntity(role = "model", text = finalResponse))
+                chatDao.insertMessage(ChatMessageEntity(role = "model", text = finalResponse, sessionId = sessionId))
                 _uiState.value = _uiState.value.copy(isLoading = false)
             } catch (e: Exception) {
                 val errorMessage = "⚠️ **Unexpected error** — ${e.message}\n\nPlease try again."
@@ -111,7 +153,8 @@ class ChatViewModel @Inject constructor(
 
     fun clearChat() {
         viewModelScope.launch {
-            chatDao.clearHistory()
+            val sessionId = _uiState.value.activeSessionId ?: return@launch
+            chatDao.clearHistory(sessionId)
             _uiState.value = _uiState.value.copy(messages = emptyList(), error = null)
         }
     }

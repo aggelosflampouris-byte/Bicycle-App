@@ -5,19 +5,22 @@ import androidx.room.RoomDatabase
 import com.example.smartcyclingtracker.data.local.dao.ChatMessageDao
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
+import com.example.smartcyclingtracker.data.local.dao.ChatSessionDao
 import com.example.smartcyclingtracker.data.local.entity.ChatMessageEntity
+import com.example.smartcyclingtracker.data.local.entity.ChatSessionEntity
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 
 @Database(
-    entities = [UserEntity::class, WorkoutSessionEntity::class, ChatMessageEntity::class],
-    version = 2,
+    entities = [UserEntity::class, WorkoutSessionEntity::class, ChatMessageEntity::class, ChatSessionEntity::class],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun chatSessionDao(): ChatSessionDao
 
     companion object {
         const val DATABASE_NAME = "cycling_tracker.db"
@@ -26,6 +29,44 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
                 database.execSQL(
                     "CREATE TABLE IF NOT EXISTS `chat_messages` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `role` TEXT NOT NULL, `text` TEXT NOT NULL, `timestamp` INTEGER NOT NULL)"
+                )
+            }
+        }
+
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Create the new chat_sessions table
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `chat_sessions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)"
+                )
+                
+                // Create a legacy session for existing messages
+                val currentTime = System.currentTimeMillis()
+                database.execSQL(
+                    "INSERT INTO `chat_sessions` (`id`, `title`, `createdAt`) VALUES (1, 'Legacy Chat', $currentTime)"
+                )
+
+                // Add sessionId column to chat_messages with default 1
+                database.execSQL(
+                    "ALTER TABLE `chat_messages` ADD COLUMN `sessionId` INTEGER NOT NULL DEFAULT 1"
+                )
+
+                // Create index on the new column
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId` ON `chat_messages` (`sessionId`)"
+                )
+
+                // Recreate chat_messages table to add the foreign key constraint (SQLite ALTER TABLE limitation)
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `chat_messages_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `role` TEXT NOT NULL, `text` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `sessionId` INTEGER NOT NULL DEFAULT 1, FOREIGN KEY(`sessionId`) REFERENCES `chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+                )
+                database.execSQL(
+                    "INSERT INTO `chat_messages_new` (`id`, `role`, `text`, `timestamp`, `sessionId`) SELECT `id`, `role`, `text`, `timestamp`, `sessionId` FROM `chat_messages`"
+                )
+                database.execSQL("DROP TABLE `chat_messages`")
+                database.execSQL("ALTER TABLE `chat_messages_new` RENAME TO `chat_messages`")
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId` ON `chat_messages` (`sessionId`)"
                 )
             }
         }

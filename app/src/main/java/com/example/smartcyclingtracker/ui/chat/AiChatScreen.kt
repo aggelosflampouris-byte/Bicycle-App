@@ -37,6 +37,7 @@ fun AiChatScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
 
@@ -53,15 +54,86 @@ fun AiChatScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DeepNavy)
-            .systemBarsPadding()
-            .imePadding()
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = NavyDarker,
+                drawerContentColor = TextPrimary
+            ) {
+                Spacer(Modifier.height(16.dp).systemBarsPadding())
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Chat History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    IconButton(onClick = { 
+                        viewModel.createNewChatSession() 
+                        scope.launch { drawerState.close() }
+                    }) {
+                        Icon(Icons.Default.AddCircleOutline, contentDescription = "New Chat", tint = ElectricGreen)
+                    }
+                }
+                HorizontalDivider(color = GlassBorder, modifier = Modifier.padding(vertical = 8.dp))
+                
+                LazyColumn {
+                    items(
+                        items = uiState.sessions,
+                        key = { it.id }
+                    ) { session ->
+                        val isSelected = uiState.activeSessionId == session.id
+                        NavigationDrawerItem(
+                            label = { 
+                                Text(
+                                    text = session.title, 
+                                    color = if (isSelected) DeepNavy else TextPrimary,
+                                    maxLines = 1,
+                                    style = MaterialTheme.typography.bodyMedium
+                                ) 
+                            },
+                            selected = isSelected,
+                            onClick = {
+                                viewModel.switchSession(session.id)
+                                scope.launch { drawerState.close() }
+                            },
+                            colors = NavigationDrawerItemDefaults.colors(
+                                selectedContainerColor = ElectricGreen,
+                                unselectedContainerColor = Color.Transparent
+                            ),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            badge = {
+                                IconButton(
+                                    onClick = { viewModel.deleteSession(session.id) },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete, 
+                                        contentDescription = "Delete", 
+                                        tint = if (isSelected) DeepNavy else TextSecondary, 
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
     ) {
-        // App bar
-        ChatAppBar(onBack = onBack, onClear = { viewModel.clearChat() })
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DeepNavy)
+                .systemBarsPadding()
+                .imePadding()
+        ) {
+            // App bar
+            ChatAppBar(
+                onBack = onBack, 
+                onMenuClick = { scope.launch { drawerState.open() } },
+                onClear = { viewModel.clearChat() }
+            )
 
         // VeloCoach identity banner
         VeloCoachBanner()
@@ -102,13 +174,14 @@ fun AiChatScreen(
                 }
             },
             onShareHistory = { viewModel.shareRideHistory() }
-        )
+        }
     }
 }
 
 @Composable
 private fun ChatAppBar(
     onBack: () -> Unit,
+    onMenuClick: () -> Unit,
     onClear: () -> Unit
 ) {
     Row(
@@ -118,6 +191,9 @@ private fun ChatAppBar(
             .padding(horizontal = 8.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        IconButton(onClick = onMenuClick) {
+            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextPrimary)
+        }
         IconButton(onClick = onBack) {
             Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
         }
