@@ -4,6 +4,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import com.example.smartcyclingtracker.data.local.ThemeMode
 
 private val DarkColorScheme = darkColorScheme(
     primary = ElectricGreen,
@@ -37,10 +38,31 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = lightColorScheme(
     primary = LightPrimary,
     onPrimary = LightOnPrimary,
+    primaryContainer = Color(0xFFB7F5D0),
+    onPrimaryContainer = Color(0xFF00371A),
+
+    secondary = Color(0xFF006C7E),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFB3ECFF),
+    onSecondaryContainer = Color(0xFF001F27),
+
+    tertiary = Color(0xFFB45300),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFFFDCC2),
+
     background = LightBackground,
-    surface = LightSurface,
     onBackground = Color(0xFF1A1A1A),
-    onSurface = Color(0xFF1A1A1A)
+
+    surface = LightSurface,
+    onSurface = Color(0xFF1A1A1A),
+    surfaceVariant = Color(0xFFE8F5EE),
+    onSurfaceVariant = Color(0xFF444444),
+
+    error = Color(0xFFBA1A1A),
+    onError = Color.White,
+
+    outline = Color(0xFFCCCCCC),
+    outlineVariant = Color(0xFFEEEEEE),
 )
 
 @Composable

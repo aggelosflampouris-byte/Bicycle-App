@@ -16,7 +16,8 @@ data class OnboardingUiState(
     val age: String = "35",
     val weightKg: String = "75",
     val heightCm: String = "175",
-    val isSaved: Boolean = false
+    val isSaved: Boolean = false,
+    val isLoading: Boolean = true
 )
 
 @HiltViewModel
@@ -27,6 +28,26 @@ class OnboardingViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState
 
+    init {
+        // Pre-populate form with existing user data so edits don't reset to defaults
+        viewModelScope.launch {
+            val existing = userDao.getUser()
+            if (existing != null) {
+                _uiState.value = OnboardingUiState(
+                    name = existing.name,
+                    gender = existing.gender,
+                    age = existing.age.toString(),
+                    weightKg = existing.weightKg.toString(),
+                    heightCm = existing.heightCm.toString(),
+                    isSaved = false,
+                    isLoading = false
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
+    }
+
     fun updateName(name: String) { _uiState.value = _uiState.value.copy(name = name) }
     fun updateGender(gender: String) { _uiState.value = _uiState.value.copy(gender = gender) }
     fun updateAge(age: String) { _uiState.value = _uiState.value.copy(age = age) }
@@ -35,6 +56,7 @@ class OnboardingViewModel @Inject constructor(
 
     fun saveWithDefaults(onComplete: () -> Unit) {
         val state = _uiState.value
+        val existing = userDao // we'll do upsert — id=0 means auto-assign or match existing
         val user = UserEntity(
             name = state.name.ifBlank { "Cyclist" },
             gender = state.gender,
@@ -43,11 +65,12 @@ class OnboardingViewModel @Inject constructor(
             heightCm = state.heightCm.toFloatOrNull() ?: 175f
         )
         viewModelScope.launch {
-            val existing = userDao.getUser()
-            if (existing == null) {
-                userDao.insertUser(user)
+            // upsert atomically handles both first-time insert and subsequent updates
+            val currentUser = userDao.getUser()
+            if (currentUser != null) {
+                userDao.upsertUser(user.copy(id = currentUser.id))
             } else {
-                userDao.updateUser(user.copy(id = existing.id))
+                userDao.upsertUser(user)
             }
             _uiState.value = _uiState.value.copy(isSaved = true)
             onComplete()
@@ -58,7 +81,7 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             val existing = userDao.getUser()
             if (existing == null) {
-                userDao.insertUser(UserEntity()) // Insert defaults
+                userDao.upsertUser(UserEntity()) // Insert with all defaults
             }
             onComplete()
         }

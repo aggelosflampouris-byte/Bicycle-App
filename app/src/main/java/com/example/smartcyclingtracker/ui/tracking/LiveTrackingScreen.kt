@@ -534,10 +534,28 @@ private fun OsmMapView(
 ) {
     AndroidView(
         factory = { ctx ->
-            // Set user agent before MapView instantiation
-            Configuration.getInstance().userAgentValue = "VeloTrack-CyclingTracker/1.0 (Linux; Android; SmartCyclingApp)"
+            // CRITICAL: Load prefs AND set user-agent BEFORE MapView initialises
+            // its internal TileProvider — this is the only reliable place to do it.
+            val osmConfig = Configuration.getInstance()
+            osmConfig.load(
+                ctx,
+                ctx.getSharedPreferences("osmdroid", android.content.Context.MODE_PRIVATE)
+            )
+            osmConfig.userAgentValue =
+                "${ctx.packageName}/1.0 (Android; VeloTrack cycling app; contact@velotrack.app)"
+
+            // Use a custom tile source that explicitly sets the required headers
+            val customTileSource = org.osmdroid.tileprovider.tilesource.XYTileSource(
+                "OSM-VeloTrack",
+                0, 19, 256, ".png",
+                arrayOf(
+                    "https://tile.openstreetmap.org/"
+                ),
+                "© OpenStreetMap contributors"
+            )
+
             MapView(ctx).apply {
-                setTileSource(TileSourceFactory.MAPNIK)
+                setTileSource(customTileSource)
                 setMultiTouchControls(true)
                 controller.setZoom(16.5)
                 zoomController.setVisibility(

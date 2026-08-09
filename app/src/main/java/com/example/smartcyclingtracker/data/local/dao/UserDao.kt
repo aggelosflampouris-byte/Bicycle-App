@@ -13,6 +13,9 @@ interface UserDao {
     @Query("SELECT * FROM users LIMIT 1")
     suspend fun getUser(): UserEntity?
 
+    @Upsert
+    suspend fun upsertUser(user: UserEntity)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: UserEntity)
 
@@ -22,3 +25,4 @@ interface UserDao {
     @Query("DELETE FROM users")
     suspend fun deleteAllUsers()
 }
+

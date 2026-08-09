@@ -6,12 +6,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.example.smartcyclingtracker.data.local.SettingsRepository
+import com.example.smartcyclingtracker.data.local.ThemeMode
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.theme.SmartCyclingTrackerTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -24,6 +28,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var userDao: UserDao
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
 
     private var startDestination = Screen.Onboarding.route
 
@@ -53,7 +60,16 @@ class MainActivity : ComponentActivity() {
             startDestination = if (user != null) Screen.Main.route else Screen.Onboarding.route
 
             setContent {
-                SmartCyclingTrackerTheme {
+                // Collect theme preference reactively
+                val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(ThemeMode.DARK)
+                val isSystemDark = isSystemInDarkTheme()
+                val isDark = when (themeMode) {
+                    ThemeMode.DARK -> true
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.SYSTEM -> isSystemDark
+                }
+
+                SmartCyclingTrackerTheme(darkTheme = isDark) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background

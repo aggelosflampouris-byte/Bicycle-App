@@ -20,13 +20,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartcyclingtracker.engine.PhysicsEngine
@@ -35,7 +31,7 @@ import com.example.smartcyclingtracker.theme.*
 import com.example.smartcyclingtracker.ui.chat.AiChatScreen
 import com.example.smartcyclingtracker.ui.dashboard.DashboardScreen
 import com.example.smartcyclingtracker.ui.history.HistoryScreen
-import com.example.smartcyclingtracker.ui.onboarding.OnboardingScreen
+import com.example.smartcyclingtracker.ui.settings.SettingsScreen
 import com.example.smartcyclingtracker.updater.UpdateDialog
 import com.example.smartcyclingtracker.updater.UpdaterViewModel
 import kotlinx.coroutines.launch
@@ -44,7 +40,7 @@ enum class MainTab(val label: String, val icon: ImageVector) {
     DASHBOARD("Home", Icons.AutoMirrored.Filled.DirectionsBike),
     AI_COACH("VeloCoach", Icons.Default.Psychology),
     HISTORY("Activities", Icons.Default.Assessment),
-    PROFILE("Profile", Icons.Default.Person)
+    SETTINGS("Settings", Icons.Default.Settings)
 }
 
 @Composable
@@ -54,8 +50,8 @@ fun MainScreen(
     onOpenSettings: () -> Unit,
     updaterViewModel: UpdaterViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val tabs = remember { MainTab.values() }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
 
@@ -63,20 +59,18 @@ fun MainScreen(
     val updateState by updaterViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // ── KEY FIX: sync nav bar selection when user swipes the pager ────────────
+    val currentPage by remember { derivedStateOf { pagerState.currentPage } }
+
     // Fluid Back Handling: if not on Home tab, back button returns to Home smoothly
-    BackHandler(enabled = pagerState.currentPage != 0) {
-        coroutineScope.launch {
-            pagerState.animateScrollToPage(0)
-        }
+    BackHandler(enabled = currentPage != 0) {
+        coroutineScope.launch { pagerState.animateScrollToPage(0) }
     }
 
     // Show feedback snackbar for update check results
     LaunchedEffect(updateState.userMessage) {
         updateState.userMessage?.let { msg ->
-            snackbarHostState.showSnackbar(
-                message = msg,
-                duration = SnackbarDuration.Short
-            )
+            snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
             updaterViewModel.clearMessage()
         }
     }
@@ -86,7 +80,7 @@ fun MainScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Floating Active Ride Mini-Player Bar (Strava/Spotify style)
+                // Floating Active Ride Mini-Player Bar (Strava-style)
                 AnimatedVisibility(
                     visible = trackingState.isTracking,
                     enter = slideInVertically { it } + fadeIn(),
@@ -108,7 +102,8 @@ fun MainScreen(
                     modifier = Modifier.clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                 ) {
                     tabs.forEachIndexed { index, tab ->
-                        val isSelected = pagerState.currentPage == index
+                        // currentPage is the swipe-synced page — this is the critical fix
+                        val isSelected = currentPage == index
                         NavigationBarItem(
                             selected = isSelected,
                             onClick = {
@@ -150,10 +145,11 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Swipeable Fluid Pager for smooth gesture navigation between tabs
+            // Swipeable HorizontalPager for fluid gesture-based tab navigation
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = true
             ) { page ->
                 when (tabs[page]) {
                     MainTab.DASHBOARD -> {
@@ -162,7 +158,7 @@ fun MainScreen(
                             onSessionClick = onSessionClick,
                             onOpenSettings = {
                                 coroutineScope.launch {
-                                    pagerState.animateScrollToPage(3)
+                                    pagerState.animateScrollToPage(3) // → Settings tab
                                 }
                             }
                         )
@@ -182,14 +178,8 @@ fun MainScreen(
                             onStartWorkout = onStartWorkout
                         )
                     }
-                    MainTab.PROFILE -> {
-                        OnboardingScreen(
-                            onComplete = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(0)
-                                }
-                            }
-                        )
+                    MainTab.SETTINGS -> {
+                        SettingsScreen()
                     }
                 }
             }
@@ -203,9 +193,7 @@ fun MainScreen(
                     onConfirmUpdate = {
                         updaterViewModel.startDownloadAndInstall(context)
                     },
-                    onDismiss = {
-                        updaterViewModel.dismissDialog()
-                    }
+                    onDismiss = { updaterViewModel.dismissDialog() }
                 )
             }
         }
