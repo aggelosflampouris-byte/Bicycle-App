@@ -4,11 +4,13 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.smartcyclingtracker.service.NotificationHelper
 
 data class UpdateUiState(
     val isChecking: Boolean = false,
@@ -22,7 +24,8 @@ data class UpdateUiState(
 
 @HiltViewModel
 class UpdaterViewModel @Inject constructor(
-    private val appUpdater: AppUpdater
+    private val appUpdater: AppUpdater,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UpdateUiState())
@@ -51,6 +54,9 @@ class UpdaterViewModel @Inject constructor(
                         userMessage = null,
                         isUpToDate = false
                     )
+                    if (silent) {
+                        NotificationHelper.showUpdateNotification(context, info.latestVersion)
+                    }
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isChecking = false,
