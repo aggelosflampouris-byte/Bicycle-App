@@ -544,18 +544,8 @@ private fun OsmMapView(
             osmConfig.userAgentValue =
                 "${ctx.packageName}/1.0 (Android; VeloTrack cycling app; contact@velotrack.app)"
 
-            // Use a custom tile source that explicitly sets the required headers
-            val customTileSource = org.osmdroid.tileprovider.tilesource.XYTileSource(
-                "OSM-VeloTrack",
-                0, 19, 256, ".png",
-                arrayOf(
-                    "https://tile.openstreetmap.org/"
-                ),
-                "© OpenStreetMap contributors"
-            )
-
             MapView(ctx).apply {
-                setTileSource(customTileSource)
+                setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
                 setMultiTouchControls(true)
                 controller.setZoom(16.5)
                 zoomController.setVisibility(

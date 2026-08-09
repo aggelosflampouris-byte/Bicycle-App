@@ -158,6 +158,10 @@ class CyclingTrackingService : Service() {
                 delay(1000L)
                 if (!_trackingState.value.isPaused) {
                     elapsedSeconds++
+                    // IMPORTANT: Update UI state so the timer visually ticks!
+                    _trackingState.value = _trackingState.value.copy(
+                        elapsedSeconds = elapsedSeconds
+                    )
                 }
                 // Update notification
                 val notif = NotificationHelper.buildTrackingNotification(
