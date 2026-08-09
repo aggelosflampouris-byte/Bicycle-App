@@ -275,6 +275,7 @@ class CyclingTrackingService : Service() {
         )
         val calories = PhysicsEngine.calculateCalories(mockUser, elapsedSeconds, avgSpeed)
 
+        val speedKmh = PhysicsEngine.metersPerSecondToKmh(speedMps)
         // ── Update UI State ──────────────────────────────────────────────────
         _trackingState.value = _trackingState.value.copy(
             speedKmh = speedKmh,

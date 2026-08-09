@@ -18,7 +18,7 @@ import javax.inject.Singleton
 /**
  * Repository for Hugging Face AI chat interactions.
  * Uses the OpenAI-compatible /v1/chat/completions endpoint via router.huggingface.co.
- * Model: HuggingFaceH4/zephyr-7b-beta (free serverless tier).
+ * Model: microsoft/Phi-3.5-mini-instruct (free serverless tier).
  *
  * Reads HF token from:
  *  1. User-supplied key in DataStore (Settings screen override)
@@ -57,7 +57,7 @@ class GeminiRepository @Inject constructor(
 
     /**
      * Send a chat message to Hugging Face Inference API and emit the response text.
-     * Uses Zephyr (an open-source model on the free HF tier).
+     * Uses Phi-3.5 (an open-source model on the free HF tier).
      * Emits a user-friendly error string if the API token is missing or the request fails.
      */
     fun streamChat(

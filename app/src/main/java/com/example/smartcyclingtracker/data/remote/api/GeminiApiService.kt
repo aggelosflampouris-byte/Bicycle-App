@@ -12,7 +12,7 @@ import retrofit2.http.POST
  * Uses the serverless inference endpoint which hosts open-source models.
  * The HF token is passed as a Bearer Authorization header.
  *
- * Model used: HuggingFaceH4/zephyr-7b-beta available for free on the HF Serverless Inference tier.
+ * Model used: microsoft/Phi-3.5-mini-instruct available for free on the HF Serverless Inference tier.
  */
 interface HfApiService {
 
@@ -29,6 +29,6 @@ interface HfApiService {
     companion object {
         const val BASE_URL = "https://router.huggingface.co/hf-inference/"
         /** Default quantized model served via HF Serverless Inference (free tier). */
-        const val MODEL = "HuggingFaceH4/zephyr-7b-beta"
+        const val MODEL = "microsoft/Phi-3.5-mini-instruct"
     }
 }
