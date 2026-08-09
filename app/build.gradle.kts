@@ -5,7 +5,6 @@ plugins {
   alias(libs.plugins.hilt)
 }
 
-import java.util.Properties
 
 android {
     namespace = "com.example.smartcyclingtracker"
@@ -17,16 +16,10 @@ android {
         versionCode = 4
         versionName = "1.0.4"
 
-        // Gemini API key — read from local.properties or environment variable
-        val localProperties = Properties()
-        val localPropertiesFile = rootProject.file("local.properties")
-        if (localPropertiesFile.exists()) {
-            localProperties.load(localPropertiesFile.inputStream())
-        }
-        val apiKey = localProperties.getProperty("GEMINI_API_KEY") 
-            ?: System.getenv("GEMINI_API_KEY") 
-            ?: "YOUR_GEMINI_API_KEY_HERE"
-        buildConfigField("String", "GEMINI_API_KEY", "\"$apiKey\"")
+        // Gemini API key is NOT embedded in the APK for security.
+        // Users must enter their own key in Settings → VeloCoach AI.
+        // Stored securely in DataStore (on-device only, never in the binary).
+        buildConfigField("String", "GEMINI_API_KEY", "\"\"")
     }
 
     buildTypes {

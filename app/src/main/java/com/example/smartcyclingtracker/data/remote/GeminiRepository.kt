@@ -1,6 +1,5 @@
 package com.example.smartcyclingtracker.data.remote
 
-import com.example.smartcyclingtracker.BuildConfig
 import com.example.smartcyclingtracker.data.local.SettingsRepository
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
@@ -31,19 +30,13 @@ class GeminiRepository @Inject constructor(
 ) {
 
     /**
-     * Resolve the best available API key:
-     * 1. User-supplied key stored in DataStore
-     * 2. BuildConfig key from local.properties / GitHub Actions secret
-     * Returns null if neither is valid.
+     * Resolve API key from DataStore only.
+     * The key is NEVER embedded in the APK — users enter it in Settings.
+     * Returns null if no key has been saved yet.
      */
     private suspend fun resolveApiKey(): String? {
         val stored = settingsRepo.geminiApiKey.first().trim()
-        if (stored.isNotBlank()) return stored
-
-        val buildKey = BuildConfig.GEMINI_API_KEY
-        if (buildKey.isNotBlank() && buildKey != "YOUR_GEMINI_API_KEY_HERE") return buildKey
-
-        return null
+        return stored.ifBlank { null }
     }
 
     /**

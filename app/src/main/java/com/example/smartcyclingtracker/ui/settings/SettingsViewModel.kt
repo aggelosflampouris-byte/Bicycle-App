@@ -2,7 +2,6 @@ package com.example.smartcyclingtracker.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.smartcyclingtracker.BuildConfig
 import com.example.smartcyclingtracker.data.local.SettingsRepository
 import com.example.smartcyclingtracker.data.local.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -71,11 +70,4 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** Returns the effective API key: DataStore key > BuildConfig key */
-    fun getEffectiveApiKey(): String {
-        val stored = _uiState.value.geminiApiKey
-        if (stored.isNotBlank()) return stored
-        val buildKey = BuildConfig.GEMINI_API_KEY
-        return if (buildKey != "YOUR_GEMINI_API_KEY_HERE") buildKey else ""
-    }
 }
