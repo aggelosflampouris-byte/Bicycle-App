@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.smartcyclingtracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.1.6"
+        versionCode = 17
+        versionName = "1.1.7"
 
         // API key is read from local.properties (gitignored — never committed)
         // or from the GEMINI_API_KEY environment variable (GitHub Actions Secret).
@@ -24,11 +24,9 @@ android {
         if (localPropertiesFile.exists()) {
             localProperties.load(localPropertiesFile.inputStream())
         }
-        // Obfuscated to bypass GitHub Push Protection scanner
-        val fallbackKey = "hf_" + "YwzaANGeEIhLZkdvSxPkOoGvKIgWSkGozK"
         val apiKey = localProperties.getProperty("GEMINI_API_KEY")
             ?: System.getenv("GEMINI_API_KEY")
-            ?: fallbackKey
+            ?: ""
         buildConfigField("String", "GEMINI_API_KEY", "\"$apiKey\"")
     }
 
