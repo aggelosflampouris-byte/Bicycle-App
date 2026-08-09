@@ -31,9 +31,14 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # Write the Gemini API key into local.properties so build.gradle.kts
+      # can read it exactly the same way as on a local dev machine.
+      # local.properties is gitignored so the key is never committed.
+      - name: Inject API key into local.properties
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> local.properties
+
       - name: Build Debug APK
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
