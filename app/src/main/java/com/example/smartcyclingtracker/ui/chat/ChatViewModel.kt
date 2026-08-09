@@ -51,7 +51,7 @@ class ChatViewModel @Inject constructor(
             chatDao.getAllMessages().collect { dbMessages ->
                 if (dbMessages.isEmpty()) {
                     // Insert greeting if DB is empty
-                    val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Phi-3.5. " +
+                    val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5-72B. " +
                         "I've analyzed your recent session. Ask me anything about your performance!"
                     chatDao.insertMessage(ChatMessageEntity(role = "model", text = greeting))
                 } else {
