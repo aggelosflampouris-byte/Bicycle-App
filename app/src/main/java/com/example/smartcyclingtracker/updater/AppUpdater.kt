@@ -170,12 +170,16 @@ class AppUpdater @Inject constructor(
     }
 
     /**
-     * Compares semver strings (e.g. "1.0.2" vs "1.0.1")
+     * Compares semver strings, stripping any pre-release suffix (e.g. "-fix", "-beta").
+     * Examples: "1.0.5-fix" → [1,0,5], "1.0.4" → [1,0,4]
      */
     private fun isVersionNewer(latest: String, current: String): Boolean {
         if (latest.isBlank() || current.isBlank()) return false
-        val latestParts = latest.split(".").mapNotNull { it.toIntOrNull() }
-        val currentParts = current.split(".").mapNotNull { it.toIntOrNull() }
+        // Strip any suffix after a hyphen: "1.0.5-fix" → "1.0.5"
+        val latestClean = latest.substringBefore("-")
+        val currentClean = current.substringBefore("-")
+        val latestParts = latestClean.split(".").mapNotNull { it.toIntOrNull() }
+        val currentParts = currentClean.split(".").mapNotNull { it.toIntOrNull() }
 
         val length = maxOf(latestParts.size, currentParts.size)
         for (i in 0 until length) {
