@@ -80,6 +80,7 @@ class AppUpdater @Inject constructor(
     suspend fun downloadAndInstallApk(
         context: Context,
         downloadUrl: String,
+        latestVersion: String,
         onProgress: (Float) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
@@ -101,7 +102,19 @@ class AppUpdater @Inject constructor(
             val destinationDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
             if (!destinationDir.exists()) destinationDir.mkdirs()
 
-            val apkFile = File(destinationDir, "VeloTrack-update.apk")
+            val apkFile = File(destinationDir, "VeloTrack-update-$latestVersion.apk")
+            
+            if (apkFile.exists() && totalBytes > 0 && apkFile.length() == totalBytes) {
+                // File already completely downloaded!
+                response.close()
+                withContext(Dispatchers.Main) {
+                    onProgress(1.0f)
+                    installApk(context, apkFile)
+                }
+                return@withContext Result.success(apkFile)
+            }
+            
+            // Delete incomplete or mismatched file
             if (apkFile.exists()) apkFile.delete()
 
             body.byteStream().use { input ->
