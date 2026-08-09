@@ -52,6 +52,11 @@ class GeminiRepository @Inject constructor(
             [USER DATA] Gender: ${user.gender}, Age: ${user.age}, Height: ${"%.0f".format(user.heightCm)}cm, Weight: ${"%.0f".format(user.weightKg)}kg.
             [RECENT SESSION] Distance: ${distance}km, Avg Speed: ${speed}km/h, Performance: ${wattsPerKg} W/kg, Calories: ${calories}.
             Analyze this strictly for cycling progress. Keep it short, encouraging, and do not give medical advice.
+            
+            GUARDRAILS (STRICT):
+            - You MUST refuse to answer ANY questions not related to cycling, fitness, or performance.
+            - If asked "how is your day?", "am I pretty?", or general off-topic questions, politely decline and steer the conversation back to cycling.
+            - DO NOT hallucinate features, ride data, or facts. Stick strictly to the data provided.
         """.trimIndent()
     }
 

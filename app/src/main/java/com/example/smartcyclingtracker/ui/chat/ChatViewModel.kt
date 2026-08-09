@@ -115,4 +115,25 @@ class ChatViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(messages = emptyList(), error = null)
         }
     }
+
+    fun shareRideHistory() {
+        viewModelScope.launch {
+            val sessions = sessionDao.getRecentSessions(5).firstOrNull() ?: emptyList()
+            if (sessions.isEmpty()) {
+                sendMessage("I don't have any saved ride history yet. What should I focus on for my first ride?")
+                return@launch
+            }
+
+            val sb = java.lang.StringBuilder()
+            sb.append("Here is my recent ride history. Can you analyze my progress and give me some tips?\n\n")
+            sessions.forEachIndexed { index, session ->
+                val dist = "%.1f".format(session.totalDistanceMeters / 1000.0)
+                val speed = "%.1f".format(session.avgSpeedKmh)
+                val elev = "%.0f".format(session.elevationGainMeters)
+                sb.append("Ride ${index + 1}: ${dist}km at ${speed}km/h, ${elev}m elevation gain.\n")
+            }
+
+            sendMessage(sb.toString().trim())
+        }
+    }
 }

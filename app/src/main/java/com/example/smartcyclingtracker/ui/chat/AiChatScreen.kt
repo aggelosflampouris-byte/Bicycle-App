@@ -91,7 +91,8 @@ fun AiChatScreen(
                     viewModel.sendMessage(inputText.trim())
                     inputText = ""
                 }
-            }
+            },
+            onShareHistory = { viewModel.shareRideHistory() }
         )
     }
 }
@@ -293,7 +294,8 @@ private fun ChatInputBar(
     inputText: String,
     onInputChange: (String) -> Unit,
     isLoading: Boolean,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    onShareHistory: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -302,6 +304,18 @@ private fun ChatInputBar(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        IconButton(
+            onClick = onShareHistory,
+            enabled = !isLoading,
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                Icons.Default.Analytics,
+                contentDescription = "Share Ride History",
+                tint = if (!isLoading) ElectricGreen else TextDisabled
+            )
+        }
+        Spacer(modifier = Modifier.width(4.dp))
         OutlinedTextField(
             value = inputText,
             onValueChange = onInputChange,
