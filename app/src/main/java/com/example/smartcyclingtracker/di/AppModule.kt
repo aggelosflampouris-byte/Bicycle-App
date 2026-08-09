@@ -34,7 +34,7 @@ object AppModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-        .fallbackToDestructiveMigration(dropAllTables = true)
+        .addMigrations(AppDatabase.MIGRATION_1_2)
         .build()
 
     @Provides
