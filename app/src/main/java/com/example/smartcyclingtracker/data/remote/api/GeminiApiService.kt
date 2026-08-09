@@ -9,7 +9,7 @@ import retrofit2.http.POST
 
 /**
  * Retrofit interface for Hugging Face Inference API (OpenAI-compatible).
- * Uses the router endpoint which hosts quantized open-source models.
+ * Uses the serverless inference endpoint which hosts open-source models.
  * The HF token is passed as a Bearer Authorization header.
  *
  * Model used: HuggingFaceH4/zephyr-7b-beta available for free on the HF Serverless Inference tier.
@@ -27,7 +27,7 @@ interface HfApiService {
     ): Response<HfChatResponse>
 
     companion object {
-        const val BASE_URL = "https://router.huggingface.co/"
+        const val BASE_URL = "https://api-inference.huggingface.co/"
         /** Default quantized model served via HF Serverless Inference (free tier). */
         const val MODEL = "HuggingFaceH4/zephyr-7b-beta"
     }
