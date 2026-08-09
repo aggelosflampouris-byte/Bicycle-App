@@ -4,12 +4,9 @@ import com.example.smartcyclingtracker.BuildConfig
 import com.example.smartcyclingtracker.data.local.SettingsRepository
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
-import com.example.smartcyclingtracker.data.remote.api.GeminiApiService
-import com.example.smartcyclingtracker.data.remote.model.Content
-import com.example.smartcyclingtracker.data.remote.model.GeminiRequest
-import com.example.smartcyclingtracker.data.remote.model.Part
-import com.example.smartcyclingtracker.data.remote.model.SystemInstruction
-import com.google.gson.Gson
+import com.example.smartcyclingtracker.data.remote.api.HfApiService
+import com.example.smartcyclingtracker.data.remote.model.HfChatRequest
+import com.example.smartcyclingtracker.data.remote.model.HfMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -19,33 +16,31 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Repository for Gemini AI interactions.
- * Implements RAG by injecting Room DB data into the system prompt.
- * Reads API key from DataStore (user-supplied) with BuildConfig fallback.
+ * Repository for Hugging Face AI chat interactions.
+ * Uses the OpenAI-compatible /v1/chat/completions endpoint via router.huggingface.co.
+ * Model: Qwen/Qwen2.5-3B-Instruct (quantized, free serverless tier).
+ *
+ * Reads HF token from:
+ *  1. User-supplied key in DataStore (Settings screen override)
+ *  2. BuildConfig.GEMINI_API_KEY (local.properties key name kept for backwards compat)
  */
 @Singleton
 class GeminiRepository @Inject constructor(
-    private val apiService: GeminiApiService,
-    private val settingsRepo: SettingsRepository,
-    private val gson: Gson
+    private val apiService: HfApiService,
+    private val settingsRepo: SettingsRepository
 ) {
 
     /**
-     * Resolve the API key with the following priority:
-     * 1. User-supplied key in DataStore (Settings screen override)
-     * 2. BuildConfig key — read from local.properties (gitignored) or
-     *    GEMINI_API_KEY GitHub Actions secret at build time
-     * Returns null if neither source has a valid key.
+     * Resolve the HF token with the following priority:
+     * 1. User-supplied token in DataStore (Settings screen)
+     * 2. BuildConfig key from local.properties / CI secret
+     * Returns null if neither source has a valid token.
      */
     private suspend fun resolveApiKey(): String? {
-        // User-supplied override takes top priority
         val stored = settingsRepo.geminiApiKey.first().trim()
         if (stored.isNotBlank()) return stored
-
-        // Fall back to build-time key from local.properties / CI secret
         val buildKey = BuildConfig.GEMINI_API_KEY
         if (buildKey.isNotBlank()) return buildKey
-
         return null
     }
 
@@ -67,9 +62,9 @@ class GeminiRepository @Inject constructor(
     }
 
     /**
-     * Stream a chat response from Gemini 1.5 Flash.
-     * Emits each text chunk as it arrives from the SSE stream.
-     * Emits a user-friendly error if the API key is missing or invalid.
+     * Send a chat message to Hugging Face Inference API and emit the response text.
+     * Uses Qwen2.5-3B-Instruct (a quantized open-source model on the free HF tier).
+     * Emits a user-friendly error string if the API token is missing or the request fails.
      */
     fun streamChat(
         userMessage: String,
@@ -79,29 +74,35 @@ class GeminiRepository @Inject constructor(
         val apiKey = resolveApiKey()
         if (apiKey == null) {
             emit(
-                "⚠️ **No Gemini API key configured.**\n\n" +
-                "Go to the **Profile → Settings tab**, scroll to the API Key section, " +
-                "and paste your key from [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n\n" +
-                "A free key allows ~60 requests/minute."
+                "⚠️ **No Hugging Face token configured.**\n\n" +
+                "Go to the **Settings tab**, scroll to the API Key section, " +
+                "and paste your token from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).\n\n" +
+                "A free account token gives you access to Qwen2.5-3B-Instruct for cycling coaching."
             )
             return@flow
         }
 
+        // Build the messages list: system prompt + chat history + new user message
         val messages = buildList {
+            add(HfMessage(role = "system", content = systemPrompt))
             history.forEach { (role, text) ->
-                add(Content(role = role, parts = listOf(Part(text = text))))
+                // Map "model" role (Gemini convention) to "assistant" (OpenAI convention)
+                val normalizedRole = if (role == "model") "assistant" else role
+                add(HfMessage(role = normalizedRole, content = text))
             }
-            add(Content(role = "user", parts = listOf(Part(text = userMessage))))
+            add(HfMessage(role = "user", content = userMessage))
         }
 
-        val request = GeminiRequest(
-            contents = messages,
-            systemInstruction = SystemInstruction(parts = listOf(Part(text = systemPrompt)))
+        val request = HfChatRequest(
+            model = HfApiService.MODEL,
+            messages = messages,
+            maxTokens = 512,
+            temperature = 0.7f
         )
 
         try {
-            val response = apiService.streamGenerateContent(
-                apiKey = apiKey,
+            val response = apiService.chatCompletion(
+                authorization = "Bearer $apiKey",
                 request = request
             )
 
@@ -109,50 +110,32 @@ class GeminiRepository @Inject constructor(
                 val code = response.code()
                 val errBody = response.errorBody()?.string() ?: "Unknown error"
                 when (code) {
-                    400 -> emit("⚠️ **Invalid request** — the API key format may be wrong.\n\nCheck your key in Settings.\n\nDetails: $errBody")
-                    401, 403 -> emit("⚠️ **API key rejected (${code})** — your key may be invalid or expired.\n\nGet a new free key at [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) and update it in Settings.")
-                    429 -> emit("⚠️ **Rate limit reached** — you've hit the Gemini free tier limit. Wait a minute and try again.")
-                    else -> emit("⚠️ **Error ${code}** — $errBody")
+                    400 -> emit("⚠️ **Invalid request (400)** — check your HF token format.\n\nDetails: $errBody")
+                    401, 403 -> emit(
+                        "⚠️ **Token rejected ($code)** — your Hugging Face token may be invalid, expired, or missing the 'Inference' permission.\n\n" +
+                        "Create a new token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) with **'Make calls to Inference Providers'** enabled, then update it in Settings."
+                    )
+                    429 -> emit("⚠️ **Rate limit reached (429)** — you've hit the HF free tier limit. Wait a moment and try again.")
+                    503 -> emit("⚠️ **Model loading (503)** — the model is warming up. Wait ~30 seconds and try again.")
+                    else -> emit("⚠️ **Error $code** — $errBody")
                 }
                 return@flow
             }
 
-            val body = response.body() ?: run {
-                emit("⚠️ Empty response from Gemini. Please try again.")
+            val body = response.body()
+            val hfError = body?.error
+            if (hfError != null) {
+                emit("⚠️ **API Error** — ${hfError.message ?: "Unknown error from HF API"}")
                 return@flow
             }
 
-            // Parse SSE stream — each chunk is a JSON object prefixed with "data: "
-            body.source().use { source ->
-                val buffer = okio.Buffer()
-                while (!source.exhausted()) {
-                    source.read(buffer, 8192)
-                    val chunk = buffer.readUtf8()
-                    chunk.lines()
-                        .filter { it.startsWith("data:") }
-                        .forEach { line ->
-                            val jsonStr = line.removePrefix("data:").trim()
-                            if (jsonStr == "[DONE]" || jsonStr.isEmpty()) return@forEach
-                            try {
-                                val parsed = gson.fromJson(
-                                    jsonStr,
-                                    com.example.smartcyclingtracker.data.remote.model.GeminiResponse::class.java
-                                )
-                                val text = parsed.candidates
-                                    ?.firstOrNull()
-                                    ?.content
-                                    ?.parts
-                                    ?.firstOrNull()
-                                    ?.text
-                                if (!text.isNullOrEmpty()) {
-                                    emit(text)
-                                }
-                            } catch (_: Exception) {
-                                // Skip malformed chunks
-                            }
-                        }
-                }
+            val text = body?.choices?.firstOrNull()?.message?.content
+            if (!text.isNullOrBlank()) {
+                emit(text.trim())
+            } else {
+                emit("I'm having trouble responding right now. Please try again.")
             }
+
         } catch (e: Exception) {
             emit("⚠️ **Connection error** — ${e.message}\n\nCheck your internet connection and try again.")
         }

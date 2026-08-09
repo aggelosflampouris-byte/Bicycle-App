@@ -5,7 +5,7 @@ import androidx.room.Room
 import com.example.smartcyclingtracker.data.local.AppDatabase
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
-import com.example.smartcyclingtracker.data.remote.api.GeminiApiService
+import com.example.smartcyclingtracker.data.remote.api.HfApiService
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import dagger.Module
@@ -69,13 +69,13 @@ object AppModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit =
         Retrofit.Builder()
-            .baseUrl(GeminiApiService.BASE_URL)
+            .baseUrl(HfApiService.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
 
     @Provides
     @Singleton
-    fun provideGeminiApiService(retrofit: Retrofit): GeminiApiService =
-        retrofit.create(GeminiApiService::class.java)
+    fun provideHfApiService(retrofit: Retrofit): HfApiService =
+        retrofit.create(HfApiService::class.java)
 }

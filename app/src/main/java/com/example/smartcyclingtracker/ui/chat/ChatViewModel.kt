@@ -44,7 +44,7 @@ class ChatViewModel @Inject constructor(
             recentSession = sessionDao.getRecentSessions(1).firstOrNull()
 
             // Add greeting from VeloCoach
-            val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach. " +
+            val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5. " +
                 "I've analyzed your recent session. Ask me anything about your performance!"
             _uiState.value = _uiState.value.copy(
                 messages = listOf(ChatMessage(role = "model", text = greeting))
@@ -56,6 +56,8 @@ class ChatViewModel @Inject constructor(
         if (userText.isBlank() || _uiState.value.isLoading) return
 
         val userMessage = ChatMessage(role = "user", text = userText)
+
+        // Build history from confirmed (non-streaming) messages only
         val history = _uiState.value.messages
             .filter { !it.isStreaming }
             .map { Pair(it.role, it.text) }
@@ -63,49 +65,56 @@ class ChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             messages = _uiState.value.messages + userMessage,
             isLoading = true,
-            streamingText = "",
             error = null
         )
 
         val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession)
 
         viewModelScope.launch {
-            var streamedText = ""
-            val streamingMsg = ChatMessage(role = "model", text = "", isStreaming = true)
-            _uiState.value = _uiState.value.copy(
-                messages = _uiState.value.messages + streamingMsg
-            )
+            try {
+                // HF API returns a single response (not streaming).
+                // We still use the Flow<String> interface but expect exactly one emission.
+                var responseText = ""
+                geminiRepository.streamChat(
+                    userMessage = userText,
+                    systemPrompt = systemPrompt,
+                    history = history
+                ).collect { chunk ->
+                    responseText += chunk
+                }
 
-            geminiRepository.streamChat(
-                userMessage = userText,
-                systemPrompt = systemPrompt,
-                history = history
-            ).collect { chunk ->
-                streamedText += chunk
-                // Update the last message (streaming placeholder) with accumulated text
-                val updatedMessages = _uiState.value.messages.toMutableList()
-                updatedMessages[updatedMessages.lastIndex] = streamingMsg.copy(
-                    text = streamedText,
-                    isStreaming = true
+                val responseMessage = ChatMessage(
+                    role = "model",
+                    text = responseText.ifBlank { "I'm having trouble responding right now. Please try again." },
+                    isStreaming = false
                 )
-                _uiState.value = _uiState.value.copy(messages = updatedMessages)
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + responseMessage,
+                    isLoading = false
+                )
+            } catch (e: Exception) {
+                val errorMessage = ChatMessage(
+                    role = "model",
+                    text = "⚠️ **Unexpected error** — ${e.message}\n\nPlease try again.",
+                    isStreaming = false
+                )
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + errorMessage,
+                    isLoading = false
+                )
             }
-
-            // Finalize streaming message
-            val finalMessages = _uiState.value.messages.toMutableList()
-            finalMessages[finalMessages.lastIndex] = ChatMessage(
-                role = "model",
-                text = streamedText.ifBlank { "I'm having trouble responding right now. Please try again." },
-                isStreaming = false
-            )
-            _uiState.value = _uiState.value.copy(
-                messages = finalMessages,
-                isLoading = false
-            )
         }
     }
 
     fun clearChat() {
         _uiState.value = ChatUiState()
+        // Re-show greeting after clear
+        viewModelScope.launch {
+            val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5. " +
+                "Ask me anything about cycling performance!"
+            _uiState.value = _uiState.value.copy(
+                messages = listOf(ChatMessage(role = "model", text = greeting))
+            )
+        }
     }
 }

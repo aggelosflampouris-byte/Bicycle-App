@@ -73,8 +73,8 @@ fun AiChatScreen(
                 ChatBubble(message = message)
             }
 
-            // Loading indicator
-            if (uiState.isLoading && uiState.messages.lastOrNull()?.isStreaming == false) {
+            // Loading indicator — show while waiting for HF API response
+            if (uiState.isLoading) {
                 item {
                     TypingIndicator()
                 }
@@ -164,7 +164,7 @@ private fun VeloCoachBanner() {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Powered by Gemini 1.5 Flash • Context-aware coaching",
+                    text = "Powered by Qwen2.5-3B • Hugging Face • Context-aware coaching",
                     style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary
                 )

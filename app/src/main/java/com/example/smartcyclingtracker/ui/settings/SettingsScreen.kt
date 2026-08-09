@@ -171,11 +171,11 @@ fun SettingsScreen(
                 }
             }
 
-            // ── VeloCoach AI API Key ──────────────────────────────────────────────
+            // ── VeloCoach AI — HF Token ──────────────────────────────────────────────
             SettingsSectionCard(
                 icon = Icons.Default.VpnKey,
-                title = "VeloCoach AI — Gemini API Key",
-                subtitle = "Required for AI coaching. Free key at aistudio.google.com/app/apikey"
+                title = "VeloCoach AI — Hugging Face Token",
+                subtitle = "Required for AI coaching (Qwen2.5-3B). Free token at huggingface.co/settings/tokens"
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     var showKey by remember { mutableStateOf(false) }
@@ -183,7 +183,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = settingsState.geminiApiKeyInput,
                         onValueChange = settingsViewModel::updateApiKeyInput,
-                        label = { Text("API Key (AIzaSy...)", color = TextSecondary) },
+                        label = { Text("HF Token (hf_...)", color = TextSecondary) },
                         leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = VividCyan) },
                         trailingIcon = {
                             IconButton(onClick = { showKey = !showKey }) {

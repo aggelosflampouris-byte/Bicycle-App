@@ -1,42 +1,35 @@
 package com.example.smartcyclingtracker.data.remote.api
 
-import com.example.smartcyclingtracker.data.remote.model.GeminiRequest
-import okhttp3.ResponseBody
+import com.example.smartcyclingtracker.data.remote.model.HfChatRequest
+import com.example.smartcyclingtracker.data.remote.model.HfChatResponse
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.Header
 import retrofit2.http.POST
-import retrofit2.http.Query
-import retrofit2.http.Streaming
 
 /**
- * Retrofit interface for Google Gemini 1.5 Flash API.
- * Uses @Streaming to get raw SSE stream from the API.
- * The API key must be passed as a query param.
+ * Retrofit interface for Hugging Face Inference API (OpenAI-compatible).
+ * Uses the router endpoint which hosts quantized open-source models.
+ * The HF token is passed as a Bearer Authorization header.
+ *
+ * Model used: Qwen/Qwen2.5-3B-Instruct — a small quantized chat model
+ * available for free on the HF Serverless Inference tier.
  */
-interface GeminiApiService {
+interface HfApiService {
 
     /**
-     * Streaming chat completion endpoint.
-     * Returns raw ResponseBody so we can read SSE chunks as they arrive.
+     * Chat completion endpoint (non-streaming).
+     * Compatible with OpenAI Chat API format.
      */
-    @Streaming
-    @POST("v1beta/models/gemini-1.5-flash:streamGenerateContent")
-    suspend fun streamGenerateContent(
-        @Query("key") apiKey: String,
-        @Query("alt") alt: String = "sse",
-        @Body request: GeminiRequest
-    ): Response<ResponseBody>
-
-    /**
-     * Non-streaming endpoint for single response (fallback).
-     */
-    @POST("v1beta/models/gemini-1.5-flash:generateContent")
-    suspend fun generateContent(
-        @Query("key") apiKey: String,
-        @Body request: GeminiRequest
-    ): Response<com.example.smartcyclingtracker.data.remote.model.GeminiResponse>
+    @POST("v1/chat/completions")
+    suspend fun chatCompletion(
+        @Header("Authorization") authorization: String,
+        @Body request: HfChatRequest
+    ): Response<HfChatResponse>
 
     companion object {
-        const val BASE_URL = "https://generativelanguage.googleapis.com/"
+        const val BASE_URL = "https://router.huggingface.co/"
+        /** Default quantized model served via HF Serverless Inference (free tier). */
+        const val MODEL = "Qwen/Qwen2.5-3B-Instruct"
     }
 }

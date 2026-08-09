@@ -2,52 +2,40 @@ package com.example.smartcyclingtracker.data.remote.model
 
 import com.google.gson.annotations.SerializedName
 
-// ===== REQUEST MODELS =====
+// ===== HF / OpenAI-COMPATIBLE REQUEST MODELS =====
 
-data class GeminiRequest(
-    val contents: List<Content>,
-    @SerializedName("generationConfig")
-    val generationConfig: GenerationConfig = GenerationConfig(),
-    @SerializedName("systemInstruction")
-    val systemInstruction: SystemInstruction? = null
-)
-
-data class Content(
-    val role: String,
-    val parts: List<Part>
-)
-
-data class Part(
-    val text: String
-)
-
-data class SystemInstruction(
-    val parts: List<Part>
-)
-
-data class GenerationConfig(
+data class HfChatRequest(
+    val model: String,
+    val messages: List<HfMessage>,
+    @SerializedName("max_tokens")
+    val maxTokens: Int = 512,
     val temperature: Float = 0.7f,
-    @SerializedName("maxOutputTokens")
-    val maxOutputTokens: Int = 1024,
-    @SerializedName("topP")
-    val topP: Float = 0.95f
+    @SerializedName("top_p")
+    val topP: Float = 0.9f
 )
 
-// ===== RESPONSE MODELS =====
-
-data class GeminiResponse(
-    val candidates: List<Candidate>?,
-    val error: GeminiError?
+data class HfMessage(
+    val role: String,   // "system" | "user" | "assistant"
+    val content: String
 )
 
-data class Candidate(
-    val content: Content?,
-    @SerializedName("finishReason")
-    val finishReason: String?
+// ===== HF / OpenAI-COMPATIBLE RESPONSE MODELS =====
+
+data class HfChatResponse(
+    val id: String?,
+    val choices: List<HfChoice>?,
+    val error: HfError?
 )
 
-data class GeminiError(
-    val code: Int,
-    val message: String,
-    val status: String
+data class HfChoice(
+    val message: HfMessage?,
+    @SerializedName("finish_reason")
+    val finishReason: String?,
+    val index: Int?
+)
+
+data class HfError(
+    val message: String?,
+    val type: String?,
+    val code: String?
 )
