@@ -68,7 +68,7 @@ fun AiChatScreen(
         ) {
             items(
                 items = uiState.messages,
-                key = { "${it.role}_${it.text.hashCode()}_${it.isStreaming}" }
+                key = { it.id }
             ) { message ->
                 ChatBubble(message = message)
             }

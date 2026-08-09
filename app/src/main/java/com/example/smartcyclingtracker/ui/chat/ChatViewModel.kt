@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ChatMessage(
+    val id: String = java.util.UUID.randomUUID().toString(),
     val role: String,  // "user" or "model"
     val text: String,
     val isStreaming: Boolean = false
