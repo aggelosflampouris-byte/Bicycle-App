@@ -544,8 +544,15 @@ private fun OsmMapView(
             osmConfig.userAgentValue =
                 "${ctx.packageName}/1.0 (Android; VeloTrack cycling app; contact@velotrack.app)"
 
+            val cartoDbTileSource = org.osmdroid.tileprovider.tilesource.XYTileSource(
+                "CartoDB-Voyager",
+                0, 19, 256, ".png",
+                arrayOf("https://basemaps.cartocdn.com/rastertiles/voyager/"),
+                "© OpenStreetMap contributors, © CartoDB"
+            )
+
             MapView(ctx).apply {
-                setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+                setTileSource(cartoDbTileSource)
                 setMultiTouchControls(true)
                 controller.setZoom(16.5)
                 zoomController.setVisibility(

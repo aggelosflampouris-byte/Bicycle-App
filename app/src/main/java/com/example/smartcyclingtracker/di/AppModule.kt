@@ -45,6 +45,10 @@ object AppModule {
     @Singleton
     fun provideWorkoutSessionDao(db: AppDatabase): WorkoutSessionDao = db.workoutSessionDao()
 
+    @Provides
+    @Singleton
+    fun provideChatMessageDao(db: AppDatabase): com.example.smartcyclingtracker.data.local.dao.ChatMessageDao = db.chatMessageDao()
+
     // ── Networking ───────────────────────────────────────────────────────────
 
     @Provides

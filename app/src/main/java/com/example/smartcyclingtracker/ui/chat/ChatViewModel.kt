@@ -2,8 +2,10 @@ package com.example.smartcyclingtracker.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.smartcyclingtracker.data.local.dao.ChatMessageDao
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
+import com.example.smartcyclingtracker.data.local.entity.ChatMessageEntity
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.data.remote.GeminiRepository
@@ -29,7 +31,8 @@ data class ChatUiState(
 class ChatViewModel @Inject constructor(
     private val geminiRepository: GeminiRepository,
     private val userDao: UserDao,
-    private val sessionDao: WorkoutSessionDao
+    private val sessionDao: WorkoutSessionDao,
+    private val chatDao: ChatMessageDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -43,37 +46,42 @@ class ChatViewModel @Inject constructor(
             currentUser = userDao.getUser() ?: UserEntity()
             recentSession = sessionDao.getRecentSessions(1).firstOrNull()
 
-            // Add greeting from VeloCoach
-            val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5. " +
-                "I've analyzed your recent session. Ask me anything about your performance!"
-            _uiState.value = _uiState.value.copy(
-                messages = listOf(ChatMessage(role = "model", text = greeting))
-            )
+            // Collect history from DB
+            chatDao.getAllMessages().collect { dbMessages ->
+                if (dbMessages.isEmpty()) {
+                    // Insert greeting if DB is empty
+                    val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5. " +
+                        "I've analyzed your recent session. Ask me anything about your performance!"
+                    chatDao.insertMessage(ChatMessageEntity(role = "model", text = greeting))
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        messages = dbMessages.map { ChatMessage(role = it.role, text = it.text, isStreaming = false) }
+                    )
+                }
+            }
         }
     }
 
     fun sendMessage(userText: String) {
         if (userText.isBlank() || _uiState.value.isLoading) return
 
-        val userMessage = ChatMessage(role = "user", text = userText)
-
-        // Build history from confirmed (non-streaming) messages only
-        val history = _uiState.value.messages
-            .filter { !it.isStreaming }
-            .map { Pair(it.role, it.text) }
-
-        _uiState.value = _uiState.value.copy(
-            messages = _uiState.value.messages + userMessage,
-            isLoading = true,
-            error = null
-        )
-
-        val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession)
-
+        // 1. Insert user message into DB. Flow collection will automatically update the UI list.
         viewModelScope.launch {
+            chatDao.insertMessage(ChatMessageEntity(role = "user", text = userText))
+            
+            // Build history from current messages
+            val history = _uiState.value.messages
+                .filter { !it.isStreaming }
+                .map { Pair(it.role, it.text) }
+
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                error = null
+            )
+
+            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession)
+
             try {
-                // HF API returns a single response (not streaming).
-                // We still use the Flow<String> interface but expect exactly one emission.
                 var responseText = ""
                 geminiRepository.streamChat(
                     userMessage = userText,
@@ -83,23 +91,17 @@ class ChatViewModel @Inject constructor(
                     responseText += chunk
                 }
 
-                val responseMessage = ChatMessage(
-                    role = "model",
-                    text = responseText.ifBlank { "I'm having trouble responding right now. Please try again." },
-                    isStreaming = false
-                )
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + responseMessage,
-                    isLoading = false
-                )
+                val finalResponse = responseText.ifBlank { "I'm having trouble responding right now. Please try again." }
+                
+                // 2. Insert bot response into DB
+                chatDao.insertMessage(ChatMessageEntity(role = "model", text = finalResponse))
+                _uiState.value = _uiState.value.copy(isLoading = false)
             } catch (e: Exception) {
-                val errorMessage = ChatMessage(
-                    role = "model",
-                    text = "⚠️ **Unexpected error** — ${e.message}\n\nPlease try again.",
-                    isStreaming = false
-                )
+                val errorMessage = "⚠️ **Unexpected error** — ${e.message}\n\nPlease try again."
+                // Only show error visually, don't persist network failures to history
+                val errorMsgObj = ChatMessage(role = "model", text = errorMessage, isStreaming = false)
                 _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + errorMessage,
+                    messages = _uiState.value.messages + errorMsgObj,
                     isLoading = false
                 )
             }
@@ -107,14 +109,9 @@ class ChatViewModel @Inject constructor(
     }
 
     fun clearChat() {
-        _uiState.value = ChatUiState()
-        // Re-show greeting after clear
         viewModelScope.launch {
-            val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5. " +
-                "Ask me anything about cycling performance!"
-            _uiState.value = _uiState.value.copy(
-                messages = listOf(ChatMessage(role = "model", text = greeting))
-            )
+            chatDao.clearHistory()
+            _uiState.value = _uiState.value.copy(messages = emptyList(), error = null)
         }
     }
 }
