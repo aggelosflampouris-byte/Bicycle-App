@@ -164,7 +164,7 @@ private fun VeloCoachBanner() {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Powered by Qwen2.5-3B • Hugging Face • Context-aware coaching",
+                    text = "Powered by Zephyr-7B • Hugging Face • Context-aware coaching",
                     style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary
                 )

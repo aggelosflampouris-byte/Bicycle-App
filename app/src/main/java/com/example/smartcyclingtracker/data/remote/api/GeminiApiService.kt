@@ -12,8 +12,7 @@ import retrofit2.http.POST
  * Uses the router endpoint which hosts quantized open-source models.
  * The HF token is passed as a Bearer Authorization header.
  *
- * Model used: Qwen/Qwen2.5-3B-Instruct — a small quantized chat model
- * available for free on the HF Serverless Inference tier.
+ * Model used: HuggingFaceH4/zephyr-7b-beta available for free on the HF Serverless Inference tier.
  */
 interface HfApiService {
 
@@ -30,6 +29,6 @@ interface HfApiService {
     companion object {
         const val BASE_URL = "https://router.huggingface.co/"
         /** Default quantized model served via HF Serverless Inference (free tier). */
-        const val MODEL = "Qwen/Qwen2.5-3B-Instruct"
+        const val MODEL = "HuggingFaceH4/zephyr-7b-beta"
     }
 }

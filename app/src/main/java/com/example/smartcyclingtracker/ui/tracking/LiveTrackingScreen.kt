@@ -64,18 +64,39 @@ fun LiveTrackingScreen(
         )
     }
 
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+    var isGpsEnabled by remember {
+        mutableStateOf(locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER))
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        if (hasLocationPermission && !state.isTracking) {
+        if (hasLocationPermission && isGpsEnabled && !state.isTracking) {
             viewModel.startTracking(context)
         }
     }
 
-    // Auto-start tracking if not active and permission is granted
-    LaunchedEffect(hasLocationPermission) {
-        if (hasLocationPermission && !state.isTracking) {
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+                if (hasLocationPermission && isGpsEnabled && !state.isTracking) {
+                    viewModel.startTracking(context)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Auto-start tracking if not active and permission is granted and GPS is on
+    LaunchedEffect(hasLocationPermission, isGpsEnabled) {
+        if (hasLocationPermission && isGpsEnabled && !state.isTracking) {
             viewModel.startTracking(context)
         }
     }
@@ -204,6 +225,45 @@ fun LiveTrackingScreen(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text("Enable", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else if (!isGpsEnabled) {
+                // GPS Disabled Warning Banner
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = SpeedRed.copy(alpha = 0.2f)),
+                    border = BorderStroke(1.dp, SpeedRed),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "GPS is Disabled",
+                                color = SpeedRed,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                "Turn on Location Services to track your ride.",
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SpeedRed, contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Settings", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
