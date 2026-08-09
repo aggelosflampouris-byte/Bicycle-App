@@ -10,11 +10,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val themeMode: ThemeMode = ThemeMode.DARK,
-    val geminiApiKey: String = "",
-    val geminiApiKeyInput: String = "",
-    val isKeySaved: Boolean = false,
-    val keyError: String? = null
+    val themeMode: ThemeMode = ThemeMode.DARK
 )
 
 @HiltViewModel
@@ -27,16 +23,11 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            combine(
-                settingsRepo.themeMode,
-                settingsRepo.geminiApiKey
-            ) { theme, key ->
+            settingsRepo.themeMode.collect { theme ->
                 _uiState.value = _uiState.value.copy(
-                    themeMode = theme,
-                    geminiApiKey = key,
-                    geminiApiKeyInput = key
+                    themeMode = theme
                 )
-            }.collect()
+            }
         }
     }
 
@@ -44,30 +35,4 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepo.setThemeMode(mode) }
     }
 
-    fun updateApiKeyInput(key: String) {
-        _uiState.value = _uiState.value.copy(
-            geminiApiKeyInput = key,
-            isKeySaved = false,
-            keyError = null
-        )
-    }
 
-    fun saveApiKey() {
-        val key = _uiState.value.geminiApiKeyInput.trim()
-        // Accept both AIza... (standard) and AQ... (newer Google AI Studio format)
-        val isValidFormat = key.isBlank() ||
-            key.startsWith("AIza") ||
-            key.startsWith("AQ.")
-        if (key.isNotBlank() && !isValidFormat) {
-            _uiState.value = _uiState.value.copy(
-                keyError = "Unexpected key format. Keys from aistudio.google.com should start with 'AIza' or 'AQ.'"
-            )
-            return
-        }
-        viewModelScope.launch {
-            settingsRepo.setGeminiApiKey(key)
-            _uiState.value = _uiState.value.copy(isKeySaved = true, keyError = null)
-        }
-    }
-
-}

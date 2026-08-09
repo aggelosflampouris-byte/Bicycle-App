@@ -26,24 +26,15 @@ import javax.inject.Singleton
  */
 @Singleton
 class GeminiRepository @Inject constructor(
-    private val apiService: HfApiService,
-    private val settingsRepo: SettingsRepository
+    private val apiService: HfApiService
 ) {
 
     /**
-     * Resolve the HF token with the following priority:
-     * 1. User-supplied token in DataStore (Settings screen)
-     * 2. BuildConfig key from local.properties / CI secret
-     * Returns null if neither source has a valid token.
+     * Resolve the HF token from BuildConfig (baked-in via local.properties / CI secret).
      */
-    private suspend fun resolveApiKey(): String? {
-        val stored = settingsRepo.geminiApiKey.first().trim()
-        // Only use the stored key if it's a valid Hugging Face token
-        if (stored.isNotBlank() && stored.startsWith("hf_")) return stored
-        
+    private fun resolveApiKey(): String? {
         val buildKey = BuildConfig.GEMINI_API_KEY.trim()
         if (buildKey.isNotBlank() && buildKey.startsWith("hf_")) return buildKey
-        
         return null
     }
 
@@ -78,9 +69,8 @@ class GeminiRepository @Inject constructor(
         if (apiKey == null) {
             emit(
                 "⚠️ **No Hugging Face token configured.**\n\n" +
-                "Go to the **Settings tab**, scroll to the API Key section, " +
-                "and paste your token from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).\n\n" +
-                "A free account token gives you access to Qwen2.5-3B-Instruct for cycling coaching."
+                "The API token is missing from the app's internal configuration (BuildConfig). " +
+                "Please rebuild the app with a valid GEMINI_API_KEY."
             )
             return@flow
         }
