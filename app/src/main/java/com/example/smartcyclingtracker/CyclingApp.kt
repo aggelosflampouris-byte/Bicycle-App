@@ -14,7 +14,7 @@ class CyclingApp : Application() {
                 this@CyclingApp,
                 getSharedPreferences("osmdroid", MODE_PRIVATE)
             )
-            userAgentValue = "VeloTrack-CyclingTracker/1.0 (Linux; Android; SmartCyclingApp)"
+            userAgentValue = "com.example.smartcyclingtracker/1.0 (aggelosflampouris)"
         }
     }
 }

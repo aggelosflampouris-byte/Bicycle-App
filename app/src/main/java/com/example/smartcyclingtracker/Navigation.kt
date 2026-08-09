@@ -139,7 +139,8 @@ fun CyclingNavGraph(
             arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
         ) {
             AiChatScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                triggerAnalysis = true
             )
         }
     }

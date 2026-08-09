@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AiChatScreen(
     onBack: () -> Unit,
+    triggerAnalysis: Boolean = false,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -46,10 +47,18 @@ fun AiChatScreen(
         }
     }
 
+    LaunchedEffect(triggerAnalysis) {
+        if (triggerAnalysis) {
+            viewModel.shareRideHistory()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(DeepNavy)
+            .systemBarsPadding()
+            .imePadding()
     ) {
         // App bar
         ChatAppBar(onBack = onBack, onClear = { viewModel.clearChat() })
