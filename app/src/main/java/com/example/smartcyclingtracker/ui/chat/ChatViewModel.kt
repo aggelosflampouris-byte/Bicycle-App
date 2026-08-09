@@ -118,7 +118,7 @@ class ChatViewModel @Inject constructor(
 
     fun shareRideHistory() {
         viewModelScope.launch {
-            val sessions = sessionDao.getRecentSessions(5).firstOrNull() ?: emptyList()
+            val sessions = sessionDao.getRecentSessions(5)
             if (sessions.isEmpty()) {
                 sendMessage("I don't have any saved ride history yet. What should I focus on for my first ride?")
                 return@launch
