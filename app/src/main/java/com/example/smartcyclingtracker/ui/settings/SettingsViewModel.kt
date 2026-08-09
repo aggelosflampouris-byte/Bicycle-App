@@ -55,9 +55,13 @@ class SettingsViewModel @Inject constructor(
 
     fun saveApiKey() {
         val key = _uiState.value.geminiApiKeyInput.trim()
-        if (key.isNotBlank() && !key.startsWith("AIza") && !key.startsWith("AQ.")) {
+        // Accept both AIza... (standard) and AQ... (newer Google AI Studio format)
+        val isValidFormat = key.isBlank() ||
+            key.startsWith("AIza") ||
+            key.startsWith("AQ.")
+        if (key.isNotBlank() && !isValidFormat) {
             _uiState.value = _uiState.value.copy(
-                keyError = "Key should start with 'AIza' — get yours at aistudio.google.com"
+                keyError = "Unexpected key format. Keys from aistudio.google.com should start with 'AIza' or 'AQ.'"
             )
             return
         }
