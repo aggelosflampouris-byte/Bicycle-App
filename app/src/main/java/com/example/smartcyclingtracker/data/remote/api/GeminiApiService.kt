@@ -27,7 +27,7 @@ interface HfApiService {
     ): Response<HfChatResponse>
 
     companion object {
-        const val BASE_URL = "https://api-inference.huggingface.co/"
+        const val BASE_URL = "https://router.huggingface.co/hf-inference/"
         /** Default quantized model served via HF Serverless Inference (free tier). */
         const val MODEL = "HuggingFaceH4/zephyr-7b-beta"
     }
