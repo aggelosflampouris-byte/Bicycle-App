@@ -38,9 +38,12 @@ class GeminiRepository @Inject constructor(
      */
     private suspend fun resolveApiKey(): String? {
         val stored = settingsRepo.geminiApiKey.first().trim()
-        if (stored.isNotBlank()) return stored
-        val buildKey = BuildConfig.GEMINI_API_KEY
-        if (buildKey.isNotBlank()) return buildKey
+        // Only use the stored key if it's a valid Hugging Face token
+        if (stored.isNotBlank() && stored.startsWith("hf_")) return stored
+        
+        val buildKey = BuildConfig.GEMINI_API_KEY.trim()
+        if (buildKey.isNotBlank() && buildKey.startsWith("hf_")) return buildKey
+        
         return null
     }
 
