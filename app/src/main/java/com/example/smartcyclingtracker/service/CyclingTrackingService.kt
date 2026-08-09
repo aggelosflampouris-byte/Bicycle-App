@@ -204,41 +204,59 @@ class CyclingTrackingService : Service() {
         timestamp: Long
     ) {
         // ── GPS Quality Filter ───────────────────────────────────────────────
-        if (accuracyM > 20f) {
+        if (accuracyM > 15f) {
             Log.d(TAG, "Discarding low-accuracy point: ${accuracyM}m")
             return
         }
-        val speedKmh = PhysicsEngine.metersPerSecondToKmh(speedMps)
-        if (speedKmh > 100.0) {
-            Log.d(TAG, "Discarding unrealistic speed: ${speedKmh} km/h")
-            return
-        }
 
-        val point = RoutePoint(lat, lng, alt, timestamp, speedMps)
-
-        // ── Auto-Pause Detection ─────────────────────────────────────────────
         val last = lastLocation
         val displacement = if (last != null) {
             PhysicsEngine.haversineDistance(last.lat, last.lng, lat, lng)
         } else 0.0
 
-        if (displacement < AUTO_PAUSE_DISTANCE_M) {
+        val timeDeltaS = if (last != null && timestamp > last.timestamp) {
+            (timestamp - last.timestamp) / 1000.0
+        } else 1.0
+
+        val rawSpeedMps = if (timeDeltaS > 0) displacement / timeDeltaS else 0.0
+
+        // Discard physically impossible sudden jumps (> 90 km/h)
+        if (rawSpeedMps > 25.0) {
+            Log.d(TAG, "Discarding unrealistic jump: ${rawSpeedMps * 3.6} km/h")
+            return
+        }
+
+        val point = RoutePoint(lat, lng, alt, timestamp, speedMps)
+
+        // ── Drift & Auto-Pause Detection ─────────────────────────────────────
+        // Doppler speed is highly resistant to drift. If reported, we trust it.
+        // Waving the phone causes coordinate jumps, but Doppler speed stays near 0.
+        val hasHardwareSpeed = speedMps > 0.0
+        val isEffectivelyStationary = if (hasHardwareSpeed) {
+            speedMps < 0.5 // < 1.8 km/h is stationary
+        } else {
+            // Fallback: If displacement is smaller than accuracy, or raw speed is < 3.6 km/h
+            displacement < accuracyM || rawSpeedMps < 1.0
+        }
+
+        if (isEffectivelyStationary) {
             stationaryCounter++
             if (stationaryCounter >= AUTO_PAUSE_SECONDS && !_trackingState.value.isPaused) {
                 _trackingState.value = _trackingState.value.copy(isPaused = true, speedKmh = 0.0)
-                Log.d(TAG, "Auto-paused")
+                Log.d(TAG, "Auto-paused (Stationary)")
             }
         } else {
             if (_trackingState.value.isPaused) {
                 _trackingState.value = _trackingState.value.copy(isPaused = false)
-                Log.d(TAG, "Auto-resumed")
+                Log.d(TAG, "Auto-resumed (Moving)")
             }
             stationaryCounter = 0
         }
 
-        // ── Accumulate if not paused ─────────────────────────────────────────
-        if (!_trackingState.value.isPaused) {
-            if (last != null && displacement > 0.1) {
+        // ── Accumulate if moving ─────────────────────────────────────────────
+        // We only accumulate distance if we are definitively moving (not stationary)
+        if (!_trackingState.value.isPaused && !isEffectivelyStationary) {
+            if (last != null && displacement > 0.5) {
                 totalDistanceMeters += displacement
                 // Elevation gain
                 if (alt > last.alt) elevationGainMeters += (alt - last.alt)
