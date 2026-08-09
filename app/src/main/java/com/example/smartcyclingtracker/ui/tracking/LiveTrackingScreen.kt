@@ -592,10 +592,26 @@ private fun OsmMapView(
     context: Context,
     onMapReady: (MapView) -> Unit
 ) {
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+    var mapRef by remember { mutableStateOf<MapView?>(null) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> mapRef?.onResume()
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> mapRef?.onPause()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     AndroidView(
         factory = { ctx ->
-            // CRITICAL: Load prefs AND set user-agent BEFORE MapView initialises
-            // its internal TileProvider — this is the only reliable place to do it.
             val osmConfig = Configuration.getInstance()
             osmConfig.load(
                 ctx,
@@ -625,10 +641,13 @@ private fun OsmMapView(
                     enableFollowLocation()
                 }
                 overlays.add(myLocationOverlay)
+                mapRef = this
                 onMapReady(this)
             }
         },
         modifier = Modifier.fillMaxSize(),
-        update = { /* Map updates handled via LaunchedEffect */ }
+        update = { map -> 
+            // Map updates handled via LaunchedEffect for route drawing
+        }
     )
 }
