@@ -25,10 +25,12 @@ import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.engine.PhysicsEngine
 import com.example.smartcyclingtracker.theme.*
 import com.example.smartcyclingtracker.ui.dashboard.DashboardViewModel
+import com.example.smartcyclingtracker.ui.progress.ProgressScreen
 import java.text.SimpleDateFormat
 import java.util.*
 
 enum class HistoryFilter { ALL, LONG_RIDES, FAST_RIDES }
+enum class HistoryView { LIST, PROGRESS }
 
 @Composable
 fun HistoryScreen(
@@ -39,6 +41,8 @@ fun HistoryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFilter by remember { mutableStateOf(HistoryFilter.ALL) }
 
+    var selectedView by remember { mutableStateOf(HistoryView.LIST) }
+
     val filteredSessions = remember(uiState.sessions, selectedFilter) {
         when (selectedFilter) {
             HistoryFilter.ALL -> uiState.sessions
@@ -47,32 +51,62 @@ fun HistoryScreen(
         }
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(DeepNavy)
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        // Toggle view
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(NavyCard)
+                .padding(4.dp)
         ) {
-            // Header
-            item {
+            val listSelected = selectedView == HistoryView.LIST
+            val progressSelected = selectedView == HistoryView.PROGRESS
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (listSelected) ElectricGreen.copy(alpha = 0.2f) else Color.Transparent)
+                    .clickable { selectedView = HistoryView.LIST }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = "Ride History & Stats",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-                Text(
-                    text = "Analyze your performance, distance, and calories over time",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
+                    text = "Rides",
+                    color = if (listSelected) ElectricGreen else TextSecondary,
+                    fontWeight = if (listSelected) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 14.sp
                 )
             }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (progressSelected) ElectricGreen.copy(alpha = 0.2f) else Color.Transparent)
+                    .clickable { selectedView = HistoryView.PROGRESS }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Analytics",
+                    color = if (progressSelected) ElectricGreen else TextSecondary,
+                    fontWeight = if (progressSelected) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 14.sp
+                )
+            }
+        }
 
+        if (selectedView == HistoryView.LIST) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // Summary Totals Card
             item {
                 Card(
@@ -218,6 +252,9 @@ fun HistoryScreen(
             }
 
             item { Spacer(modifier = Modifier.height(100.dp)) }
+        }
+        } else {
+            ProgressScreen()
         }
     }
 }
