@@ -57,10 +57,8 @@ class ChatViewModel @Inject constructor(
             chatSessionDao.getAllSessions().collect { sessions ->
                 _uiState.value = _uiState.value.copy(sessions = sessions)
                 
-                if (sessions.isEmpty()) {
+                if (_uiState.value.activeSessionId == null && _uiState.value.messages.isEmpty()) {
                     createNewChatSession()
-                } else if (_uiState.value.activeSessionId == null) {
-                    switchSession(sessions.first().id)
                 }
             }
         }
@@ -82,16 +80,17 @@ class ChatViewModel @Inject constructor(
 
     fun createNewChatSession() {
         viewModelScope.launch {
-            val dateStr = java.text.SimpleDateFormat("MMM dd, HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
-            val title = "Chat on $dateStr"
-            val newSession = ChatSessionEntity(title = title)
-            val id = chatSessionDao.insertSession(newSession)
-            
             val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5-72B. " +
                 "I've analyzed your recent session. Ask me anything about your performance!"
-            chatDao.insertMessage(ChatMessageEntity(role = "model", text = greeting, sessionId = id))
             
-            switchSession(id)
+            messageJob?.cancel()
+            _uiState.value = _uiState.value.copy(
+                activeSessionId = null,
+                messages = listOf(
+                    ChatMessage(role = "model", text = greeting, isStreaming = false)
+                ),
+                error = null
+            )
         }
     }
 
@@ -105,13 +104,37 @@ class ChatViewModel @Inject constructor(
     }
 
     fun sendMessage(userText: String) {
-        val sessionId = _uiState.value.activeSessionId ?: return
         if (userText.isBlank() || _uiState.value.isLoading) return
 
-        // 1. Insert user message into DB. Flow collection will automatically update the UI list.
         viewModelScope.launch {
+            var sessionId = _uiState.value.activeSessionId
+            var isNewSession = false
+            
+            if (sessionId == null) {
+                val dateStr = java.text.SimpleDateFormat("MMM dd, HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                sessionId = chatSessionDao.insertSession(ChatSessionEntity(title = "Chat on $dateStr"))
+                isNewSession = true
+                
+                val initialGreeting = _uiState.value.messages.firstOrNull()?.text ?: ""
+                if (initialGreeting.isNotEmpty()) {
+                    chatDao.insertMessage(ChatMessageEntity(role = "model", text = initialGreeting, sessionId = sessionId))
+                }
+            }
+
             chatDao.insertMessage(ChatMessageEntity(role = "user", text = userText, sessionId = sessionId))
             
+            if (isNewSession) {
+                _uiState.value = _uiState.value.copy(activeSessionId = sessionId)
+                messageJob?.cancel()
+                messageJob = viewModelScope.launch {
+                    chatDao.getMessagesForSession(sessionId).collect { dbMessages ->
+                        _uiState.value = _uiState.value.copy(
+                            messages = dbMessages.map { ChatMessage(role = it.role, text = it.text, isStreaming = false) }
+                        )
+                    }
+                }
+            }
+
             // Build history from current messages
             val history = _uiState.value.messages
                 .filter { !it.isStreaming }
@@ -153,9 +176,12 @@ class ChatViewModel @Inject constructor(
 
     fun clearChat() {
         viewModelScope.launch {
-            val sessionId = _uiState.value.activeSessionId ?: return@launch
-            chatDao.clearHistory(sessionId)
-            _uiState.value = _uiState.value.copy(messages = emptyList(), error = null)
+            val sessionId = _uiState.value.activeSessionId
+            if (sessionId != null) {
+                chatDao.clearHistory(sessionId)
+                chatSessionDao.deleteSession(sessionId)
+            }
+            createNewChatSession()
         }
     }
 

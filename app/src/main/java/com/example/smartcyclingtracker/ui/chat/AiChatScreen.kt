@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -125,8 +126,7 @@ fun AiChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(DeepNavy)
-                .systemBarsPadding()
-                .imePadding()
+                .statusBarsPadding()
         ) {
             // App bar
             ChatAppBar(
@@ -143,7 +143,8 @@ fun AiChatScreen(
             state = listState,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .clip(RectangleShape),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
