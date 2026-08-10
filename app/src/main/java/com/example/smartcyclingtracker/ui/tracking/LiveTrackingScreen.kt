@@ -19,10 +19,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -707,7 +707,7 @@ private fun OsmMapView(
                 onMapReady(this)
             }
         },
-        modifier = Modifier.fillMaxSize().clipToBounds(),
+        modifier = Modifier.fillMaxSize().clip(RectangleShape),
         update = { map -> 
             // Map updates handled via LaunchedEffect for route drawing
         }

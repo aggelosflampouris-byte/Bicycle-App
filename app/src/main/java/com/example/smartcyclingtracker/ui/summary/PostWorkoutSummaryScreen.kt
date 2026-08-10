@@ -12,9 +12,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -103,14 +103,14 @@ private fun SummaryContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(280.dp)
-                .clipToBounds()
+                .clip(RectangleShape)
         ) {
             SummaryMapView(
                 routePoints = routePoints,
                 context = context,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clipToBounds()
+                    .clip(RectangleShape)
             )
             // Gradient overlay at bottom
             Box(
@@ -378,7 +378,7 @@ private fun SummaryMapView(
                 mapRef = this
             }
         },
-        modifier = modifier.clipToBounds(),
+        modifier = modifier.clip(RectangleShape),
         update = { mapView ->
             mapView.overlays.clear()
             if (routePoints.isNotEmpty()) {
