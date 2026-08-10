@@ -101,8 +101,8 @@ fun LiveTrackingScreen(
         }
     }
 
-    // Track route on map, storing GeoPoint and its lap number
-    val routePoints = remember { mutableStateListOf<Pair<GeoPoint, Int>>() }
+    // Track route on map from Service StateFlow
+    val routePoints by viewModel.routePoints.collectAsStateWithLifecycle()
     var mapViewRef by remember { mutableStateOf<MapView?>(null) }
     
     val lapColors = listOf(
@@ -114,21 +114,30 @@ fun LiveTrackingScreen(
         "#9C27B0"  // Purple
     )
 
-    // Update map with new GPS points
-    LaunchedEffect(state.currentLat, state.currentLng) {
-        if (state.currentLat != 0.0 && state.currentLng != 0.0) {
-            val point = GeoPoint(state.currentLat, state.currentLng)
-            routePoints.add(Pair(point, state.currentLap))
+    // Update map with GPS points
+    LaunchedEffect(routePoints.size, state.currentLat, state.currentLng) {
+        if (routePoints.isNotEmpty()) {
             mapViewRef?.let { map ->
                 map.overlays.removeIf { it is Polyline }
                 
-                // Group points by lap
-                val laps = routePoints.groupBy { it.second }
-                
-                laps.forEach { (lap, points) ->
-                    if (points.size >= 2) {
+                // Group points by lap and connect seamlessly across laps
+                val laps = routePoints.groupBy { it.lap }
+                var prevLapLastPoint: GeoPoint? = null
+
+                laps.keys.sorted().forEach { lap ->
+                    val points = laps[lap] ?: emptyList()
+                    val geoPoints = mutableListOf<GeoPoint>()
+                    if (prevLapLastPoint != null) {
+                        geoPoints.add(prevLapLastPoint!!)
+                    }
+                    geoPoints.addAll(points.map { GeoPoint(it.lat, it.lng) })
+                    if (points.isNotEmpty()) {
+                        prevLapLastPoint = GeoPoint(points.last().lat, points.last().lng)
+                    }
+
+                    if (geoPoints.size >= 2) {
                         val polyline = Polyline().apply {
-                            setPoints(points.map { it.first })
+                            setPoints(geoPoints)
                             val colorHex = lapColors[(lap - 1) % lapColors.size]
                             outlinePaint.color = android.graphics.Color.parseColor(colorHex)
                             outlinePaint.strokeWidth = 10f
@@ -138,7 +147,8 @@ fun LiveTrackingScreen(
                     }
                 }
                 
-                map.controller.animateTo(point)
+                val lastPoint = routePoints.last()
+                map.controller.animateTo(GeoPoint(lastPoint.lat, lastPoint.lng))
                 map.invalidate()
             }
         }
@@ -679,6 +689,8 @@ private fun OsmMapView(
             MapView(ctx).apply {
                 setTileSource(cartoDbTileSource)
                 setMultiTouchControls(true)
+                isNestedScrollingEnabled = false
+                clipToOutline = true
                 controller.setZoom(16.5)
                 zoomController.setVisibility(
                     org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER
@@ -694,7 +706,7 @@ private fun OsmMapView(
                 onMapReady(this)
             }
         },
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().clipToBounds(),
         update = { map -> 
             // Map updates handled via LaunchedEffect for route drawing
         }

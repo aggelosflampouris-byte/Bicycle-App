@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.service.CyclingTrackingService
+import com.example.smartcyclingtracker.service.RoutePoint
 import com.example.smartcyclingtracker.service.TrackingState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +23,7 @@ class TrackingViewModel @Inject constructor(
 ) : ViewModel() {
 
     val trackingState: StateFlow<TrackingState> = CyclingTrackingService.trackingState
+    val routePoints: StateFlow<List<RoutePoint>> = CyclingTrackingService.routePointsFlow
 
     private var cachedUser: UserEntity = UserEntity()
 

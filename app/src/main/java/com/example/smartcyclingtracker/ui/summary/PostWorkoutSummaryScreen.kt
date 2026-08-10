@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -94,28 +95,34 @@ private fun SummaryContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(DeepNavy)
             .verticalScroll(rememberScrollState())
     ) {
         // Map with drawn route
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(260.dp)
+                .height(280.dp)
+                .clipToBounds()
         ) {
             SummaryMapView(
                 routePoints = routePoints,
                 context = context,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clipToBounds()
             )
             // Gradient overlay at bottom
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
+                    .height(90.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, DeepNavy)
+                            0.0f to Color.Transparent,
+                            0.65f to DeepNavy.copy(alpha = 0.85f),
+                            1.0f to DeepNavy
                         )
                     )
             )
@@ -125,7 +132,7 @@ private fun SummaryContent(
                 modifier = Modifier
                     .padding(16.dp)
                     .align(Alignment.TopStart)
-                    .background(NavyCard.copy(alpha = 0.8f), CircleShape)
+                    .background(NavyCard.copy(alpha = 0.85f), CircleShape)
             ) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
             }
@@ -134,9 +141,10 @@ private fun SummaryContent(
             Card(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 12.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = ElectricGreen)
+                colors = CardDefaults.cardColors(containerColor = ElectricGreen),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
@@ -160,7 +168,10 @@ private fun SummaryContent(
         }
 
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(DeepNavy)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
@@ -358,20 +369,34 @@ private fun SummaryMapView(
             MapView(ctx).apply {
                 setTileSource(cartoDbTileSource)
                 setMultiTouchControls(true)
+                isNestedScrollingEnabled = false
+                clipToOutline = true
+                zoomController.setVisibility(
+                    org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER
+                )
                 controller.setZoom(14.0)
                 mapRef = this
             }
         },
-        modifier = modifier,
+        modifier = modifier.clipToBounds(),
         update = { mapView ->
             mapView.overlays.clear()
             if (routePoints.isNotEmpty()) {
                 val laps = routePoints.groupBy { it.lap }
                 val allGeoPoints = mutableListOf<GeoPoint>()
+                var prevLapLastPoint: GeoPoint? = null
 
-                laps.forEach { (lap, points) ->
-                    val geoPoints = points.map { GeoPoint(it.lat, it.lng) }
-                    allGeoPoints.addAll(geoPoints)
+                laps.keys.sorted().forEach { lap ->
+                    val points = laps[lap] ?: emptyList()
+                    val geoPoints = mutableListOf<GeoPoint>()
+                    if (prevLapLastPoint != null) {
+                        geoPoints.add(prevLapLastPoint!!)
+                    }
+                    geoPoints.addAll(points.map { GeoPoint(it.lat, it.lng) })
+                    if (points.isNotEmpty()) {
+                        prevLapLastPoint = GeoPoint(points.last().lat, points.last().lng)
+                    }
+
                     if (geoPoints.size >= 2) {
                         val polyline = Polyline().apply {
                             setPoints(geoPoints)
@@ -383,6 +408,8 @@ private fun SummaryMapView(
                         mapView.overlays.add(polyline)
                     }
                 }
+
+                allGeoPoints.addAll(routePoints.map { GeoPoint(it.lat, it.lng) })
 
                 // Fit map to route bounds
                 if (allGeoPoints.size >= 2) {

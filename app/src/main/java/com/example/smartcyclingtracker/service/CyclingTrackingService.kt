@@ -76,7 +76,9 @@ class CyclingTrackingService : Service() {
     private var age = 35
 
     // Auto-pause / manual pause state
+    private var isManuallyPaused = false
     private var stationaryCounter = 0
+    private var consecutiveJumpCount = 0
     private val AUTO_PAUSE_SECONDS = 5
     private val AUTO_PAUSE_DISTANCE_M = 2.0
 
@@ -86,9 +88,13 @@ class CyclingTrackingService : Service() {
     companion object {
         private const val TAG = "CyclingService"
 
-        // SharedFlow for UI binding
+        // StateFlow for UI binding
         private val _trackingState = MutableStateFlow(TrackingState())
         val trackingState: StateFlow<TrackingState> = _trackingState
+
+        // Route points flow for live tracking map
+        private val _routePointsFlow = MutableStateFlow<List<RoutePoint>>(emptyList())
+        val routePointsFlow: StateFlow<List<RoutePoint>> = _routePointsFlow
 
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
@@ -133,10 +139,14 @@ class CyclingTrackingService : Service() {
     }
 
     private fun setPaused(paused: Boolean) {
+        isManuallyPaused = paused
         _trackingState.value = _trackingState.value.copy(
             isPaused = paused,
             speedKmh = if (paused) 0.0 else _trackingState.value.speedKmh
         )
+        if (!paused) {
+            stationaryCounter = 0
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -144,7 +154,8 @@ class CyclingTrackingService : Service() {
     private fun setupLocationCallback() {
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
-                result.lastLocation?.let { location ->
+                // Process ALL intermediate batched locations, not just the last one
+                for (location in result.locations) {
                     processLocation(
                         lat = location.latitude,
                         lng = location.longitude,
@@ -160,6 +171,17 @@ class CyclingTrackingService : Service() {
 
     private fun startTracking() {
         startTimeMs = System.currentTimeMillis()
+        isManuallyPaused = false
+        stationaryCounter = 0
+        consecutiveJumpCount = 0
+        totalDistanceMeters = 0.0
+        elevationGainMeters = 0.0
+        elapsedSeconds = 0L
+        lastLocation = null
+        routePoints.clear()
+        pendingBatchPoints.clear()
+        _routePointsFlow.value = emptyList()
+
         _trackingState.value = TrackingState(isTracking = true)
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -201,7 +223,10 @@ class CyclingTrackingService : Service() {
             Priority.PRIORITY_HIGH_ACCURACY, 1000L
         ).apply {
             setMinUpdateIntervalMillis(500L)
-            setMaxUpdateDelayMillis(2000L)
+            setMaxUpdateDelayMillis(1500L)
+            setMinUpdateDistanceMeters(0f)
+            setGranularity(Granularity.GRANULARITY_FINE)
+            setWaitForAccurateLocation(false)
         }.build()
 
         try {
@@ -225,7 +250,8 @@ class CyclingTrackingService : Service() {
         timestamp: Long
     ) {
         // ── GPS Quality Filter ───────────────────────────────────────────────
-        if (accuracyM > 15f) {
+        // Discard points with invalid or unacceptably poor accuracy (> 35m)
+        if (accuracyM > 35f || accuracyM <= 0f) {
             Log.d(TAG, "Discarding low-accuracy point: ${accuracyM}m")
             return
         }
@@ -237,29 +263,48 @@ class CyclingTrackingService : Service() {
 
         val timeDeltaS = if (last != null && timestamp > last.timestamp) {
             (timestamp - last.timestamp) / 1000.0
+        } else if (last != null) {
+            0.5
         } else 1.0
 
         val rawSpeedMps = if (timeDeltaS > 0) displacement / timeDeltaS else 0.0
 
-        // Discard physically impossible sudden jumps (> 90 km/h)
-        if (rawSpeedMps > 25.0) {
-            Log.d(TAG, "Discarding unrealistic jump: ${rawSpeedMps * 3.6} km/h")
-            return
+        // Discard physically impossible sudden jumps (> 120 km/h / 33.3 m/s)
+        // unless consecutive jumps occur (indicating valid recovery after gap/tunnel)
+        if (last != null && rawSpeedMps > 33.3) {
+            consecutiveJumpCount++
+            if (consecutiveJumpCount < 3) {
+                Log.d(TAG, "Discarding unrealistic jump: ${rawSpeedMps * 3.6} km/h")
+                return
+            }
+            // Recovered after gap/tunnel: accept new anchor
+            consecutiveJumpCount = 0
+        } else {
+            consecutiveJumpCount = 0
         }
 
         val point = RoutePoint(lat, lng, alt, timestamp, speedMps, _trackingState.value.currentLap)
 
         // ── Drift & Auto-Pause Detection ─────────────────────────────────────
         // Doppler speed is highly resistant to drift. If reported, we trust it.
-        // Waving the phone causes coordinate jumps, but Doppler speed stays near 0.
         val hasHardwareSpeed = speedMps > 0.0
         val isEffectivelyStationary = if (hasHardwareSpeed) {
             speedMps < 0.5 // < 1.8 km/h is stationary
         } else {
-            // Fallback: raw speed < 3.6 km/h
-            rawSpeedMps < 1.0
+            rawSpeedMps < 1.0 // fallback < 3.6 km/h
         }
 
+        if (isManuallyPaused) {
+            // Manually paused: do not accumulate or auto-resume
+            _trackingState.value = _trackingState.value.copy(
+                speedKmh = 0.0,
+                currentLat = lat,
+                currentLng = lng
+            )
+            return
+        }
+
+        // Auto-pause / resume logic when not manually paused
         if (isEffectivelyStationary) {
             stationaryCounter++
             if (stationaryCounter >= AUTO_PAUSE_SECONDS && !_trackingState.value.isPaused) {
@@ -275,18 +320,23 @@ class CyclingTrackingService : Service() {
         }
 
         // ── Accumulate if moving ─────────────────────────────────────────────
-        // We only accumulate distance if we are definitively moving (not stationary)
         if (!_trackingState.value.isPaused && !isEffectivelyStationary) {
             if (last != null && displacement > 0.5) {
                 totalDistanceMeters += displacement
                 // Elevation gain
                 if (alt > last.alt) elevationGainMeters += (alt - last.alt)
             }
+            lastLocation = point
+            routePoints.add(point)
+            pendingBatchPoints.add(point)
+            _routePointsFlow.value = routePoints.toList()
+        } else if (last == null) {
+            // Initial anchor point
+            lastLocation = point
+            routePoints.add(point)
+            pendingBatchPoints.add(point)
+            _routePointsFlow.value = routePoints.toList()
         }
-
-        lastLocation = point
-        routePoints.add(point)
-        pendingBatchPoints.add(point)
 
         // Calculate current calories
         val avgSpeed = if (totalDistanceMeters > 0 && elapsedSeconds > 0)
@@ -296,7 +346,8 @@ class CyclingTrackingService : Service() {
         )
         val calories = PhysicsEngine.calculateCalories(mockUser, elapsedSeconds, avgSpeed)
 
-        val speedKmh = PhysicsEngine.metersPerSecondToKmh(speedMps)
+        val speedKmh = if (_trackingState.value.isPaused) 0.0 else PhysicsEngine.metersPerSecondToKmh(speedMps)
+
         // ── Update UI State ──────────────────────────────────────────────────
         _trackingState.value = _trackingState.value.copy(
             speedKmh = speedKmh,
