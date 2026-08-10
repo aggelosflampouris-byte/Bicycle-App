@@ -37,10 +37,10 @@ fun DashboardScreen(
     onStartWorkout: () -> Unit,
     onSessionClick: (Long) -> Unit,
     onOpenSettings: () -> Unit,
-    activityType: String = "CYCLING",
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val activityType = LocalActivityTheme.current
 
     LaunchedEffect(activityType) {
         viewModel.setActivityType(activityType)
@@ -85,6 +85,10 @@ fun DashboardScreen(
                 DashboardHeader(
                     userName = uiState.user.name,
                     activityType = activityType,
+                    onSwitchActivity = {
+                        val newActivity = if (activityType == "WALKING") "CYCLING" else "WALKING"
+                        viewModel.setActivityType(newActivity)
+                    },
                     onSettingsClick = onOpenSettings
                 )
             }
@@ -137,6 +141,7 @@ fun DashboardScreen(
 private fun DashboardHeader(
     userName: String,
     activityType: String,
+    onSwitchActivity: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
     Row(
@@ -160,17 +165,33 @@ private fun DashboardHeader(
                 color = TextSecondary
             )
         }
-        IconButton(
-            onClick = onSettingsClick,
-            modifier = Modifier
-                .clip(CircleShape)
-                .background(NavyCard)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Settings",
-                tint = TextSecondary
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            IconButton(
+                onClick = onSwitchActivity,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(NavyCard)
+            ) {
+                Crossfade(targetState = activityType, label = "activityIcon") { type ->
+                    Icon(
+                        imageVector = if (type == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike,
+                        contentDescription = "Switch Activity",
+                        tint = TextSecondary
+                    )
+                }
+            }
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(NavyCard)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = TextSecondary
+                )
+            }
         }
     }
 }

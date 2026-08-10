@@ -24,7 +24,8 @@ data class DashboardUiState(
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val userDao: UserDao,
-    private val sessionDao: WorkoutSessionDao
+    private val sessionDao: WorkoutSessionDao,
+    private val settingsRepository: com.example.smartcyclingtracker.data.local.SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -38,6 +39,9 @@ class DashboardViewModel @Inject constructor(
 
     fun setActivityType(type: String) {
         _activityType.value = type
+        viewModelScope.launch {
+            settingsRepository.setActivityType(type)
+        }
     }
 
     private fun loadData() {

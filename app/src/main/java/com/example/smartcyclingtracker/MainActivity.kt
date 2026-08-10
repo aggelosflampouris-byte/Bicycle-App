@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.smartcyclingtracker.data.local.SettingsRepository
 import com.example.smartcyclingtracker.data.local.ThemeMode
 import com.example.smartcyclingtracker.data.local.dao.UserDao
+import com.example.smartcyclingtracker.theme.LocalActivityTheme
 import com.example.smartcyclingtracker.theme.SmartCyclingTrackerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.firstOrNull
@@ -75,12 +76,16 @@ class MainActivity : ComponentActivity() {
                     ThemeMode.SYSTEM -> isSystemDark
                 }
 
+                val activityType by settingsRepository.activityType.collectAsStateWithLifecycle("CYCLING")
+
                 SmartCyclingTrackerTheme(darkTheme = isDark) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        CyclingNavGraph(startDestination = startDestination)
+                    CompositionLocalProvider(LocalActivityTheme provides activityType) {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            CyclingNavGraph(startDestination = startDestination)
+                        }
                     }
                 }
             }

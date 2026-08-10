@@ -23,6 +23,7 @@ class SettingsRepository @Inject constructor(
     companion object {
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         private val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        private val ACTIVITY_TYPE_KEY = stringPreferencesKey("activity_type")
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -37,6 +38,10 @@ class SettingsRepository @Inject constructor(
         prefs[GEMINI_API_KEY] ?: ""
     }
 
+    val activityType: Flow<String> = context.settingsDataStore.data.map { prefs ->
+        prefs[ACTIVITY_TYPE_KEY] ?: "CYCLING"
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         context.settingsDataStore.edit { prefs ->
             prefs[THEME_MODE_KEY] = mode.name
@@ -46,6 +51,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setGeminiApiKey(key: String) {
         context.settingsDataStore.edit { prefs ->
             prefs[GEMINI_API_KEY] = key.trim()
+        }
+    }
+
+    suspend fun setActivityType(type: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[ACTIVITY_TYPE_KEY] = type
         }
     }
 }

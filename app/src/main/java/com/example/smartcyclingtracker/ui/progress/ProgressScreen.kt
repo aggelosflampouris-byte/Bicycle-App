@@ -28,9 +28,9 @@ import kotlin.math.absoluteValue
 
 @Composable
 fun ProgressScreen(
-    activityType: String = "CYCLING",
     viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
+    val activityType = LocalActivityTheme.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(activityType) {

@@ -34,6 +34,8 @@ import com.example.smartcyclingtracker.ui.history.HistoryScreen
 import com.example.smartcyclingtracker.ui.settings.SettingsScreen
 import com.example.smartcyclingtracker.updater.UpdateDialog
 import com.example.smartcyclingtracker.updater.UpdaterViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 enum class MainTab(val label: String, val icon: ImageVector) {
@@ -45,18 +47,20 @@ enum class MainTab(val label: String, val icon: ImageVector) {
 
 @Composable
 fun MainScreen(
-    activityType: String = "CYCLING",
     onStartWorkout: () -> Unit,
     onSessionClick: (Long) -> Unit,
     onOpenSettings: () -> Unit,
     updaterViewModel: UpdaterViewModel = hiltViewModel()
 ) {
+    val activityType = LocalActivityTheme.current
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val tabs = remember { MainTab.values() }
+    val tabs = remember { MainTab.entries.toTypedArray() }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
 
-    val trackingState by CyclingTrackingService.trackingState.collectAsStateWithLifecycle()
+    val isTracking by remember {
+        CyclingTrackingService.trackingState.map { it.isTracking }.distinctUntilChanged()
+    }.collectAsStateWithLifecycle(initialValue = false)
     val updateState by updaterViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -83,15 +87,11 @@ fun MainScreen(
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Floating Active Ride Mini-Player Bar (Strava-style)
                 AnimatedVisibility(
-                    visible = trackingState.isTracking,
+                    visible = isTracking,
                     enter = slideInVertically { it } + fadeIn(),
                     exit = slideOutVertically { it } + fadeOut()
                 ) {
                     ActiveRideMiniBanner(
-                        speedKmh = trackingState.speedKmh,
-                        distanceMeters = trackingState.distanceMeters,
-                        elapsedSeconds = trackingState.elapsedSeconds,
-                        isPaused = trackingState.isPaused,
                         onClick = onStartWorkout
                     )
                 }
@@ -176,7 +176,6 @@ fun MainScreen(
                     }
                     MainTab.HISTORY -> {
                         HistoryScreen(
-                            activityType = activityType,
                             onSessionClick = onSessionClick,
                             onStartWorkout = onStartWorkout
                         )
@@ -205,12 +204,16 @@ fun MainScreen(
 
 @Composable
 private fun ActiveRideMiniBanner(
-    speedKmh: Double,
-    distanceMeters: Double,
-    elapsedSeconds: Long,
-    isPaused: Boolean,
     onClick: () -> Unit
 ) {
+    val trackingState by CyclingTrackingService.trackingState.collectAsStateWithLifecycle()
+    val activityType = LocalActivityTheme.current
+    
+    val speedKmh = trackingState.speedKmh
+    val distanceMeters = trackingState.distanceMeters
+    val elapsedSeconds = trackingState.elapsedSeconds
+    val isPaused = trackingState.isPaused
+    
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
@@ -275,6 +278,8 @@ private fun ActiveRideMiniBanner(
                     color = WarningAmber
                 )
                 Spacer(modifier = Modifier.width(8.dp))
+                val icon = if (activityType == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike
+                Icon(icon, contentDescription = "Active Workout", tint = ElectricGreen)
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Expand",

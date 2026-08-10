@@ -35,11 +35,11 @@ enum class HistoryView { LIST, PROGRESS }
 
 @Composable
 fun HistoryScreen(
-    activityType: String = "CYCLING",
     onSessionClick: (Long) -> Unit,
     onStartWorkout: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
+    val activityType = LocalActivityTheme.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFilter by remember { mutableStateOf(HistoryFilter.ALL) }
 
@@ -266,7 +266,7 @@ fun HistoryScreen(
             item { Spacer(modifier = Modifier.height(100.dp)) }
         }
         } else {
-            ProgressScreen(activityType = activityType)
+            ProgressScreen()
         }
     }
 }

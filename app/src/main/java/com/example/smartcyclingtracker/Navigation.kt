@@ -17,20 +17,13 @@ import com.example.smartcyclingtracker.ui.main.MainScreen
 import com.example.smartcyclingtracker.ui.onboarding.OnboardingScreen
 import com.example.smartcyclingtracker.ui.summary.PostWorkoutSummaryScreen
 import com.example.smartcyclingtracker.ui.tracking.LiveTrackingScreen
-import com.example.smartcyclingtracker.theme.LocalActivityTheme
+import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
     object Onboarding : Screen("onboarding")
     object ActivitySelection : Screen("activity_selection")
-    object Main : Screen("main/{activityType}") {
-        fun createRoute(activityType: String) = "main/$activityType"
-    }
-    object Dashboard : Screen("dashboard/{activityType}") {
-        fun createRoute(activityType: String) = "dashboard/$activityType"
-    }
-    object LiveTracking : Screen("live_tracking/{activityType}") {
-        fun createRoute(activityType: String) = "live_tracking/$activityType"
-    }
+    object Main : Screen("main")
+    object LiveTracking : Screen("tracking")
     object PostWorkoutSummary : Screen("summary/{sessionId}") {
         fun createRoute(sessionId: Long) = "summary/$sessionId"
     }
@@ -84,81 +77,55 @@ fun CyclingNavGraph(
         }
 
         composable(Screen.ActivitySelection.route) {
+            val settingsRepository = hiltViewModel<com.example.smartcyclingtracker.ui.settings.SettingsViewModel>().settingsRepository
+            val coroutineScope = rememberCoroutineScope()
             ActivitySelectionScreen(
                 onActivitySelected = { activityType ->
-                    navController.navigate(Screen.Main.createRoute(activityType.name)) {
-                        popUpTo(Screen.ActivitySelection.route) { inclusive = true }
+                    coroutineScope.launch {
+                        settingsRepository.setActivityType(activityType.name)
+                        navController.navigate(Screen.Main.route) {
+                            popUpTo(Screen.ActivitySelection.route) { inclusive = true }
+                        }
                     }
                 }
             )
         }
 
         composable(
-            route = Screen.Main.route,
-            arguments = listOf(navArgument("activityType") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val activityTypeStr = backStackEntry.arguments?.getString("activityType") ?: "CYCLING"
-            CompositionLocalProvider(LocalActivityTheme provides activityTypeStr) {
-                MainScreen(
-                    activityType = activityTypeStr,
-                    onStartWorkout = {
-                        navController.navigate(Screen.LiveTracking.createRoute(activityTypeStr))
-                    },
-                    onSessionClick = { sessionId ->
-                        navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
-                    },
-                    onOpenSettings = {
-                        navController.navigate(Screen.Onboarding.route)
-                    }
-                )
-            }
+            route = Screen.Main.route
+        ) {
+            MainScreen(
+                onStartWorkout = {
+                    navController.navigate(Screen.LiveTracking.route)
+                },
+                onSessionClick = { sessionId ->
+                    navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
+                },
+                onOpenSettings = {
+                    navController.navigate(Screen.Onboarding.route)
+                }
+            )
         }
 
         composable(
-            route = Screen.Dashboard.route,
-            arguments = listOf(navArgument("activityType") { type = NavType.StringType; defaultValue = "CYCLING" })
-        ) { backStackEntry ->
-            val activityTypeStr = backStackEntry.arguments?.getString("activityType") ?: "CYCLING"
-            CompositionLocalProvider(LocalActivityTheme provides activityTypeStr) {
-                DashboardScreen(
-                    activityType = activityTypeStr,
-                    onStartWorkout = {
-                        navController.navigate(Screen.LiveTracking.createRoute(activityTypeStr))
-                    },
-                    onSessionClick = { sessionId ->
-                        navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
-                    },
-                    onOpenSettings = {
-                        navController.navigate(Screen.Onboarding.route)
-                    }
-                )
-            }
-        }
-
-        composable(
-            route = Screen.LiveTracking.route,
-            arguments = listOf(navArgument("activityType") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val activityTypeStr = backStackEntry.arguments?.getString("activityType") ?: "CYCLING"
-            CompositionLocalProvider(LocalActivityTheme provides activityTypeStr) {
-                LiveTrackingScreen(
-                    activityType = activityTypeStr,
-                    onTrackingFinished = { sessionId ->
-                        if (sessionId > 0) {
-                            navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId)) {
-                                popUpTo(Screen.LiveTracking.route) { inclusive = true }
-                            }
-                        } else {
-                            navController.navigate(Screen.ActivitySelection.route) {
-                                popUpTo(Screen.LiveTracking.route) { inclusive = true }
-                            }
+            route = Screen.LiveTracking.route
+        ) {
+            LiveTrackingScreen(
+                onTrackingFinished = { sessionId ->
+                    if (sessionId > 0) {
+                        navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId)) {
+                            popUpTo(Screen.LiveTracking.route) { inclusive = true }
                         }
-                    },
-                    onBack = {
-                        navController.popBackStack()
+                    } else {
+                        navController.navigate(Screen.ActivitySelection.route) {
+                            popUpTo(Screen.LiveTracking.route) { inclusive = true }
+                        }
                     }
-                )
-            }
+                },
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(

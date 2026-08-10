@@ -1,5 +1,7 @@
 package com.example.smartcyclingtracker.theme
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
@@ -15,13 +17,22 @@ val ActualAzureBlueDark = Color(0xFF005BB5)
 val ActualAzureBlueDarker = Color(0xFF004080)
 
 val ElectricGreen: Color
-    @Composable get() = if (LocalActivityTheme.current == "WALKING") ActualAzureBlue else ActualElectricGreen
+    @Composable get() {
+        val target = if (LocalActivityTheme.current == "WALKING") ActualAzureBlue else ActualElectricGreen
+        return animateColorAsState(target, animationSpec = tween(500), label = "Primary").value
+    }
 
 val ElectricGreenDark: Color
-    @Composable get() = if (LocalActivityTheme.current == "WALKING") ActualAzureBlueDark else ActualElectricGreenDark
+    @Composable get() {
+        val target = if (LocalActivityTheme.current == "WALKING") ActualAzureBlueDark else ActualElectricGreenDark
+        return animateColorAsState(target, animationSpec = tween(500), label = "PrimaryDark").value
+    }
 
 val ElectricGreenDarker: Color
-    @Composable get() = if (LocalActivityTheme.current == "WALKING") ActualAzureBlueDarker else ActualElectricGreenDarker
+    @Composable get() {
+        val target = if (LocalActivityTheme.current == "WALKING") ActualAzureBlueDarker else ActualElectricGreenDarker
+        return animateColorAsState(target, animationSpec = tween(500), label = "PrimaryDarker").value
+    }
 
 // ── Surface / Background: Deep Navy ─────────────────────────────────────────
 val DeepNavy = Color(0xFF0A0E1A)

@@ -52,7 +52,12 @@ fun LiveTrackingScreen(
     viewModel: TrackingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val state by viewModel.trackingState.collectAsStateWithLifecycle()
+    val trackingStateFlow = viewModel.trackingState.collectAsStateWithLifecycle()
+    val isTracking by remember { derivedStateOf { trackingStateFlow.value.isTracking } }
+    val isPaused by remember { derivedStateOf { trackingStateFlow.value.isPaused } }
+    val lastSavedSessionId by remember { derivedStateOf { trackingStateFlow.value.lastSavedSessionId } }
+    val currentLat by remember { derivedStateOf { trackingStateFlow.value.currentLat } }
+    val currentLng by remember { derivedStateOf { trackingStateFlow.value.currentLng } }
 
     var showFinishDialog by remember { mutableStateOf(false) }
 
@@ -75,7 +80,7 @@ fun LiveTrackingScreen(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        if (hasLocationPermission && isGpsEnabled && !state.isTracking) {
+        if (hasLocationPermission && isGpsEnabled && !isTracking) {
             viewModel.startTracking(context, activityType)
         }
     }
@@ -85,7 +90,7 @@ fun LiveTrackingScreen(
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
-                if (hasLocationPermission && isGpsEnabled && !state.isTracking) {
+                if (hasLocationPermission && isGpsEnabled && !isTracking) {
                     viewModel.startTracking(context, activityType)
                 }
             }
@@ -98,7 +103,7 @@ fun LiveTrackingScreen(
 
     // Auto-start tracking if not active and permission is granted and GPS is on
     LaunchedEffect(hasLocationPermission, isGpsEnabled) {
-        if (hasLocationPermission && isGpsEnabled && !state.isTracking) {
+        if (hasLocationPermission && isGpsEnabled && !isTracking) {
             viewModel.startTracking(context, activityType)
         }
     }
@@ -117,7 +122,7 @@ fun LiveTrackingScreen(
     )
 
     // Update map with GPS points
-    LaunchedEffect(routePoints.size, state.currentLat, state.currentLng) {
+    LaunchedEffect(routePoints.size, currentLat, currentLng) {
         if (routePoints.isNotEmpty()) {
             mapViewRef?.let { map ->
                 map.overlays.removeIf { it is Polyline }
@@ -157,8 +162,8 @@ fun LiveTrackingScreen(
     }
 
     // Navigate to summary once session is saved
-    LaunchedEffect(state.lastSavedSessionId) {
-        state.lastSavedSessionId?.let { id ->
+    LaunchedEffect(lastSavedSessionId) {
+        lastSavedSessionId?.let { id ->
             onTrackingFinished(id)
         }
     }
@@ -200,14 +205,14 @@ fun LiveTrackingScreen(
                         modifier = Modifier
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(if (state.isPaused) WarningAmber else ElectricGreen)
+                            .background(if (isPaused) WarningAmber else ElectricGreen)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (state.isPaused) "PAUSED" else "LIVE TRACKING",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = if (isPaused) "PAUSED" else "LIVE TRACKING",
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (state.isPaused) WarningAmber else ElectricGreen
+                        color = if (isPaused) WarningAmber else ElectricGreen
                     )
                 }
 
@@ -302,11 +307,7 @@ fun LiveTrackingScreen(
 
             // Top stats panel
             TrackingStatsPanel(
-                speedKmh = state.speedKmh,
-                distanceMeters = state.distanceMeters,
-                elapsedSeconds = state.elapsedSeconds,
-                calories = state.calories,
-                isPaused = state.isPaused,
+                stateProvider = { trackingStateFlow.value },
                 modifier = Modifier.weight(1f)
             )
 
@@ -324,7 +325,7 @@ fun LiveTrackingScreen(
                 )
 
                 // Auto-pause overlay
-                if (state.isPaused) {
+                if (isPaused) {
                     Card(
                         modifier = Modifier
                             .padding(8.dp)
@@ -358,7 +359,7 @@ fun LiveTrackingScreen(
 
             // Bottom Action Control Bar
             TrackingControlBar(
-                isPaused = state.isPaused,
+                isPaused = isPaused,
                 onTogglePause = { viewModel.togglePause(context) },
                 onLapClick = { viewModel.markLap(context) },
                 onFinishClick = { showFinishDialog = true }
@@ -369,9 +370,9 @@ fun LiveTrackingScreen(
         if (showFinishDialog) {
             FinishWorkoutDialog(
                 activityType = activityType,
-                distanceMeters = state.distanceMeters,
-                elapsedSeconds = state.elapsedSeconds,
-                calories = state.calories,
+                distanceMeters = trackingStateFlow.value.distanceMeters,
+                elapsedSeconds = trackingStateFlow.value.elapsedSeconds,
+                calories = trackingStateFlow.value.calories,
                 onResume = { showFinishDialog = false },
                 onDiscard = {
                     showFinishDialog = false
@@ -560,14 +561,19 @@ private fun FinishWorkoutDialog(
 }
 
 @Composable
-private fun TrackingStatsPanel(
-    speedKmh: Double,
-    distanceMeters: Double,
-    elapsedSeconds: Long,
-    calories: Double,
-    isPaused: Boolean,
+fun TrackingStatsPanel(
+    stateProvider: () -> com.example.smartcyclingtracker.service.CyclingTrackingState,
     modifier: Modifier = Modifier
 ) {
+    val state = stateProvider()
+    val speedKmh = state.speedKmh
+    val distanceMeters = state.distanceMeters
+    val elapsedSeconds = state.elapsedSeconds
+    val calories = state.calories
+    val isPaused = state.isPaused
+    
+    val distanceKm = distanceMeters / 1000.0
+    
     Column(
         modifier = modifier
             .fillMaxWidth()
