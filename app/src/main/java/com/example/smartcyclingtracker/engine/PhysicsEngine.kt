@@ -27,13 +27,22 @@ object PhysicsEngine {
      * Estimate MET value based on cycling speed (km/h).
      * Reference: Compendium of Physical Activities
      */
-    fun estimateMET(speedKmh: Double): Double = when {
-        speedKmh < 10.0  -> 4.0    // Very light cycling / casual
-        speedKmh < 16.0  -> 6.0    // Light effort
-        speedKmh < 19.0  -> 8.0    // Moderate effort
-        speedKmh < 22.0  -> 10.0   // Vigorous effort
-        speedKmh < 26.0  -> 12.0   // Racing / very vigorous
-        else             -> 16.0   // High speed / competitive
+    fun estimateMET(speedKmh: Double, activityType: String = "CYCLING"): Double = when (activityType) {
+        "WALKING" -> when {
+            speedKmh < 3.2  -> 2.8    // Slow walking
+            speedKmh < 4.8  -> 3.3    // Moderate walking
+            speedKmh < 5.6  -> 4.3    // Brisk walking
+            speedKmh < 6.4  -> 5.0    // Very brisk walking
+            else             -> 6.0    // Fast walking / jogging
+        }
+        else -> when { // CYCLING
+            speedKmh < 10.0  -> 4.0    // Very light cycling / casual
+            speedKmh < 16.0  -> 6.0    // Light effort
+            speedKmh < 19.0  -> 8.0    // Moderate effort
+            speedKmh < 22.0  -> 10.0   // Vigorous effort
+            speedKmh < 26.0  -> 12.0   // Racing / very vigorous
+            else             -> 16.0   // High speed / competitive
+        }
     }
 
     // ── Calorie Calculation ──────────────────────────────────────────────────
@@ -49,9 +58,10 @@ object PhysicsEngine {
     fun calculateCalories(
         user: UserEntity,
         activeSeconds: Long,
-        avgSpeedKmh: Double
+        avgSpeedKmh: Double,
+        activityType: String = "CYCLING"
     ): Double {
-        val met = estimateMET(avgSpeedKmh)
+        val met = estimateMET(avgSpeedKmh, activityType)
         val hours = activeSeconds / 3600.0
         return met * user.weightKg * hours
     }

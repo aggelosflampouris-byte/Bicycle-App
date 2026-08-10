@@ -3,6 +3,8 @@ package com.example.smartcyclingtracker.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+enum class ActivityType { CYCLING, WALKING }
+
 /**
  * Room entity for a completed workout session.
  * Route GPS points stored as a JSON string to avoid additional table joins.
@@ -19,5 +21,6 @@ data class WorkoutSessionEntity(
     val avgSpeedKmh: Double = 0.0,          // Average speed km/h
     val caloriesBurned: Double = 0.0,       // Calculated calories
     val wattsPerKg: Double = 0.0,           // Estimated power-to-weight ratio
-    val routePointsJson: String = "[]"      // JSON array of {lat, lng, alt, timestamp}
+    val routePointsJson: String = "[]",     // JSON array of {lat, lng, alt, timestamp}
+    val activityType: String = ActivityType.CYCLING.name // "CYCLING" or "WALKING"
 )

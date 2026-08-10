@@ -71,9 +71,10 @@ class CyclingTrackingService : Service() {
     private var elevationGainMeters = 0.0
     private var elapsedSeconds = 0L
     private var startTimeMs = 0L
-    private var weightKg = 75f
-    private var gender = "male"
-    private var age = 35
+    private var weightKg: Float = 75f
+    private var gender: String = "Male"
+    private var age: Int = 30
+    private var activityType: String = "CYCLING"
 
     // Auto-pause / manual pause state
     private var isManuallyPaused = false
@@ -105,8 +106,9 @@ class CyclingTrackingService : Service() {
         const val ACTION_LAP = "ACTION_LAP"
 
         const val EXTRA_WEIGHT = "extra_weight"
-        const val EXTRA_GENDER = "extra_gender"
-        const val EXTRA_AGE = "extra_age"
+        const val EXTRA_GENDER = "EXTRA_GENDER"
+        const val EXTRA_AGE = "EXTRA_AGE"
+        const val EXTRA_ACTIVITY_TYPE = "EXTRA_ACTIVITY_TYPE"
     }
 
     override fun onCreate() {
@@ -120,8 +122,9 @@ class CyclingTrackingService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 weightKg = intent.getFloatExtra(EXTRA_WEIGHT, 75f)
-                gender = intent.getStringExtra(EXTRA_GENDER) ?: "male"
-                age = intent.getIntExtra(EXTRA_AGE, 35)
+                gender = intent.getStringExtra(EXTRA_GENDER) ?: "Male"
+                age = intent.getIntExtra(EXTRA_AGE, 30)
+                activityType = intent.getStringExtra(EXTRA_ACTIVITY_TYPE) ?: "CYCLING"
                 startTracking()
             }
             ACTION_STOP -> stopTracking(save = true)
@@ -344,7 +347,7 @@ class CyclingTrackingService : Service() {
         val mockUser = com.example.smartcyclingtracker.data.local.entity.UserEntity(
             weightKg = weightKg, gender = gender, age = age
         )
-        val calories = PhysicsEngine.calculateCalories(mockUser, elapsedSeconds, avgSpeed)
+        val calories = PhysicsEngine.calculateCalories(mockUser, elapsedSeconds, avgSpeed, activityType)
 
         val speedKmh = if (_trackingState.value.isPaused) 0.0 else PhysicsEngine.metersPerSecondToKmh(speedMps)
 
@@ -406,7 +409,7 @@ class CyclingTrackingService : Service() {
                 val mockUser = com.example.smartcyclingtracker.data.local.entity.UserEntity(
                     weightKg = weightKg, gender = gender, age = age
                 )
-                val calories = PhysicsEngine.calculateCalories(mockUser, elapsedSeconds, avgSpeed)
+                val calories = PhysicsEngine.calculateCalories(mockUser, elapsedSeconds, avgSpeed, activityType)
                 val wattsPerKg = PhysicsEngine.calculateWattsPerKg(avgSpeed, mockUser)
                 val routeJson = gson.toJson(routePoints)
 
@@ -419,7 +422,8 @@ class CyclingTrackingService : Service() {
                     avgSpeedKmh = avgSpeed,
                     caloriesBurned = calories,
                     wattsPerKg = wattsPerKg,
-                    routePointsJson = routeJson
+                    routePointsJson = routeJson,
+                    activityType = activityType
                 )
                 savedId = workoutSessionDao.insertSession(session)
                 Log.d(TAG, "Session saved with id: $savedId")

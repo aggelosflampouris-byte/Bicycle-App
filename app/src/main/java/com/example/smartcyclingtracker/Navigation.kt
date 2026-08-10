@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.smartcyclingtracker.ui.chat.AiChatScreen
 import com.example.smartcyclingtracker.ui.dashboard.DashboardScreen
+import com.example.smartcyclingtracker.ui.main.ActivitySelectionScreen
 import com.example.smartcyclingtracker.ui.main.MainScreen
 import com.example.smartcyclingtracker.ui.onboarding.OnboardingScreen
 import com.example.smartcyclingtracker.ui.summary.PostWorkoutSummaryScreen
@@ -18,9 +19,16 @@ import com.example.smartcyclingtracker.ui.tracking.LiveTrackingScreen
 
 sealed class Screen(val route: String) {
     object Onboarding : Screen("onboarding")
-    object Main : Screen("main")
-    object Dashboard : Screen("dashboard")
-    object LiveTracking : Screen("live_tracking")
+    object ActivitySelection : Screen("activity_selection")
+    object Main : Screen("main/{activityType}") {
+        fun createRoute(activityType: String) = "main/$activityType"
+    }
+    object Dashboard : Screen("dashboard/{activityType}") {
+        fun createRoute(activityType: String) = "dashboard/$activityType"
+    }
+    object LiveTracking : Screen("live_tracking/{activityType}") {
+        fun createRoute(activityType: String) = "live_tracking/$activityType"
+    }
     object PostWorkoutSummary : Screen("summary/{sessionId}") {
         fun createRoute(sessionId: Long) = "summary/$sessionId"
     }
@@ -66,17 +74,32 @@ fun CyclingNavGraph(
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
                 onComplete = {
-                    navController.navigate(Screen.Main.route) {
+                    navController.navigate(Screen.ActivitySelection.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Screen.Main.route) {
+        composable(Screen.ActivitySelection.route) {
+            ActivitySelectionScreen(
+                onActivitySelected = { activityType ->
+                    navController.navigate(Screen.Main.createRoute(activityType.name)) {
+                        popUpTo(Screen.ActivitySelection.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = Screen.Main.route,
+            arguments = listOf(navArgument("activityType") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityTypeStr = backStackEntry.arguments?.getString("activityType") ?: "CYCLING"
             MainScreen(
+                activityType = activityTypeStr,
                 onStartWorkout = {
-                    navController.navigate(Screen.LiveTracking.route)
+                    navController.navigate(Screen.LiveTracking.createRoute(activityTypeStr))
                 },
                 onSessionClick = { sessionId ->
                     navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
@@ -87,10 +110,15 @@ fun CyclingNavGraph(
             )
         }
 
-        composable(Screen.Dashboard.route) {
+        composable(
+            route = Screen.Dashboard.route,
+            arguments = listOf(navArgument("activityType") { type = NavType.StringType; defaultValue = "CYCLING" })
+        ) { backStackEntry ->
+            val activityTypeStr = backStackEntry.arguments?.getString("activityType") ?: "CYCLING"
             DashboardScreen(
+                activityType = activityTypeStr,
                 onStartWorkout = {
-                    navController.navigate(Screen.LiveTracking.route)
+                    navController.navigate(Screen.LiveTracking.createRoute(activityTypeStr))
                 },
                 onSessionClick = { sessionId ->
                     navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
@@ -101,15 +129,20 @@ fun CyclingNavGraph(
             )
         }
 
-        composable(Screen.LiveTracking.route) {
+        composable(
+            route = Screen.LiveTracking.route,
+            arguments = listOf(navArgument("activityType") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityTypeStr = backStackEntry.arguments?.getString("activityType") ?: "CYCLING"
             LiveTrackingScreen(
+                activityType = activityTypeStr,
                 onTrackingFinished = { sessionId ->
                     if (sessionId > 0) {
                         navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId)) {
                             popUpTo(Screen.LiveTracking.route) { inclusive = true }
                         }
                     } else {
-                        navController.navigate(Screen.Main.route) {
+                        navController.navigate(Screen.ActivitySelection.route) {
                             popUpTo(Screen.LiveTracking.route) { inclusive = true }
                         }
                     }

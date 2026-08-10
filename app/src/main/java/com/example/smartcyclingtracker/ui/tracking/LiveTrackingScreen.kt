@@ -46,6 +46,7 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
 @Composable
 fun LiveTrackingScreen(
+    activityType: String = "CYCLING",
     onTrackingFinished: (Long) -> Unit,
     onBack: (() -> Unit)? = null,
     viewModel: TrackingViewModel = hiltViewModel()
@@ -75,7 +76,7 @@ fun LiveTrackingScreen(
     ) { permissions ->
         hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         if (hasLocationPermission && isGpsEnabled && !state.isTracking) {
-            viewModel.startTracking(context)
+            viewModel.startTracking(context, activityType)
         }
     }
 
@@ -85,7 +86,7 @@ fun LiveTrackingScreen(
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
                 if (hasLocationPermission && isGpsEnabled && !state.isTracking) {
-                    viewModel.startTracking(context)
+                    viewModel.startTracking(context, activityType)
                 }
             }
         }
@@ -98,7 +99,7 @@ fun LiveTrackingScreen(
     // Auto-start tracking if not active and permission is granted and GPS is on
     LaunchedEffect(hasLocationPermission, isGpsEnabled) {
         if (hasLocationPermission && isGpsEnabled && !state.isTracking) {
-            viewModel.startTracking(context)
+            viewModel.startTracking(context, activityType)
         }
     }
 

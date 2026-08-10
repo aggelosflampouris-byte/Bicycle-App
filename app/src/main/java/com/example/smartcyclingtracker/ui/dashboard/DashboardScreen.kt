@@ -37,6 +37,7 @@ fun DashboardScreen(
     onStartWorkout: () -> Unit,
     onSessionClick: (Long) -> Unit,
     onOpenSettings: () -> Unit,
+    activityType: String = "CYCLING",
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -77,6 +78,7 @@ fun DashboardScreen(
             item {
                 DashboardHeader(
                     userName = uiState.user.name,
+                    activityType = activityType,
                     onSettingsClick = onOpenSettings
                 )
             }
@@ -93,7 +95,10 @@ fun DashboardScreen(
 
             // Start Workout button
             item {
-                StartWorkoutButton(onClick = onStartWorkout)
+                StartWorkoutButton(
+                    onClick = onStartWorkout,
+                    activityType = activityType
+                )
             }
 
             // Recent sessions header
@@ -128,6 +133,7 @@ fun DashboardScreen(
 @Composable
 private fun DashboardHeader(
     userName: String,
+    activityType: String,
     onSettingsClick: () -> Unit
 ) {
     Row(
@@ -144,8 +150,9 @@ private fun DashboardHeader(
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
             )
+            val subtitleText = if (activityType == "WALKING") "Ready to walk?" else "Ready to ride?"
             Text(
-                text = "Ready to ride?",
+                text = subtitleText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
@@ -283,7 +290,7 @@ private fun StatCard(
 }
 
 @Composable
-private fun StartWorkoutButton(onClick: () -> Unit) {
+private fun StartWorkoutButton(activityType: String, onClick: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -310,14 +317,16 @@ private fun StartWorkoutButton(onClick: () -> Unit) {
             pressedElevation = 2.dp
         )
     ) {
+        val icon = if (activityType == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike
         Icon(
-            imageVector = Icons.Default.DirectionsBike,
+            imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(28.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
+        val actionText = if (activityType == "WALKING") "START WALKING" else "START CYCLING"
         Text(
-            text = "START WORKOUT",
+            text = actionText,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.ExtraBold,
             fontSize = 18.sp,

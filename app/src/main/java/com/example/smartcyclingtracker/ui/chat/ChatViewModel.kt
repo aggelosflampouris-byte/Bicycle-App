@@ -145,7 +145,8 @@ class ChatViewModel @Inject constructor(
                 error = null
             )
 
-            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession)
+            val activityType = recentSession?.activityType ?: "CYCLING"
+            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession, activityType)
 
             try {
                 var responseText = ""

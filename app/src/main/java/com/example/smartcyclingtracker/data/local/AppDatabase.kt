@@ -13,7 +13,7 @@ import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 
 @Database(
     entities = [UserEntity::class, WorkoutSessionEntity::class, ChatMessageEntity::class, ChatSessionEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -67,6 +67,14 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE `chat_messages_new` RENAME TO `chat_messages`")
                 database.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId` ON `chat_messages` (`sessionId`)"
+                )
+            }
+        }
+
+        val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE `workout_sessions` ADD COLUMN `activityType` TEXT NOT NULL DEFAULT 'CYCLING'"
                 )
             }
         }

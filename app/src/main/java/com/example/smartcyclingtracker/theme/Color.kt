@@ -2,10 +2,10 @@ package com.example.smartcyclingtracker.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ── Primary brand: Electric Green ───────────────────────────────────────────
-val ElectricGreen = Color(0xFF00FF87)
-val ElectricGreenDark = Color(0xFF00C968)
-val ElectricGreenDarker = Color(0xFF00964C)
+// ── Primary brand: Azure Blue (Repurposed from Electric Green) ──────────────
+val ElectricGreen = Color(0xFF007AFF)
+val ElectricGreenDark = Color(0xFF005BB5)
+val ElectricGreenDarker = Color(0xFF004080)
 
 // ── Surface / Background: Deep Navy ─────────────────────────────────────────
 val DeepNavy = Color(0xFF0A0E1A)

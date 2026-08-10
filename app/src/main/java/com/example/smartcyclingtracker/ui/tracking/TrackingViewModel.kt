@@ -33,12 +33,13 @@ class TrackingViewModel @Inject constructor(
         }
     }
 
-    fun startTracking(context: Context) {
+    fun startTracking(context: Context, activityType: String) {
         val intent = Intent(context, CyclingTrackingService::class.java).apply {
             action = CyclingTrackingService.ACTION_START
             putExtra(CyclingTrackingService.EXTRA_WEIGHT, cachedUser.weightKg)
             putExtra(CyclingTrackingService.EXTRA_GENDER, cachedUser.gender)
             putExtra(CyclingTrackingService.EXTRA_AGE, cachedUser.age)
+            putExtra(CyclingTrackingService.EXTRA_ACTIVITY_TYPE, activityType)
         }
         context.startForegroundService(intent)
     }

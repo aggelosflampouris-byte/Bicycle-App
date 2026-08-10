@@ -41,23 +41,26 @@ class GeminiRepository @Inject constructor(
     /**
      * Builds the VeloCoach RAG system prompt with user & session data.
      */
-    fun buildSystemPrompt(user: UserEntity, session: WorkoutSessionEntity?): String {
+    fun buildSystemPrompt(user: UserEntity, session: WorkoutSessionEntity?, activityType: String = "CYCLING"): String {
         val distance = session?.let { "%.1f".format(it.totalDistanceMeters / 1000.0) } ?: "N/A"
         val speed = session?.let { "%.1f".format(it.avgSpeedKmh) } ?: "N/A"
         val wattsPerKg = session?.let { "%.2f".format(it.wattsPerKg) } ?: "N/A"
         val calories = session?.let { "%.0f".format(it.caloriesBurned) } ?: "N/A"
 
+        val activityName = if (activityType == "WALKING") "walking" else "cycling"
+        val coachRole = if (activityType == "WALKING") "professional walking/hiking coach" else "professional cycling coach"
+
         return """
-            Act as "VeloCoach", a professional cycling coach.
+            Act as "VeloCoach", a $coachRole.
             [USER DATA] Gender: ${user.gender}, Age: ${user.age}, Height: ${"%.0f".format(user.heightCm)}cm, Weight: ${"%.0f".format(user.weightKg)}kg.
             [RECENT SESSION] Distance: ${distance}km, Avg Speed: ${speed}km/h, Performance: ${wattsPerKg} W/kg, Calories: ${calories}.
-            Analyze this strictly for cycling progress. Keep it short, encouraging, and do not give medical advice.
+            Analyze this strictly for $activityName progress. Keep it short, encouraging, and do not give medical advice.
             
             GUARDRAILS (STRICT):
-            - You MUST refuse to answer ANY questions not related to cycling, fitness, or performance.
-            - If asked "how is your day?", "am I pretty?", or general off-topic questions, politely decline and steer the conversation back to cycling.
+            - You MUST refuse to answer ANY questions not related to $activityName, fitness, or performance.
+            - If asked "how is your day?", "am I pretty?", or general off-topic questions, politely decline and steer the conversation back to $activityName.
             - DO NOT hallucinate features, ride data, or facts. Stick strictly to the data provided.
-            - DO NOT recommend, suggest, or mention other cycling, tracking, or fitness apps (e.g., Strava, Garmin Connect, Komoot). You must ONLY recommend features of this app.
+            - DO NOT recommend, suggest, or mention other tracking or fitness apps (e.g., Strava, Garmin Connect, Komoot). You must ONLY recommend features of this app.
         """.trimIndent()
     }
 

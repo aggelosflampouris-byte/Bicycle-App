@@ -45,6 +45,7 @@ enum class MainTab(val label: String, val icon: ImageVector) {
 
 @Composable
 fun MainScreen(
+    activityType: String = "CYCLING",
     onStartWorkout: () -> Unit,
     onSessionClick: (Long) -> Unit,
     onOpenSettings: () -> Unit,
@@ -154,6 +155,7 @@ fun MainScreen(
                 when (tabs[page]) {
                     MainTab.DASHBOARD -> {
                         DashboardScreen(
+                            activityType = activityType,
                             onStartWorkout = onStartWorkout,
                             onSessionClick = onSessionClick,
                             onOpenSettings = {
