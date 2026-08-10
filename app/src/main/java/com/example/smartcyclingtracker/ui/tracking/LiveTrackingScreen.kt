@@ -281,7 +281,8 @@ fun LiveTrackingScreen(
                                 style = MaterialTheme.typography.titleSmall
                             )
                             Text(
-                                "Turn on Location Services to track your ride.",
+                                if (activityType == "WALKING") "Turn on Location Services to track your walk."
+                                else "Turn on Location Services to track your ride.",
                                 color = TextPrimary,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -364,9 +365,10 @@ fun LiveTrackingScreen(
             )
         }
 
-        // Finish Ride Confirmation Dialog
+        // Finish Workout Confirmation Dialog
         if (showFinishDialog) {
-            FinishRideDialog(
+            FinishWorkoutDialog(
+                activityType = activityType,
                 distanceMeters = state.distanceMeters,
                 elapsedSeconds = state.elapsedSeconds,
                 calories = state.calories,
@@ -482,7 +484,8 @@ private fun TrackingControlBar(
 }
 
 @Composable
-private fun FinishRideDialog(
+private fun FinishWorkoutDialog(
+    activityType: String,
     distanceMeters: Double,
     elapsedSeconds: Long,
     calories: Double,
@@ -505,7 +508,8 @@ private fun FinishRideDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Great ride! Are you ready to save your workout summary and get feedback from VeloCoach AI?",
+                    if (activityType == "WALKING") "Great walk! Are you ready to save your workout summary and get feedback from VeloCoach AI?"
+                    else "Great ride! Are you ready to save your workout summary and get feedback from VeloCoach AI?",
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )

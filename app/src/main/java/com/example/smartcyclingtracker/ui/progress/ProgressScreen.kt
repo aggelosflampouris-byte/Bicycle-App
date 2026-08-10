@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,9 +28,14 @@ import kotlin.math.absoluteValue
 
 @Composable
 fun ProgressScreen(
+    activityType: String = "CYCLING",
     viewModel: AnalyticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(activityType) {
+        viewModel.setActivityType(activityType)
+    }
 
     Column(
         modifier = Modifier

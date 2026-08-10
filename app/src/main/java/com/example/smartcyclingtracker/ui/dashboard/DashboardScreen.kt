@@ -42,6 +42,10 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(activityType) {
+        viewModel.setActivityType(activityType)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -91,12 +95,9 @@ fun DashboardScreen(
                     visible = !uiState.isLoading,
                     enter = fadeIn() + slideInVertically()
                 ) {
-                    StatsRow(uiState = uiState)
+                    StatsRow(uiState = uiState, activityType = activityType)
                 }
-            }
-
-            // Start Workout button
-            item {
+                Spacer(modifier = Modifier.height(24.dp))
                 StartWorkoutButton(
                     onClick = onStartWorkout,
                     activityType = activityType
@@ -107,7 +108,7 @@ fun DashboardScreen(
             item {
                 if (uiState.sessions.isNotEmpty()) {
                     Text(
-                        text = "Recent Rides",
+                        text = if (activityType == "WALKING") "Recent Walks" else "Recent Rides",
                         style = MaterialTheme.typography.headlineSmall,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -175,7 +176,7 @@ private fun DashboardHeader(
 }
 
 @Composable
-private fun StatsRow(uiState: DashboardUiState) {
+private fun StatsRow(uiState: DashboardUiState, activityType: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -204,10 +205,10 @@ private fun StatsRow(uiState: DashboardUiState) {
     ) {
         StatCard(
             modifier = Modifier.weight(1f),
-            label = "Total Rides",
+            label = if (activityType == "WALKING") "Total Walks" else "Total Rides",
             value = "${uiState.totalSessions}",
-            unit = "rides",
-            icon = Icons.Default.DirectionsBike,
+            unit = if (activityType == "WALKING") "walks" else "rides",
+            icon = if (activityType == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike,
             iconTint = WarningAmber
         )
         StatCard(

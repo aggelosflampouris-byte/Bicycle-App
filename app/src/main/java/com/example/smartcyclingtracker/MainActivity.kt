@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
         // Determine start destination based on whether user has been set up
         lifecycleScope.launch {
             val user = userDao.getUserFlow().firstOrNull()
-            startDestination = if (user != null) Screen.Main.route else Screen.Onboarding.route
+            startDestination = if (user != null) Screen.ActivitySelection.route else Screen.Onboarding.route
 
             setContent {
                 // Collect theme preference reactively

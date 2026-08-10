@@ -51,12 +51,20 @@ class AnalyticsViewModel @Inject constructor(
         initialValue = AnalyticsUiState()
     )
 
+    private val _activityType = MutableStateFlow("CYCLING")
+
     init {
         viewModelScope.launch {
-            sessionDao.getAllSessionsFlow().collect { list ->
+            combine(sessionDao.getAllSessionsFlow(), _activityType) { allSessions, type ->
+                allSessions.filter { it.activityType == type }
+            }.collect { list ->
                 _sessions.value = list
             }
         }
+    }
+
+    fun setActivityType(type: String) {
+        _activityType.value = type
     }
 
     fun setFilter(filter: TimeFilter) {

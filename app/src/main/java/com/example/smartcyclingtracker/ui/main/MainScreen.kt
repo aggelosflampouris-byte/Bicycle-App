@@ -176,6 +176,7 @@ fun MainScreen(
                     }
                     MainTab.HISTORY -> {
                         HistoryScreen(
+                            activityType = activityType,
                             onSessionClick = onSessionClick,
                             onStartWorkout = onStartWorkout
                         )

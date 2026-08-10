@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +35,7 @@ enum class HistoryView { LIST, PROGRESS }
 
 @Composable
 fun HistoryScreen(
+    activityType: String = "CYCLING",
     onSessionClick: (Long) -> Unit,
     onStartWorkout: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
@@ -46,8 +48,14 @@ fun HistoryScreen(
     val filteredSessions = remember(uiState.sessions, selectedFilter) {
         when (selectedFilter) {
             HistoryFilter.ALL -> uiState.sessions
-            HistoryFilter.LONG_RIDES -> uiState.sessions.filter { it.totalDistanceMeters >= 10000.0 }
-            HistoryFilter.FAST_RIDES -> uiState.sessions.filter { it.avgSpeedKmh >= 20.0 }
+            HistoryFilter.LONG_RIDES -> {
+                if (activityType == "WALKING") uiState.sessions.filter { it.totalDistanceMeters >= 5000.0 }
+                else uiState.sessions.filter { it.totalDistanceMeters >= 10000.0 }
+            }
+            HistoryFilter.FAST_RIDES -> {
+                if (activityType == "WALKING") uiState.sessions.filter { it.avgSpeedKmh >= 6.0 }
+                else uiState.sessions.filter { it.avgSpeedKmh >= 20.0 }
+            }
         }
     }
 
@@ -77,7 +85,7 @@ fun HistoryScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Rides",
+                    text = if (activityType == "WALKING") "Walks" else "Rides",
                     color = if (listSelected) ElectricGreen else TextSecondary,
                     fontWeight = if (listSelected) FontWeight.Bold else FontWeight.Normal,
                     fontSize = 14.sp
@@ -137,7 +145,7 @@ fun HistoryScreen(
                                 color = VividCyan,
                                 fontWeight = FontWeight.Black
                             )
-                            Text("Rides", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(if (activityType == "WALKING") "Walks" else "Rides", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
@@ -170,7 +178,7 @@ fun HistoryScreen(
                     FilterChip(
                         selected = selectedFilter == HistoryFilter.LONG_RIDES,
                         onClick = { selectedFilter = HistoryFilter.LONG_RIDES },
-                        label = { Text("Long (>10km)") },
+                        label = { Text(if (activityType == "WALKING") "Long (>5km)" else "Long (>10km)") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = VividCyan.copy(alpha = 0.2f),
                             selectedLabelColor = VividCyan
@@ -179,7 +187,7 @@ fun HistoryScreen(
                     FilterChip(
                         selected = selectedFilter == HistoryFilter.FAST_RIDES,
                         onClick = { selectedFilter = HistoryFilter.FAST_RIDES },
-                        label = { Text("Fast (>20km/h)") },
+                        label = { Text(if (activityType == "WALKING") "Fast (>6km/h)" else "Fast (>20km/h)") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = WarningAmber.copy(alpha = 0.2f),
                             selectedLabelColor = WarningAmber
@@ -206,20 +214,24 @@ fun HistoryScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.DirectionsBike,
+                                imageVector = if (activityType == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike,
                                 contentDescription = null,
                                 tint = ElectricGreen,
                                 modifier = Modifier.size(36.dp)
                             )
                         }
                         Text(
-                            text = if (uiState.sessions.isEmpty()) "No recorded rides yet" else "No rides match this filter",
+                            text = if (uiState.sessions.isEmpty()) {
+                                if (activityType == "WALKING") "No recorded walks yet" else "No recorded rides yet"
+                            } else {
+                                if (activityType == "WALKING") "No walks match this filter" else "No rides match this filter"
+                            },
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Record your cycling sessions to see detailed stats here",
+                            text = if (activityType == "WALKING") "Record your walking sessions to see detailed stats here" else "Record your cycling sessions to see detailed stats here",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -234,7 +246,7 @@ fun HistoryScreen(
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Start a Ride", fontWeight = FontWeight.Bold)
+                            Text(if (activityType == "WALKING") "Start a Walk" else "Start a Ride", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -254,7 +266,7 @@ fun HistoryScreen(
             item { Spacer(modifier = Modifier.height(100.dp)) }
         }
         } else {
-            ProgressScreen()
+            ProgressScreen(activityType = activityType)
         }
     }
 }

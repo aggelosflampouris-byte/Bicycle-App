@@ -30,16 +30,24 @@ class DashboardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
+    private val _activityType = MutableStateFlow("CYCLING")
+
     init {
         loadData()
+    }
+
+    fun setActivityType(type: String) {
+        _activityType.value = type
     }
 
     private fun loadData() {
         viewModelScope.launch {
             combine(
                 userDao.getUserFlow().map { it ?: UserEntity() },
-                sessionDao.getAllSessionsFlow()
-            ) { user, sessions ->
+                sessionDao.getAllSessionsFlow(),
+                _activityType
+            ) { user, allSessions, activityType ->
+                val sessions = allSessions.filter { it.activityType == activityType }
                 val totalDist = sessions.sumOf { it.totalDistanceMeters } / 1000.0
                 val avgDist = if (sessions.isNotEmpty()) totalDist / sessions.size else 0.0
                 val totalCals = sessions.sumOf { it.caloriesBurned }
