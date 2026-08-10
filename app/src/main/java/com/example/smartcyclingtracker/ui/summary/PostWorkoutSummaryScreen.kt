@@ -321,6 +321,23 @@ private fun SummaryMapView(
         "#9C27B0"  // Purple
     )
 
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var mapRef by remember { mutableStateOf<MapView?>(null) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> mapRef?.onResume()
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> mapRef?.onPause()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     AndroidView(
         factory = { ctx ->
             val osmConfig = org.osmdroid.config.Configuration.getInstance()
@@ -342,6 +359,7 @@ private fun SummaryMapView(
                 setTileSource(cartoDbTileSource)
                 setMultiTouchControls(true)
                 controller.setZoom(14.0)
+                mapRef = this
             }
         },
         modifier = modifier,

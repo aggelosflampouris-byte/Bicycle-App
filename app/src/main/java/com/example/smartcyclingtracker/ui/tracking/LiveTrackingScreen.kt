@@ -384,6 +384,7 @@ private fun TrackingControlBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(NavyDarker)
+            .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
