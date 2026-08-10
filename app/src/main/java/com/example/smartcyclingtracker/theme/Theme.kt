@@ -6,7 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.example.smartcyclingtracker.data.local.ThemeMode
 
-private val DarkColorScheme = darkColorScheme(
+val DarkColorScheme: ColorScheme
+    @Composable get() = darkColorScheme(
     primary = ElectricGreen,
     onPrimary = DeepNavy,
     primaryContainer = ElectricGreenDarker,
@@ -35,7 +36,8 @@ private val DarkColorScheme = darkColorScheme(
     outlineVariant = NavyLight,
 )
 
-private val LightColorScheme = lightColorScheme(
+val LightColorScheme: ColorScheme
+    @Composable get() = lightColorScheme(
     primary = LightPrimary,
     onPrimary = LightOnPrimary,
     primaryContainer = Color(0xFFB7F5D0),

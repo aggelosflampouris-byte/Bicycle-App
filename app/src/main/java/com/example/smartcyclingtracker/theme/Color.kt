@@ -1,11 +1,27 @@
 package com.example.smartcyclingtracker.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// ── Primary brand: Azure Blue (Repurposed from Electric Green) ──────────────
-val ElectricGreen = Color(0xFF007AFF)
-val ElectricGreenDark = Color(0xFF005BB5)
-val ElectricGreenDarker = Color(0xFF004080)
+val LocalActivityTheme = compositionLocalOf { "CYCLING" }
+
+val ActualElectricGreen = Color(0xFF00FF87)
+val ActualElectricGreenDark = Color(0xFF00C968)
+val ActualElectricGreenDarker = Color(0xFF00964C)
+
+val ActualAzureBlue = Color(0xFF007AFF)
+val ActualAzureBlueDark = Color(0xFF005BB5)
+val ActualAzureBlueDarker = Color(0xFF004080)
+
+val ElectricGreen: Color
+    @Composable get() = if (LocalActivityTheme.current == "WALKING") ActualAzureBlue else ActualElectricGreen
+
+val ElectricGreenDark: Color
+    @Composable get() = if (LocalActivityTheme.current == "WALKING") ActualAzureBlueDark else ActualElectricGreenDark
+
+val ElectricGreenDarker: Color
+    @Composable get() = if (LocalActivityTheme.current == "WALKING") ActualAzureBlueDarker else ActualElectricGreenDarker
 
 // ── Surface / Background: Deep Navy ─────────────────────────────────────────
 val DeepNavy = Color(0xFF0A0E1A)

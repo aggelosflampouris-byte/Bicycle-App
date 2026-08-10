@@ -46,6 +46,8 @@ fun AnimatedBarChart(
 
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
+    val primaryColor = ElectricGreen
+    
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -104,13 +106,13 @@ fun AnimatedBarChart(
             // Draw Bar
             val brush = if (selectedIndex == null || selectedIndex == index) {
                 Brush.verticalGradient(
-                    colors = listOf(ElectricGreen, VividCyan),
+                    colors = listOf(primaryColor, VividCyan),
                     startY = yOffset,
                     endY = yOffset + barHeight
                 )
             } else {
                 Brush.verticalGradient(
-                    colors = listOf(ElectricGreen.copy(alpha = 0.3f), VividCyan.copy(alpha = 0.3f)),
+                    colors = listOf(primaryColor.copy(alpha = 0.3f), VividCyan.copy(alpha = 0.3f)),
                     startY = yOffset,
                     endY = yOffset + barHeight
                 )

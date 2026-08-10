@@ -50,6 +50,8 @@ fun AnimatedLineChart(
 
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
+    val primaryColor = ElectricGreen
+    
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -128,7 +130,7 @@ fun AnimatedLineChart(
                 drawPath(
                     path = fillPath,
                     brush = Brush.verticalGradient(
-                        colors = listOf(ElectricGreen.copy(alpha = 0.4f), Color.Transparent),
+                        colors = listOf(primaryColor.copy(alpha = 0.4f), Color.Transparent),
                         startY = 0f,
                         endY = bottomY
                     )
@@ -138,7 +140,7 @@ fun AnimatedLineChart(
             drawPath(
                 path = strokePath,
                 brush = Brush.horizontalGradient(
-                    colors = listOf(ElectricGreen, VividCyan)
+                    colors = listOf(primaryColor, VividCyan)
                 ),
                 style = Stroke(
                     width = 3.dp.toPx(),

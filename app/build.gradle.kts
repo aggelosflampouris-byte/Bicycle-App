@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.smartcyclingtracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 43
-        versionName = "1.1.33"
+        versionCode = 44
+        versionName = "1.1.34"
 
         // API key is read from local.properties (gitignored — never committed)
         // or from the GEMINI_API_KEY environment variable (GitHub Actions Secret).

@@ -47,11 +47,13 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(DeepNavy)
     ) {
+        val primaryColor = ElectricGreen
+        
         // Decorative gradient orbs
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(ElectricGreen.copy(alpha = 0.08f), Color.Transparent),
+                    colors = listOf(primaryColor.copy(alpha = 0.08f), Color.Transparent),
                     center = Offset(size.width * 0.8f, size.height * 0.1f),
                     radius = size.width * 0.5f
                 ),

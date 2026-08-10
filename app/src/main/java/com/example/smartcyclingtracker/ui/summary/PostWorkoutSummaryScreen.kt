@@ -21,8 +21,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.smartcyclingtracker.R
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.engine.PhysicsEngine
 import com.example.smartcyclingtracker.service.RoutePoint
@@ -47,28 +49,30 @@ fun PostWorkoutSummaryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    Box(modifier = Modifier.fillMaxSize().background(DeepNavy)) {
-        when {
-            uiState.isLoading -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = ElectricGreen
-                )
-            }
-            uiState.session != null -> {
-                SummaryContent(
-                    session = uiState.session!!,
-                    context = context,
-                    onAskVeloCoach = onAskVeloCoach,
-                    onBack = onBack
-                )
-            }
-            else -> {
-                Text(
-                    text = uiState.error ?: "No data",
-                    color = TextSecondary,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+    CompositionLocalProvider(LocalActivityTheme provides (uiState.session?.activityType ?: "CYCLING")) {
+        Box(modifier = Modifier.fillMaxSize().background(DeepNavy)) {
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = ElectricGreen
+                    )
+                }
+                uiState.session != null -> {
+                    SummaryContent(
+                        session = uiState.session!!,
+                        context = context,
+                        onAskVeloCoach = onAskVeloCoach,
+                        onBack = onBack
+                    )
+                }
+                else -> {
+                    Text(
+                        text = uiState.error ?: "No data",
+                        color = TextSecondary,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
         }
     }

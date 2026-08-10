@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -16,6 +17,7 @@ import com.example.smartcyclingtracker.ui.main.MainScreen
 import com.example.smartcyclingtracker.ui.onboarding.OnboardingScreen
 import com.example.smartcyclingtracker.ui.summary.PostWorkoutSummaryScreen
 import com.example.smartcyclingtracker.ui.tracking.LiveTrackingScreen
+import com.example.smartcyclingtracker.theme.LocalActivityTheme
 
 sealed class Screen(val route: String) {
     object Onboarding : Screen("onboarding")
@@ -96,18 +98,20 @@ fun CyclingNavGraph(
             arguments = listOf(navArgument("activityType") { type = NavType.StringType })
         ) { backStackEntry ->
             val activityTypeStr = backStackEntry.arguments?.getString("activityType") ?: "CYCLING"
-            MainScreen(
-                activityType = activityTypeStr,
-                onStartWorkout = {
-                    navController.navigate(Screen.LiveTracking.createRoute(activityTypeStr))
-                },
-                onSessionClick = { sessionId ->
-                    navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
-                },
-                onOpenSettings = {
-                    navController.navigate(Screen.Onboarding.route)
-                }
-            )
+            CompositionLocalProvider(LocalActivityTheme provides activityTypeStr) {
+                MainScreen(
+                    activityType = activityTypeStr,
+                    onStartWorkout = {
+                        navController.navigate(Screen.LiveTracking.createRoute(activityTypeStr))
+                    },
+                    onSessionClick = { sessionId ->
+                        navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
+                    },
+                    onOpenSettings = {
+                        navController.navigate(Screen.Onboarding.route)
+                    }
+                )
+            }
         }
 
         composable(
@@ -115,18 +119,20 @@ fun CyclingNavGraph(
             arguments = listOf(navArgument("activityType") { type = NavType.StringType; defaultValue = "CYCLING" })
         ) { backStackEntry ->
             val activityTypeStr = backStackEntry.arguments?.getString("activityType") ?: "CYCLING"
-            DashboardScreen(
-                activityType = activityTypeStr,
-                onStartWorkout = {
-                    navController.navigate(Screen.LiveTracking.createRoute(activityTypeStr))
-                },
-                onSessionClick = { sessionId ->
-                    navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
-                },
-                onOpenSettings = {
-                    navController.navigate(Screen.Onboarding.route)
-                }
-            )
+            CompositionLocalProvider(LocalActivityTheme provides activityTypeStr) {
+                DashboardScreen(
+                    activityType = activityTypeStr,
+                    onStartWorkout = {
+                        navController.navigate(Screen.LiveTracking.createRoute(activityTypeStr))
+                    },
+                    onSessionClick = { sessionId ->
+                        navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
+                    },
+                    onOpenSettings = {
+                        navController.navigate(Screen.Onboarding.route)
+                    }
+                )
+            }
         }
 
         composable(
@@ -134,23 +140,25 @@ fun CyclingNavGraph(
             arguments = listOf(navArgument("activityType") { type = NavType.StringType })
         ) { backStackEntry ->
             val activityTypeStr = backStackEntry.arguments?.getString("activityType") ?: "CYCLING"
-            LiveTrackingScreen(
-                activityType = activityTypeStr,
-                onTrackingFinished = { sessionId ->
-                    if (sessionId > 0) {
-                        navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId)) {
-                            popUpTo(Screen.LiveTracking.route) { inclusive = true }
+            CompositionLocalProvider(LocalActivityTheme provides activityTypeStr) {
+                LiveTrackingScreen(
+                    activityType = activityTypeStr,
+                    onTrackingFinished = { sessionId ->
+                        if (sessionId > 0) {
+                            navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId)) {
+                                popUpTo(Screen.LiveTracking.route) { inclusive = true }
+                            }
+                        } else {
+                            navController.navigate(Screen.ActivitySelection.route) {
+                                popUpTo(Screen.LiveTracking.route) { inclusive = true }
+                            }
                         }
-                    } else {
-                        navController.navigate(Screen.ActivitySelection.route) {
-                            popUpTo(Screen.LiveTracking.route) { inclusive = true }
-                        }
+                    },
+                    onBack = {
+                        navController.popBackStack()
                     }
-                },
-                onBack = {
-                    navController.popBackStack()
-                }
-            )
+                )
+            }
         }
 
         composable(
