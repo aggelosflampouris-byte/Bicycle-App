@@ -12,6 +12,7 @@ import javax.inject.Inject
 
 enum class TimeFilter { DAILY, WEEKLY, MONTHLY }
 enum class MetricFilter { DISTANCE, SPEED, CALORIES }
+enum class ChartType { BAR, LINE, AREA }
 
 data class ChartBarData(
     val label: String,
@@ -21,6 +22,7 @@ data class ChartBarData(
 data class AnalyticsUiState(
     val selectedFilter: TimeFilter = TimeFilter.WEEKLY,
     val selectedMetric: MetricFilter = MetricFilter.DISTANCE,
+    val selectedChartType: ChartType = ChartType.BAR,
     val chartData: List<ChartBarData> = emptyList(),
     val totalDistanceKm: Double = 0.0,
     val distanceDiffPercent: Double? = null,
@@ -38,10 +40,11 @@ class AnalyticsViewModel @Inject constructor(
 
     private val _filter = MutableStateFlow(TimeFilter.WEEKLY)
     private val _metric = MutableStateFlow(MetricFilter.DISTANCE)
+    private val _chartType = MutableStateFlow(ChartType.BAR)
     private val _sessions = MutableStateFlow<List<WorkoutSessionEntity>>(emptyList())
     
-    val uiState: StateFlow<AnalyticsUiState> = combine(_filter, _metric, _sessions) { filter, metric, sessions ->
-        processData(filter, metric, sessions)
+    val uiState: StateFlow<AnalyticsUiState> = combine(_filter, _metric, _chartType, _sessions) { filter, metric, chartType, sessions ->
+        processData(filter, metric, chartType, sessions)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -64,7 +67,11 @@ class AnalyticsViewModel @Inject constructor(
         _metric.value = metric
     }
 
-    private fun processData(filter: TimeFilter, metric: MetricFilter, sessions: List<WorkoutSessionEntity>): AnalyticsUiState {
+    fun setChartType(chartType: ChartType) {
+        _chartType.value = chartType
+    }
+
+    private fun processData(filter: TimeFilter, metric: MetricFilter, chartType: ChartType, sessions: List<WorkoutSessionEntity>): AnalyticsUiState {
         if (sessions.isEmpty()) return AnalyticsUiState(isLoading = false)
 
         val cal = Calendar.getInstance()
@@ -145,6 +152,7 @@ class AnalyticsViewModel @Inject constructor(
         return AnalyticsUiState(
             selectedFilter = filter,
             selectedMetric = metric,
+            selectedChartType = chartType,
             chartData = chartData,
             totalDistanceKm = currentDist,
             distanceDiffPercent = distDiff,
@@ -239,13 +247,15 @@ class AnalyticsViewModel @Inject constructor(
             }
         }
 
+        var weekIndex = 1
         return labelsInOrder.map { label ->
             var value = dataMap[label] ?: 0.0
             if (metric == MetricFilter.SPEED) {
                 val count = countMap[label] ?: 0
                 if (count > 0) value /= count
             }
-            ChartBarData(label = label, value = value.toFloat())
+            val finalLabel = if (filter == TimeFilter.WEEKLY) "Week ${weekIndex++}" else label
+            ChartBarData(label = finalLabel, value = value.toFloat())
         }
     }
 }

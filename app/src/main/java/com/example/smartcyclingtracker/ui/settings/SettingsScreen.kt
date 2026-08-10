@@ -145,7 +145,8 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Profile", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                        val buttonText = if (onboardingState.hasProfile) "Edit Profile" else "Save Profile"
+                        Text(buttonText, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
                     }
                 }
             }

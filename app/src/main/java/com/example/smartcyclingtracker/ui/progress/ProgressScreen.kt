@@ -52,6 +52,13 @@ fun ProgressScreen(
             onMetricSelected = { viewModel.setMetric(it) }
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        ChartTypeSelector(
+            selectedType = uiState.selectedChartType,
+            onTypeSelected = { viewModel.setChartType(it) }
+        )
+
         Spacer(modifier = Modifier.height(24.dp))
 
         // Chart Card
@@ -75,7 +82,11 @@ fun ProgressScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                AnimatedBarChart(data = uiState.chartData)
+                when (uiState.selectedChartType) {
+                    ChartType.BAR -> AnimatedBarChart(data = uiState.chartData)
+                    ChartType.LINE -> AnimatedLineChart(data = uiState.chartData, isArea = false)
+                    ChartType.AREA -> AnimatedLineChart(data = uiState.chartData, isArea = true)
+                }
             }
         }
 
@@ -252,6 +263,41 @@ fun MetricFilterSelector(
                 Text(
                     text = metric.name.lowercase().replaceFirstChar { it.uppercase() },
                     color = if (isSelected) VividCyan else TextSecondary,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ChartTypeSelector(
+    selectedType: ChartType,
+    onTypeSelected: (ChartType) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(NavyCard)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        ChartType.values().forEach { type ->
+            val isSelected = type == selectedType
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isSelected) SpeedRed.copy(alpha = 0.2f) else Color.Transparent)
+                    .clickable { onTypeSelected(type) }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = type.name.lowercase().replaceFirstChar { it.uppercase() },
+                    color = if (isSelected) SpeedRed else TextSecondary,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     fontSize = 14.sp
                 )

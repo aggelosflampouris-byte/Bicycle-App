@@ -17,7 +17,8 @@ data class OnboardingUiState(
     val weightKg: String = "75",
     val heightCm: String = "175",
     val isSaved: Boolean = false,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val hasProfile: Boolean = false
 )
 
 @HiltViewModel
@@ -40,7 +41,8 @@ class OnboardingViewModel @Inject constructor(
                     weightKg = existing.weightKg.toString(),
                     heightCm = existing.heightCm.toString(),
                     isSaved = false,
-                    isLoading = false
+                    isLoading = false,
+                    hasProfile = true
                 )
             } else {
                 _uiState.value = _uiState.value.copy(isLoading = false)
@@ -72,7 +74,7 @@ class OnboardingViewModel @Inject constructor(
             } else {
                 userDao.upsertUser(user)
             }
-            _uiState.value = _uiState.value.copy(isSaved = true)
+            _uiState.value = _uiState.value.copy(isSaved = true, hasProfile = true)
             onComplete()
         }
     }
