@@ -55,13 +55,18 @@ fun AnimatedBarChart(
                     val totalItems = data.size
                     val spacing = size.width * 0.05f
                     val availableWidth = size.width - (spacing * (totalItems + 1))
-                    val barWidth = availableWidth / totalItems
+                    val calculatedBarWidth = availableWidth / totalItems
+                    val maxBarWidth = 48.dp.toPx()
+                    val barWidth = calculatedBarWidth.coerceAtMost(maxBarWidth)
+                    
+                    val totalDrawnWidth = (barWidth * totalItems) + (spacing * (totalItems - 1))
+                    val startOffset = (size.width - totalDrawnWidth) / 2f
                     
                     val clickX = offset.x
                     
                     var found = false
                     for (i in 0 until totalItems) {
-                        val startX = spacing + i * (barWidth + spacing)
+                        val startX = startOffset + i * (barWidth + spacing)
                         val endX = startX + barWidth
                         if (clickX in startX..endX) {
                             selectedIndex = if (selectedIndex == i) null else i
@@ -76,7 +81,12 @@ fun AnimatedBarChart(
         val totalItems = data.size
         val spacing = size.width * 0.05f
         val availableWidth = size.width - (spacing * (totalItems + 1))
-        val barWidth = availableWidth / totalItems
+        val calculatedBarWidth = availableWidth / totalItems
+        val maxBarWidth = 48.dp.toPx()
+        val barWidth = calculatedBarWidth.coerceAtMost(maxBarWidth)
+        
+        val totalDrawnWidth = (barWidth * totalItems) + (spacing * (totalItems - 1))
+        val startOffset = (size.width - totalDrawnWidth) / 2f
         
         // Draw baseline
         drawLine(
@@ -88,7 +98,7 @@ fun AnimatedBarChart(
 
         data.forEachIndexed { index, item ->
             val barHeight = (item.value / maxValue) * (size.height - 70.dp.toPx()) * animationProgress.value
-            val xOffset = spacing + index * (barWidth + spacing)
+            val xOffset = startOffset + index * (barWidth + spacing)
             val yOffset = size.height - 40.dp.toPx() - barHeight
 
             // Draw Bar

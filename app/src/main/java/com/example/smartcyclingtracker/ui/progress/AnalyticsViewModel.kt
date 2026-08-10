@@ -11,6 +11,7 @@ import java.util.*
 import javax.inject.Inject
 
 enum class TimeFilter { DAILY, WEEKLY, MONTHLY }
+enum class MetricFilter { DISTANCE, SPEED, CALORIES }
 
 data class ChartBarData(
     val label: String,
@@ -19,6 +20,7 @@ data class ChartBarData(
 
 data class AnalyticsUiState(
     val selectedFilter: TimeFilter = TimeFilter.WEEKLY,
+    val selectedMetric: MetricFilter = MetricFilter.DISTANCE,
     val chartData: List<ChartBarData> = emptyList(),
     val totalDistanceKm: Double = 0.0,
     val distanceDiffPercent: Double? = null,
@@ -35,10 +37,11 @@ class AnalyticsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _filter = MutableStateFlow(TimeFilter.WEEKLY)
+    private val _metric = MutableStateFlow(MetricFilter.DISTANCE)
     private val _sessions = MutableStateFlow<List<WorkoutSessionEntity>>(emptyList())
     
-    val uiState: StateFlow<AnalyticsUiState> = combine(_filter, _sessions) { filter, sessions ->
-        processData(filter, sessions)
+    val uiState: StateFlow<AnalyticsUiState> = combine(_filter, _metric, _sessions) { filter, metric, sessions ->
+        processData(filter, metric, sessions)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -57,7 +60,11 @@ class AnalyticsViewModel @Inject constructor(
         _filter.value = filter
     }
 
-    private fun processData(filter: TimeFilter, sessions: List<WorkoutSessionEntity>): AnalyticsUiState {
+    fun setMetric(metric: MetricFilter) {
+        _metric.value = metric
+    }
+
+    private fun processData(filter: TimeFilter, metric: MetricFilter, sessions: List<WorkoutSessionEntity>): AnalyticsUiState {
         if (sessions.isEmpty()) return AnalyticsUiState(isLoading = false)
 
         val cal = Calendar.getInstance()
@@ -133,10 +140,11 @@ class AnalyticsViewModel @Inject constructor(
         val calsDiff = calculateDiff(currentCals, prevCals)
 
         // Build chart data
-        val chartData = buildChartData(filter, currentPeriodSessions)
+        val chartData = buildChartData(filter, metric, currentPeriodSessions)
 
         return AnalyticsUiState(
             selectedFilter = filter,
+            selectedMetric = metric,
             chartData = chartData,
             totalDistanceKm = currentDist,
             distanceDiffPercent = distDiff,
@@ -153,9 +161,10 @@ class AnalyticsViewModel @Inject constructor(
         return ((current - previous) / previous) * 100.0
     }
 
-    private fun buildChartData(filter: TimeFilter, sessions: List<WorkoutSessionEntity>): List<ChartBarData> {
+    private fun buildChartData(filter: TimeFilter, metric: MetricFilter, sessions: List<WorkoutSessionEntity>): List<ChartBarData> {
         val cal = Calendar.getInstance()
         val dataMap = mutableMapOf<String, Double>()
+        val countMap = mutableMapOf<String, Int>()
         val labelsInOrder = mutableListOf<String>()
 
         when (filter) {
@@ -167,11 +176,18 @@ class AnalyticsViewModel @Inject constructor(
                     val label = format.format(cal.time)
                     labelsInOrder.add(label)
                     dataMap[label] = 0.0
+                    countMap[label] = 0
                 }
                 sessions.forEach {
                     val label = format.format(Date(it.startTime))
                     if (dataMap.containsKey(label)) {
-                        dataMap[label] = dataMap[label]!! + (it.totalDistanceMeters / 1000.0)
+                        val valueToAdd = when (metric) {
+                            MetricFilter.DISTANCE -> it.totalDistanceMeters / 1000.0
+                            MetricFilter.SPEED -> it.avgSpeedKmh
+                            MetricFilter.CALORIES -> it.caloriesBurned
+                        }
+                        dataMap[label] = dataMap[label]!! + valueToAdd
+                        countMap[label] = countMap[label]!! + 1
                     }
                 }
             }
@@ -183,11 +199,18 @@ class AnalyticsViewModel @Inject constructor(
                     val label = "W${format.format(cal.time)}"
                     labelsInOrder.add(label)
                     dataMap[label] = 0.0
+                    countMap[label] = 0
                 }
                 sessions.forEach {
                     val label = "W${format.format(Date(it.startTime))}"
                     if (dataMap.containsKey(label)) {
-                        dataMap[label] = dataMap[label]!! + (it.totalDistanceMeters / 1000.0)
+                        val valueToAdd = when (metric) {
+                            MetricFilter.DISTANCE -> it.totalDistanceMeters / 1000.0
+                            MetricFilter.SPEED -> it.avgSpeedKmh
+                            MetricFilter.CALORIES -> it.caloriesBurned
+                        }
+                        dataMap[label] = dataMap[label]!! + valueToAdd
+                        countMap[label] = countMap[label]!! + 1
                     }
                 }
             }
@@ -199,18 +222,30 @@ class AnalyticsViewModel @Inject constructor(
                     val label = format.format(cal.time)
                     labelsInOrder.add(label)
                     dataMap[label] = 0.0
+                    countMap[label] = 0
                 }
                 sessions.forEach {
                     val label = format.format(Date(it.startTime))
                     if (dataMap.containsKey(label)) {
-                        dataMap[label] = dataMap[label]!! + (it.totalDistanceMeters / 1000.0)
+                        val valueToAdd = when (metric) {
+                            MetricFilter.DISTANCE -> it.totalDistanceMeters / 1000.0
+                            MetricFilter.SPEED -> it.avgSpeedKmh
+                            MetricFilter.CALORIES -> it.caloriesBurned
+                        }
+                        dataMap[label] = dataMap[label]!! + valueToAdd
+                        countMap[label] = countMap[label]!! + 1
                     }
                 }
             }
         }
 
         return labelsInOrder.map { label ->
-            ChartBarData(label = label, value = dataMap[label]?.toFloat() ?: 0f)
+            var value = dataMap[label] ?: 0.0
+            if (metric == MetricFilter.SPEED) {
+                val count = countMap[label] ?: 0
+                if (count > 0) value /= count
+            }
+            ChartBarData(label = label, value = value.toFloat())
         }
     }
 }

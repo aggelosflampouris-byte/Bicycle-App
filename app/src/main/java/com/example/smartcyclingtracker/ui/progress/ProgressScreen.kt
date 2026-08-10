@@ -43,6 +43,14 @@ fun ProgressScreen(
             selectedFilter = uiState.selectedFilter,
             onFilterSelected = { viewModel.setFilter(it) }
         )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Metric Filter Segmented Control
+        MetricFilterSelector(
+            selectedMetric = uiState.selectedMetric,
+            onMetricSelected = { viewModel.setMetric(it) }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -57,7 +65,11 @@ fun ProgressScreen(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = "Distance Over Time",
+                    text = when (uiState.selectedMetric) {
+                        MetricFilter.DISTANCE -> "Distance Over Time"
+                        MetricFilter.SPEED -> "Average Speed Over Time"
+                        MetricFilter.CALORIES -> "Calories Burned Over Time"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -207,6 +219,41 @@ fun ComparisonCard(
                     text = "No previous data",
                     color = TextSecondary,
                     style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MetricFilterSelector(
+    selectedMetric: MetricFilter,
+    onMetricSelected: (MetricFilter) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(NavyCard)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        MetricFilter.values().forEach { metric ->
+            val isSelected = metric == selectedMetric
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isSelected) VividCyan.copy(alpha = 0.2f) else Color.Transparent)
+                    .clickable { onMetricSelected(metric) }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = metric.name.lowercase().replaceFirstChar { it.uppercase() },
+                    color = if (isSelected) VividCyan else TextSecondary,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 14.sp
                 )
             }
         }
