@@ -62,6 +62,13 @@ class TrackingViewModel @Inject constructor(
         context.startService(intent)
     }
 
+    fun markLap(context: Context) {
+        val intent = Intent(context, CyclingTrackingService::class.java).apply {
+            action = CyclingTrackingService.ACTION_LAP
+        }
+        context.startService(intent)
+    }
+
     fun stopTracking(context: Context) {
         val intent = Intent(context, CyclingTrackingService::class.java).apply {
             action = CyclingTrackingService.ACTION_STOP

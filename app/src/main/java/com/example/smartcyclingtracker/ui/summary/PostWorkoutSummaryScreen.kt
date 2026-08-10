@@ -312,10 +312,34 @@ private fun SummaryMapView(
     context: Context,
     modifier: Modifier = Modifier
 ) {
+    val lapColors = listOf(
+        "#00FF87", // ElectricGreen
+        "#FFEB3B", // Yellow
+        "#FF5722", // Orange
+        "#E91E63", // Pink
+        "#03A9F4", // LightBlue
+        "#9C27B0"  // Purple
+    )
+
     AndroidView(
         factory = { ctx ->
+            val osmConfig = org.osmdroid.config.Configuration.getInstance()
+            osmConfig.load(
+                ctx,
+                ctx.getSharedPreferences("osmdroid", android.content.Context.MODE_PRIVATE)
+            )
+            osmConfig.userAgentValue =
+                "${ctx.packageName}/1.0 (Android; VeloTrack cycling app; contact@velotrack.app)"
+
+            val cartoDbTileSource = org.osmdroid.tileprovider.tilesource.XYTileSource(
+                "CartoDB-Voyager",
+                0, 19, 256, ".png",
+                arrayOf("https://basemaps.cartocdn.com/rastertiles/voyager/"),
+                "© OpenStreetMap contributors, © CartoDB"
+            )
+
             MapView(ctx).apply {
-                setTileSource(TileSourceFactory.MAPNIK)
+                setTileSource(cartoDbTileSource)
                 setMultiTouchControls(true)
                 controller.setZoom(14.0)
             }
@@ -324,24 +348,32 @@ private fun SummaryMapView(
         update = { mapView ->
             mapView.overlays.clear()
             if (routePoints.isNotEmpty()) {
-                val geoPoints = routePoints.map { GeoPoint(it.lat, it.lng) }
+                val laps = routePoints.groupBy { it.lap }
+                val allGeoPoints = mutableListOf<GeoPoint>()
 
-                val polyline = Polyline().apply {
-                    setPoints(geoPoints)
-                    outlinePaint.color = android.graphics.Color.parseColor("#00FF87")
-                    outlinePaint.strokeWidth = 10f
-                    outlinePaint.isAntiAlias = true
+                laps.forEach { (lap, points) ->
+                    val geoPoints = points.map { GeoPoint(it.lat, it.lng) }
+                    allGeoPoints.addAll(geoPoints)
+                    if (geoPoints.size >= 2) {
+                        val polyline = Polyline().apply {
+                            setPoints(geoPoints)
+                            val colorHex = lapColors[(lap - 1) % lapColors.size]
+                            outlinePaint.color = android.graphics.Color.parseColor(colorHex)
+                            outlinePaint.strokeWidth = 10f
+                            outlinePaint.isAntiAlias = true
+                        }
+                        mapView.overlays.add(polyline)
+                    }
                 }
-                mapView.overlays.add(polyline)
 
                 // Fit map to route bounds
-                if (geoPoints.size >= 2) {
-                    val bbox = BoundingBox.fromGeoPoints(geoPoints)
+                if (allGeoPoints.size >= 2) {
+                    val bbox = BoundingBox.fromGeoPoints(allGeoPoints)
                     mapView.post {
                         mapView.zoomToBoundingBox(bbox.increaseByScale(1.3f), true)
                     }
-                } else {
-                    mapView.controller.setCenter(geoPoints.first())
+                } else if (allGeoPoints.isNotEmpty()) {
+                    mapView.controller.setCenter(allGeoPoints.first())
                 }
                 mapView.invalidate()
             }

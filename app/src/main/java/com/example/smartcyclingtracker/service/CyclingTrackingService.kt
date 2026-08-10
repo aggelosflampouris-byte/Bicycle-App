@@ -15,13 +15,18 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
+import android.content.Context
+import android.os.PowerManager
+import android.os.Build
+import android.content.pm.ServiceInfo
 
 data class RoutePoint(
     val lat: Double,
     val lng: Double,
     val alt: Double,
     val timestamp: Long,
-    val speedMps: Double
+    val speedMps: Double,
+    val lap: Int = 1
 )
 
 data class TrackingState(
@@ -33,7 +38,8 @@ data class TrackingState(
     val calories: Double = 0.0,
     val currentLat: Double = 0.0,
     val currentLng: Double = 0.0,
-    val lastSavedSessionId: Long? = null
+    val lastSavedSessionId: Long? = null,
+    val currentLap: Int = 1
 )
 
 /**
@@ -55,6 +61,7 @@ class CyclingTrackingService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var timerJob: Job? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
     // GPS tracking data
     private val routePoints = mutableListOf<RoutePoint>()
@@ -89,6 +96,7 @@ class CyclingTrackingService : Service() {
         const val ACTION_RESUME = "ACTION_RESUME"
         const val ACTION_TOGGLE_PAUSE = "ACTION_TOGGLE_PAUSE"
         const val ACTION_DISCARD = "ACTION_DISCARD"
+        const val ACTION_LAP = "ACTION_LAP"
 
         const val EXTRA_WEIGHT = "extra_weight"
         const val EXTRA_GENDER = "extra_gender"
@@ -115,6 +123,11 @@ class CyclingTrackingService : Service() {
             ACTION_PAUSE -> setPaused(true)
             ACTION_RESUME -> setPaused(false)
             ACTION_TOGGLE_PAUSE -> setPaused(!_trackingState.value.isPaused)
+            ACTION_LAP -> {
+                _trackingState.value = _trackingState.value.copy(
+                    currentLap = _trackingState.value.currentLap + 1
+                )
+            }
         }
         return START_STICKY
     }
@@ -149,8 +162,16 @@ class CyclingTrackingService : Service() {
         startTimeMs = System.currentTimeMillis()
         _trackingState.value = TrackingState(isTracking = true)
 
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CyclingService::WakeLock")
+        wakeLock?.acquire(4 * 60 * 60 * 1000L) // 4 hours max
+
         val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L)
-        startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NotificationHelper.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        } else {
+            startForeground(NotificationHelper.NOTIFICATION_ID, notification)
+        }
 
         // Start 1-second timer for elapsed time + auto-pause
         timerJob = serviceScope.launch {
@@ -226,7 +247,7 @@ class CyclingTrackingService : Service() {
             return
         }
 
-        val point = RoutePoint(lat, lng, alt, timestamp, speedMps)
+        val point = RoutePoint(lat, lng, alt, timestamp, speedMps, _trackingState.value.currentLap)
 
         // ── Drift & Auto-Pause Detection ─────────────────────────────────────
         // Doppler speed is highly resistant to drift. If reported, we trust it.
@@ -235,8 +256,8 @@ class CyclingTrackingService : Service() {
         val isEffectivelyStationary = if (hasHardwareSpeed) {
             speedMps < 0.5 // < 1.8 km/h is stationary
         } else {
-            // Fallback: If displacement is smaller than accuracy, or raw speed is < 3.6 km/h
-            displacement < accuracyM || rawSpeedMps < 1.0
+            // Fallback: raw speed < 3.6 km/h
+            rawSpeedMps < 1.0
         }
 
         if (isEffectivelyStationary) {
@@ -318,6 +339,8 @@ class CyclingTrackingService : Service() {
         if (!save) {
             _trackingState.value = TrackingState(isTracking = false)
             stopForeground(STOP_FOREGROUND_REMOVE)
+            wakeLock?.release()
+            wakeLock = null
             stopSelf()
             return
         }
@@ -359,6 +382,8 @@ class CyclingTrackingService : Service() {
                         lastSavedSessionId = if (savedId > 0) savedId else null
                     )
                     stopForeground(STOP_FOREGROUND_REMOVE)
+                    wakeLock?.release()
+                    wakeLock = null
                     stopSelf()
                 }
             }
@@ -368,5 +393,7 @@ class CyclingTrackingService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
+        wakeLock?.release()
+        wakeLock = null
     }
 }

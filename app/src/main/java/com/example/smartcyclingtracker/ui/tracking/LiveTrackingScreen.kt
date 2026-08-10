@@ -101,25 +101,43 @@ fun LiveTrackingScreen(
         }
     }
 
-    // Track route on map
-    val routePoints = remember { mutableStateListOf<GeoPoint>() }
+    // Track route on map, storing GeoPoint and its lap number
+    val routePoints = remember { mutableStateListOf<Pair<GeoPoint, Int>>() }
     var mapViewRef by remember { mutableStateOf<MapView?>(null) }
+    
+    val lapColors = listOf(
+        "#00FF87", // ElectricGreen
+        "#FFEB3B", // Yellow
+        "#FF5722", // Orange
+        "#E91E63", // Pink
+        "#03A9F4", // LightBlue
+        "#9C27B0"  // Purple
+    )
 
     // Update map with new GPS points
     LaunchedEffect(state.currentLat, state.currentLng) {
         if (state.currentLat != 0.0 && state.currentLng != 0.0) {
             val point = GeoPoint(state.currentLat, state.currentLng)
-            routePoints.add(point)
+            routePoints.add(Pair(point, state.currentLap))
             mapViewRef?.let { map ->
                 map.overlays.removeIf { it is Polyline }
-                if (routePoints.size >= 2) {
-                    val polyline = Polyline().apply {
-                        setPoints(routePoints)
-                        outlinePaint.color = android.graphics.Color.parseColor("#00FF87")
-                        outlinePaint.strokeWidth = 10f
+                
+                // Group points by lap
+                val laps = routePoints.groupBy { it.second }
+                
+                laps.forEach { (lap, points) ->
+                    if (points.size >= 2) {
+                        val polyline = Polyline().apply {
+                            setPoints(points.map { it.first })
+                            val colorHex = lapColors[(lap - 1) % lapColors.size]
+                            outlinePaint.color = android.graphics.Color.parseColor(colorHex)
+                            outlinePaint.strokeWidth = 10f
+                            outlinePaint.isAntiAlias = true
+                        }
+                        map.overlays.add(polyline)
                     }
-                    map.overlays.add(polyline)
                 }
+                
                 map.controller.animateTo(point)
                 map.invalidate()
             }
@@ -329,6 +347,7 @@ fun LiveTrackingScreen(
             TrackingControlBar(
                 isPaused = state.isPaused,
                 onTogglePause = { viewModel.togglePause(context) },
+                onLapClick = { viewModel.markLap(context) },
                 onFinishClick = { showFinishDialog = true }
             )
         }
@@ -358,14 +377,15 @@ fun LiveTrackingScreen(
 private fun TrackingControlBar(
     isPaused: Boolean,
     onTogglePause: () -> Unit,
+    onLapClick: () -> Unit,
     onFinishClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(NavyDarker)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Pause / Resume Button
@@ -378,17 +398,44 @@ private fun TrackingControlBar(
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (isPaused) ElectricGreen else WarningAmber,
                 contentColor = DeepNavy
-            )
+            ),
+            contentPadding = PaddingValues(0.dp)
         ) {
             Icon(
                 imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = if (isPaused) "RESUME" else "PAUSE",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+
+        // Lap Button
+        Button(
+            onClick = onLapClick,
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = VividCyan,
+                contentColor = DeepNavy
+            ),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Flag,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "LAP",
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.ExtraBold
             )
         }
@@ -403,17 +450,18 @@ private fun TrackingControlBar(
             colors = ButtonDefaults.buttonColors(
                 containerColor = SpeedRed,
                 contentColor = Color.White
-            )
+            ),
+            contentPadding = PaddingValues(0.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Stop,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "FINISH",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.ExtraBold
             )
         }
