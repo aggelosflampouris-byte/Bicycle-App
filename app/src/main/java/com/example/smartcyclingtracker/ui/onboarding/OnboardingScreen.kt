@@ -79,7 +79,7 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Welcome to\nVeloTrack",
+                text = "Welcome to\nSmart Track",
                 style = MaterialTheme.typography.displaySmall,
                 color = TextPrimary,
                 fontWeight = FontWeight.Black,
@@ -182,7 +182,7 @@ private fun AppVersionUpdateCard(
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "VeloTrack v${com.example.smartcyclingtracker.BuildConfig.VERSION_NAME}",
+                        text = "Smart Track v${com.example.smartcyclingtracker.BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold

@@ -101,7 +101,7 @@ class ChatViewModel @Inject constructor(
                 "JOGGING" -> "jogging"
                 else -> "cycling"
             }
-            val greeting = "👋 Hey ${currentUser.name}! I'm your Personal Coach, an AI $activityName coach powered by Gemini. " +
+            val greeting = "👋 Hey ${currentUser.name}! I'm your Personal Coach, an AI $activityName coach powered by Qwen2.5-72B. " +
                 "I've analyzed your recent session. Ask me anything about your performance!"
             
             messageJob?.cancel()
@@ -186,10 +186,22 @@ class ChatViewModel @Inject constructor(
 
                 val finalResponse = responseText.ifBlank { "I'm having trouble responding right now. Please try again." }
                 
+                // Abort if the user cleared or switched the session while we were generating the response
+                if (_uiState.value.activeSessionId != sessionId) {
+                    _uiState.update { it.copy(isLoading = false) }
+                    return@launch
+                }
+                
                 // 2. Insert bot response into DB
                 chatDao.insertMessage(ChatMessageEntity(role = "model", text = finalResponse, sessionId = sessionId))
                 _uiState.update { it.copy(isLoading = false) }
             } catch (e: Exception) {
+                // Abort if the session was deleted to prevent polluting the new session with old errors
+                if (_uiState.value.activeSessionId != sessionId) {
+                    _uiState.update { it.copy(isLoading = false) }
+                    return@launch
+                }
+                
                 val errorMessage = "⚠️ **Unexpected error** — ${e.message}\n\nPlease try again."
                 // Only show error visually, don't persist network failures to history
                 val errorMsgObj = ChatMessage(role = "model", text = errorMessage, isStreaming = false)

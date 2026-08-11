@@ -59,7 +59,7 @@ object NotificationHelper {
         )
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("🚴 VeloTrack Active")
+            .setContentTitle("🚴 Smart Track Active")
             .setContentText(
                 "Speed: ${PhysicsEngine.formatSpeed(speedKmh)} km/h  •  " +
                 "Distance: ${PhysicsEngine.formatDistance(distanceMeters)}"
@@ -84,7 +84,7 @@ object NotificationHelper {
 
         val notification = NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
             .setContentTitle("Update Available")
-            .setContentText("VeloTrack version $latestVersion is ready to install.")
+            .setContentText("Smart Track version $latestVersion is ready to install.")
             .setSmallIcon(android.R.drawable.stat_sys_download_done) // built-in icon
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

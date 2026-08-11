@@ -361,7 +361,7 @@ private fun SummaryMapView(
                 ctx.getSharedPreferences("osmdroid", android.content.Context.MODE_PRIVATE)
             )
             osmConfig.userAgentValue =
-                "${ctx.packageName}/1.0 (Android; VeloTrack cycling app; contact@velotrack.app)"
+                "${ctx.packageName}/1.0 (Android; Smart Track cycling app; contact@velotrack.app)"
 
             val cartoDbTileSource = org.osmdroid.tileprovider.tilesource.XYTileSource(
                 "CartoDB-Voyager",

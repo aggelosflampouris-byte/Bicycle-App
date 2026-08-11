@@ -180,7 +180,7 @@ fun SettingsScreen(
             // ── App Version & Updates ─────────────────────────────────────────────
             SettingsSectionCard(
                 icon = Icons.Default.SystemUpdate,
-                title = "VeloTrack v${BuildConfig.VERSION_NAME}",
+                title = "Smart Track v${BuildConfig.VERSION_NAME}",
                 subtitle = "Checks GitHub Releases for new versions"
             ) {
                 Row(
@@ -278,7 +278,7 @@ private fun SettingsHeader() {
         Column {
             Text("Settings", style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold, color = TextPrimary)
-            Text("Personalise your VeloTrack experience",
+            Text("Personalise your Smart Track experience",
                 style = MaterialTheme.typography.bodySmall, color = TextSecondary)
         }
     }
@@ -459,7 +459,7 @@ fun QrCodeDialog(url: String, onDismiss: () -> Unit) {
                 )
                 
                 Text(
-                    text = "Scan this QR code to download the latest VeloTrack APK directly from GitHub.",
+                    text = "Scan this QR code to download the latest Smart Track APK directly from GitHub.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary,
                     textAlign = TextAlign.Center
