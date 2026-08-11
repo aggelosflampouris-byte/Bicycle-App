@@ -10,6 +10,7 @@ import com.example.smartcyclingtracker.data.local.entity.ChatSessionEntity
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.data.local.dao.ChatSessionDao
+import com.example.smartcyclingtracker.data.local.SettingsRepository
 import com.example.smartcyclingtracker.data.remote.GeminiRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -39,7 +40,8 @@ class ChatViewModel @Inject constructor(
     private val userDao: UserDao,
     private val sessionDao: WorkoutSessionDao,
     private val chatDao: ChatMessageDao,
-    private val chatSessionDao: ChatSessionDao
+    private val chatSessionDao: ChatSessionDao,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -48,11 +50,19 @@ class ChatViewModel @Inject constructor(
     private var currentUser: UserEntity = UserEntity()
     private var recentSession: WorkoutSessionEntity? = null
     private var messageJob: Job? = null
+    private var currentActivityType: String = "CYCLING"
 
     init {
         viewModelScope.launch {
             currentUser = userDao.getUser() ?: UserEntity()
             recentSession = sessionDao.getRecentSessions(1).firstOrNull()
+            currentActivityType = settingsRepository.activityType.first()
+
+            launch {
+                settingsRepository.activityType.collect { type ->
+                    currentActivityType = type
+                }
+            }
 
             chatSessionDao.getAllSessions().collect { sessions ->
                 _uiState.value = _uiState.value.copy(sessions = sessions)
@@ -80,7 +90,12 @@ class ChatViewModel @Inject constructor(
 
     fun createNewChatSession() {
         viewModelScope.launch {
-            val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI cycling coach powered by Qwen2.5-72B. " +
+            val activityName = when (currentActivityType) {
+                "WALKING" -> "walking"
+                "JOGGING" -> "jogging"
+                else -> "cycling"
+            }
+            val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI $activityName coach powered by Qwen2.5-72B. " +
                 "I've analyzed your recent session. Ask me anything about your performance!"
             
             messageJob?.cancel()
@@ -145,8 +160,7 @@ class ChatViewModel @Inject constructor(
                 error = null
             )
 
-            val activityType = recentSession?.activityType ?: "CYCLING"
-            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession, activityType)
+            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession, currentActivityType)
 
             try {
                 var responseText = ""
@@ -188,19 +202,24 @@ class ChatViewModel @Inject constructor(
 
     fun shareRideHistory() {
         viewModelScope.launch {
+            val activityName = when (currentActivityType) {
+                "WALKING" -> "walk"
+                "JOGGING" -> "run"
+                else -> "ride"
+            }
             val sessions = sessionDao.getRecentSessions(5)
             if (sessions.isEmpty()) {
-                sendMessage("I don't have any saved ride history yet. What should I focus on for my first ride?")
+                sendMessage("I don't have any saved $activityName history yet. What should I focus on for my first $activityName?")
                 return@launch
             }
 
             val sb = java.lang.StringBuilder()
-            sb.append("Here is my recent ride history. Can you analyze my progress and give me some tips?\n\n")
+            sb.append("Here is my recent $activityName history. Can you analyze my progress and give me some tips?\n\n")
             sessions.forEachIndexed { index, session ->
                 val dist = "%.1f".format(session.totalDistanceMeters / 1000.0)
                 val speed = "%.1f".format(session.avgSpeedKmh)
                 val elev = "%.0f".format(session.elevationGainMeters)
-                sb.append("Ride ${index + 1}: ${dist}km at ${speed}km/h, ${elev}m elevation gain.\n")
+                sb.append("${activityName.replaceFirstChar { it.uppercase() }} ${index + 1}: ${dist}km at ${speed}km/h, ${elev}m elevation gain.\n")
             }
 
             sendMessage(sb.toString().trim())

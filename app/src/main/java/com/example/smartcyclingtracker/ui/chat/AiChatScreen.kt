@@ -398,7 +398,7 @@ private fun ChatInputBar(
         ) {
             Icon(
                 Icons.Default.Analytics,
-                contentDescription = "Share Ride History",
+                contentDescription = "Share History",
                 tint = if (!isLoading) ElectricGreen else TextDisabled
             )
         }
