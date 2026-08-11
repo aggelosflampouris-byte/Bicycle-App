@@ -22,10 +22,8 @@ class RoutineRepository @Inject constructor(
     private val routineDao: RoutineDao,
     private val workoutSessionDao: WorkoutSessionDao
 ) {
-    val routineFlow: Flow<RoutineEntity?> = routineDao.getRoutineFlow()
-
-    fun getRoutineProgressFlow(): Flow<RoutineProgress?> {
-        return routineFlow.flatMapLatest { routine ->
+    fun getRoutineProgressFlow(activityType: String): Flow<RoutineProgress?> {
+        return routineDao.getRoutineFlow(activityType).flatMapLatest { routine ->
             if (routine == null) {
                 flowOf(null)
             } else {
@@ -39,7 +37,8 @@ class RoutineRepository @Inject constructor(
                 
                 workoutSessionDao.getAggregateSummaryForPeriodFlow(
                     startTime = activeRoutine.currentPeriodStart,
-                    endTime = activeRoutine.currentPeriodEnd
+                    endTime = activeRoutine.currentPeriodEnd,
+                    activityType = activeRoutine.activityType
                 ).map { summary ->
                     val currentValue = when (activeRoutine.metric) {
                         "CALORIES" -> summary?.totalCals ?: 0.0
@@ -57,6 +56,7 @@ class RoutineRepository @Inject constructor(
     }
 
     suspend fun saveRoutine(
+        activityType: String,
         interval: String,
         metric: String,
         targetValue: Double,
@@ -65,6 +65,7 @@ class RoutineRepository @Inject constructor(
         val now = System.currentTimeMillis()
         val (start, end) = calculatePeriod(interval, now)
         val routine = RoutineEntity(
+            activityType = activityType,
             interval = interval,
             metric = metric,
             targetValue = targetValue,
@@ -75,12 +76,12 @@ class RoutineRepository @Inject constructor(
         routineDao.saveRoutine(routine)
     }
 
-    suspend fun deleteRoutine() {
-        routineDao.clearRoutine()
+    suspend fun deleteRoutine(activityType: String) {
+        routineDao.clearRoutine(activityType)
     }
 
-    suspend fun checkAndAdvanceRoutine() {
-        val routine = routineDao.getRoutine() ?: return
+    suspend fun checkAndAdvanceRoutine(activityType: String) {
+        val routine = routineDao.getRoutine(activityType) ?: return
         val now = System.currentTimeMillis()
         if (now > routine.currentPeriodEnd) {
             advanceRoutinePeriod(routine, now)
@@ -93,7 +94,7 @@ class RoutineRepository @Inject constructor(
         
         // Check if goal was met in the PREVIOUS period
         val summary = workoutSessionDao.getAggregateSummaryForPeriod(
-            routine.currentPeriodStart, routine.currentPeriodEnd
+            routine.currentPeriodStart, routine.currentPeriodEnd, routine.activityType
         )
         
         val achievedValue = when (routine.metric) {
@@ -123,6 +124,10 @@ class RoutineRepository @Inject constructor(
             val newTarget = routine.targetValue * (1.0 + routine.autoImprovePercentage)
             routineDao.saveRoutine(routine.copy(targetValue = newTarget))
         }
+    }
+
+    suspend fun getAllRoutines(): List<RoutineEntity> {
+        return routineDao.getAllRoutines()
     }
 
     companion object {

@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "workout_routines")
 data class RoutineEntity(
-    @PrimaryKey val id: Int = 1, // We only allow one active routine, so we hardcode ID to 1
+    @PrimaryKey val activityType: String, // "CYCLING", "WALKING", "JOGGING"
     val interval: String, // "DAILY", "WEEKLY", "MONTHLY"
     val metric: String, // "CALORIES", "DISTANCE"
     val targetValue: Double,

@@ -41,7 +41,7 @@ class DashboardViewModel @Inject constructor(
     init {
         loadData()
         viewModelScope.launch {
-            routineRepository.checkAndAdvanceRoutine()
+            routineRepository.checkAndAdvanceRoutine(_activityType.value)
         }
     }
 
@@ -54,23 +54,26 @@ class DashboardViewModel @Inject constructor(
     
     fun saveRoutine(interval: String, metric: String, targetValue: Double, autoImprove: Boolean) {
         viewModelScope.launch {
-            routineRepository.saveRoutine(interval, metric, targetValue, autoImprove)
+            routineRepository.saveRoutine(_activityType.value, interval, metric, targetValue, autoImprove)
         }
     }
     
     fun deleteRoutine() {
         viewModelScope.launch {
-            routineRepository.deleteRoutine()
+            routineRepository.deleteRoutine(_activityType.value)
         }
     }
 
     private fun loadData() {
         viewModelScope.launch {
+            val routineProgressFlow = _activityType.flatMapLatest { type ->
+                routineRepository.getRoutineProgressFlow(type)
+            }
             combine(
                 userDao.getUserFlow().map { it ?: UserEntity() },
                 sessionDao.getAllSessionsFlow(),
                 _activityType,
-                routineRepository.getRoutineProgressFlow()
+                routineProgressFlow
             ) { user, allSessions, activityType, routineProgress ->
                 val sessions = allSessions.filter { it.activityType == activityType }
                 val totalDist = sessions.sumOf { it.totalDistanceMeters } / 1000.0

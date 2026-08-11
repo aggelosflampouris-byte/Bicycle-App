@@ -16,7 +16,7 @@ import com.example.smartcyclingtracker.data.local.entity.RoutineEntity
 
 @Database(
     entities = [UserEntity::class, WorkoutSessionEntity::class, ChatMessageEntity::class, ChatSessionEntity::class, RoutineEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -96,6 +96,19 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL(
                     "ALTER TABLE `chat_sessions` ADD COLUMN `activityType` TEXT NOT NULL DEFAULT 'CYCLING'"
                 )
+            }
+        }
+
+        val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `workout_routines_new` (`activityType` TEXT NOT NULL, `interval` TEXT NOT NULL, `metric` TEXT NOT NULL, `targetValue` REAL NOT NULL, `autoImprove` INTEGER NOT NULL, `autoImprovePercentage` REAL NOT NULL, `currentPeriodStart` INTEGER NOT NULL, `currentPeriodEnd` INTEGER NOT NULL, `lastCompletedPeriodEnd` INTEGER NOT NULL, PRIMARY KEY(`activityType`))"
+                )
+                database.execSQL(
+                    "INSERT INTO `workout_routines_new` (`activityType`, `interval`, `metric`, `targetValue`, `autoImprove`, `autoImprovePercentage`, `currentPeriodStart`, `currentPeriodEnd`, `lastCompletedPeriodEnd`) SELECT 'CYCLING', `interval`, `metric`, `targetValue`, `autoImprove`, `autoImprovePercentage`, `currentPeriodStart`, `currentPeriodEnd`, `lastCompletedPeriodEnd` FROM `workout_routines`"
+                )
+                database.execSQL("DROP TABLE `workout_routines`")
+                database.execSQL("ALTER TABLE `workout_routines_new` RENAME TO `workout_routines`")
             }
         }
     }

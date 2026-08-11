@@ -69,6 +69,7 @@ class GeminiRepository @Inject constructor(
             - If asked "how is your day?", "am I pretty?", or general off-topic questions, politely decline and steer the conversation back to $activityName.
             - DO NOT hallucinate features, ride data, or facts. Stick strictly to the data provided.
             - DO NOT recommend, suggest, or mention other tracking or fitness apps (e.g., Strava, Garmin Connect, Komoot). You must ONLY recommend features of this app.
+            - DO NOT use any Markdown formatting whatsoever. No asterisks, no hashes, no lists. Output plain, readable text only.
         """.trimIndent()
     }
 

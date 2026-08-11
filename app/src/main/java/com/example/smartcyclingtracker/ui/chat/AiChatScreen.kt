@@ -260,7 +260,7 @@ private fun PersonalCoachBanner() {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Powered by Gemini 1.5 Flash • Context-aware coaching",
+                    text = "Powered by Qwen2.5-72B • Context-aware coaching",
                     style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary
                 )

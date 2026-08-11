@@ -26,23 +26,31 @@ class RoutineReminderWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         try {
-            // Check routine progress
-            val progress = routineRepository.getRoutineProgressFlow().firstOrNull() ?: return Result.success()
+            // Check routine progress for all routines
+            val routines = routineRepository.getAllRoutines()
             
-            if (!progress.isCompleted) {
-                val now = System.currentTimeMillis()
-                val timeLeftMillis = progress.routine.currentPeriodEnd - now
+            val now = System.currentTimeMillis()
+            
+            for (routine in routines) {
+                // Since getRoutineProgressFlow requires activityType, we can either use it or calculate manually.
+                // It's safer to fetch the specific progress flow for this routine's activity type
+                val progress = routineRepository.getRoutineProgressFlow(routine.activityType).firstOrNull() ?: continue
                 
-                // If less than 24 hours left, notify the user
-                if (timeLeftMillis > 0 && timeLeftMillis <= TimeUnit.HOURS.toMillis(24)) {
-                    val remaining = String.format(java.util.Locale.US, "%.1f", progress.routine.targetValue - progress.currentValue)
-                    val unit = if (progress.routine.metric == "DISTANCE") "km" else "kcals"
-                    val interval = progress.routine.interval.lowercase()
+                if (!progress.isCompleted) {
+                    val timeLeftMillis = progress.routine.currentPeriodEnd - now
                     
-                    showNotification(
-                        "Don't break your streak! \uD83D\uDCAA",
-                        "You have $remaining $unit left for your $interval routine. Go for a ride!"
-                    )
+                    // If less than 24 hours left, notify the user
+                    if (timeLeftMillis > 0 && timeLeftMillis <= TimeUnit.HOURS.toMillis(24)) {
+                        val remaining = String.format(java.util.Locale.US, "%.1f", progress.routine.targetValue - progress.currentValue)
+                        val unit = if (progress.routine.metric == "DISTANCE") "km" else "kcals"
+                        val interval = progress.routine.interval.lowercase()
+                        val activityName = progress.routine.activityType.lowercase()
+                        
+                        showNotification(
+                            "Don't break your streak! \uD83D\uDCAA",
+                            "You have $remaining $unit left for your $interval $activityName routine. Get out there!"
+                        )
+                    }
                 }
             }
             

@@ -58,9 +58,9 @@ interface WorkoutSessionDao {
                SUM(caloriesBurned) as totalCals,
                COUNT(*) as sessionCount
         FROM workout_sessions
-        WHERE startTime >= :startTime AND startTime <= :endTime
+        WHERE startTime >= :startTime AND startTime <= :endTime AND activityType = :activityType
     """)
-    fun getAggregateSummaryForPeriodFlow(startTime: Long, endTime: Long): Flow<AggregateSummary?>
+    fun getAggregateSummaryForPeriodFlow(startTime: Long, endTime: Long, activityType: String): Flow<AggregateSummary?>
 
     @Query("""
         SELECT SUM(totalDistanceMeters) as totalDist,
@@ -68,9 +68,9 @@ interface WorkoutSessionDao {
                SUM(caloriesBurned) as totalCals,
                COUNT(*) as sessionCount
         FROM workout_sessions
-        WHERE startTime >= :startTime AND startTime <= :endTime
+        WHERE startTime >= :startTime AND startTime <= :endTime AND activityType = :activityType
     """)
-    suspend fun getAggregateSummaryForPeriod(startTime: Long, endTime: Long): AggregateSummary?
+    suspend fun getAggregateSummaryForPeriod(startTime: Long, endTime: Long, activityType: String): AggregateSummary?
 
     data class AggregateSummary(
         val totalDist: Double?,
