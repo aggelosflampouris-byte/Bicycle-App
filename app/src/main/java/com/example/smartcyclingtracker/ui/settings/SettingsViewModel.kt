@@ -15,7 +15,7 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settingsRepo: SettingsRepository
+    val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -23,7 +23,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            settingsRepo.themeMode.collect { theme ->
+            settingsRepository.themeMode.collect { theme ->
                 _uiState.value = _uiState.value.copy(
                     themeMode = theme
                 )
@@ -32,7 +32,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setTheme(mode: ThemeMode) {
-        viewModelScope.launch { settingsRepo.setThemeMode(mode) }
+        viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     }
 }
 
