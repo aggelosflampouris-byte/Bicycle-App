@@ -137,7 +137,7 @@ fun CyclingNavGraph(
             val sessionId = backStackEntry.arguments?.getLong("sessionId") ?: -1L
             PostWorkoutSummaryScreen(
                 sessionId = sessionId,
-                onAskVeloCoach = {
+                onAskPersonalCoach = {
                     navController.navigate(Screen.AiChat.createRoute(sessionId))
                 },
                 onBack = { navController.popBackStack() }
