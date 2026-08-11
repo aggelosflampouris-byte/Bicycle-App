@@ -8,5 +8,7 @@ data class ChatSessionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val title: String,
+    @androidx.room.ColumnInfo(defaultValue = "CYCLING")
+    val activityType: String = "CYCLING",
     val createdAt: Long = System.currentTimeMillis()
 )

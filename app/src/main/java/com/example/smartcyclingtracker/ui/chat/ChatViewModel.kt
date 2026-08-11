@@ -15,6 +15,7 @@ import com.example.smartcyclingtracker.data.remote.GeminiRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 import kotlinx.coroutines.Job
 import javax.inject.Inject
 
@@ -61,19 +62,17 @@ class ChatViewModel @Inject constructor(
             currentActivityType = settingsRepository.activityType.first()
 
             launch {
-                settingsRepository.activityType.collect { type ->
+                settingsRepository.activityType.flatMapLatest { type ->
                     currentActivityType = type
-                    if (_uiState.value.activeSessionId == null && _uiState.value.messages.size == 1) {
+                    // Reset active chat when switching modes
+                    _uiState.update { it.copy(activeSessionId = null, messages = emptyList()) }
+                    chatSessionDao.getSessionsByActivity(type)
+                }.collect { sessions ->
+                    _uiState.update { it.copy(sessions = sessions) }
+                    
+                    if (_uiState.value.activeSessionId == null && _uiState.value.messages.isEmpty()) {
                         createNewChatSession()
                     }
-                }
-            }
-
-            chatSessionDao.getAllSessions().collect { sessions ->
-                _uiState.update { it.copy(sessions = sessions) }
-                
-                if (_uiState.value.activeSessionId == null && _uiState.value.messages.isEmpty()) {
-                    createNewChatSession()
                 }
             }
         }
@@ -138,7 +137,7 @@ class ChatViewModel @Inject constructor(
             
             if (sessionId == null) {
                 val dateStr = java.text.SimpleDateFormat("MMM dd, HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
-                sessionId = chatSessionDao.insertSession(ChatSessionEntity(title = "Chat on $dateStr"))
+                sessionId = chatSessionDao.insertSession(ChatSessionEntity(title = "Chat on $dateStr", activityType = currentActivityType))
                 isNewSession = true
                 
                 val initialGreeting = _uiState.value.messages.firstOrNull()?.text ?: ""

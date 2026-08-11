@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChatSessionDao {
-    @Query("SELECT * FROM chat_sessions ORDER BY createdAt DESC")
-    fun getAllSessions(): Flow<List<ChatSessionEntity>>
+    @Query("SELECT * FROM chat_sessions WHERE activityType = :activityType ORDER BY createdAt DESC")
+    fun getSessionsByActivity(activityType: String): Flow<List<ChatSessionEntity>>
 
     @Insert
     suspend fun insertSession(session: ChatSessionEntity): Long
