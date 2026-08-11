@@ -63,6 +63,9 @@ class ChatViewModel @Inject constructor(
             launch {
                 settingsRepository.activityType.collect { type ->
                     currentActivityType = type
+                    if (_uiState.value.activeSessionId == null && _uiState.value.messages.size == 1) {
+                        createNewChatSession()
+                    }
                 }
             }
 
