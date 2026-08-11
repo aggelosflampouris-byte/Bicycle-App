@@ -121,38 +121,43 @@ fun LiveTrackingScreen(
         "#9C27B0"  // Purple
     )
 
-    // Update map with GPS points
+    // Update map with GPS points incrementally
+    val lapPolylines = remember { mutableMapOf<Int, Polyline>() }
+    var lastProcessedIndex by remember { mutableStateOf(0) }
+
     LaunchedEffect(routePoints.size, currentLat, currentLng) {
-        if (routePoints.isNotEmpty()) {
+        if (routePoints.size < lastProcessedIndex || routePoints.isEmpty()) {
+            lastProcessedIndex = 0
+            lapPolylines.clear()
+            mapViewRef?.overlays?.removeIf { it is Polyline }
+            mapViewRef?.invalidate()
+        }
+
+        if (routePoints.size > lastProcessedIndex) {
             mapViewRef?.let { map ->
-                map.overlays.removeIf { it is Polyline }
-                
-                // Group points by lap and connect seamlessly across laps
-                val laps = routePoints.groupBy { it.lap }
-                var prevLapLastPoint: GeoPoint? = null
-
-                laps.keys.sorted().forEach { lap ->
-                    val points = laps[lap] ?: emptyList()
-                    val geoPoints = mutableListOf<GeoPoint>()
-                    if (prevLapLastPoint != null) {
-                        geoPoints.add(prevLapLastPoint!!)
-                    }
-                    geoPoints.addAll(points.map { GeoPoint(it.lat, it.lng) })
-                    if (points.isNotEmpty()) {
-                        prevLapLastPoint = GeoPoint(points.last().lat, points.last().lng)
-                    }
-
-                    if (geoPoints.size >= 2) {
-                        val polyline = Polyline().apply {
-                            setPoints(geoPoints)
+                for (i in lastProcessedIndex until routePoints.size) {
+                    val point = routePoints[i]
+                    val lap = point.lap
+                    
+                    val polyline = lapPolylines.getOrPut(lap) {
+                        Polyline().apply {
                             val colorHex = lapColors[(lap - 1) % lapColors.size]
                             outlinePaint.color = android.graphics.Color.parseColor(colorHex)
                             outlinePaint.strokeWidth = 10f
                             outlinePaint.isAntiAlias = true
+                            map.overlays.add(this)
                         }
-                        map.overlays.add(polyline)
                     }
+                    
+                    // Seamless lap transition: add the last point of previous lap to this lap's polyline
+                    if (i > 0 && routePoints[i - 1].lap != lap) {
+                        val prev = routePoints[i - 1]
+                        polyline.addPoint(GeoPoint(prev.lat, prev.lng))
+                    }
+                    
+                    polyline.addPoint(GeoPoint(point.lat, point.lng))
                 }
+                lastProcessedIndex = routePoints.size
                 
                 val lastPoint = routePoints.last()
                 map.controller.animateTo(GeoPoint(lastPoint.lat, lastPoint.lng))

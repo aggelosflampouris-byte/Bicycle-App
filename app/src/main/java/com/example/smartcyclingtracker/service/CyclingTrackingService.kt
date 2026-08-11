@@ -221,13 +221,13 @@ class CyclingTrackingService : Service() {
             }
         }
 
-        // Request location updates
+        // Request location updates with balanced intervals for battery savings
         val locationRequest = LocationRequest.Builder(
-            Priority.PRIORITY_HIGH_ACCURACY, 1000L
+            Priority.PRIORITY_HIGH_ACCURACY, 3000L // Base interval: 3 seconds
         ).apply {
-            setMinUpdateIntervalMillis(500L)
-            setMaxUpdateDelayMillis(1500L)
-            setMinUpdateDistanceMeters(0f)
+            setMinUpdateIntervalMillis(2000L) // Minimum interval: 2 seconds
+            setMaxUpdateDelayMillis(3000L) // Allow batching up to 3 seconds
+            setMinUpdateDistanceMeters(2.0f) // Minimum displacement: 2 meters
             setGranularity(Granularity.GRANULARITY_FINE)
             setWaitForAccurateLocation(false)
         }.build()
