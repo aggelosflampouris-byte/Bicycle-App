@@ -153,6 +153,9 @@ class CyclingTrackingService : Service() {
         )
         if (!paused) {
             stationaryCounter = 0
+            acquireWakeLock()
+        } else {
+            releaseWakeLock()
         }
     }
 
@@ -192,9 +195,7 @@ class CyclingTrackingService : Service() {
 
         _trackingState.value = TrackingState(isTracking = true)
 
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CyclingService::WakeLock")
-        wakeLock?.acquire(4 * 60 * 60 * 1000L) // 4 hours max
+        acquireWakeLock()
 
         val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -310,17 +311,18 @@ class CyclingTrackingService : Service() {
             return
         }
 
-        // Auto-pause / resume logic when not manually paused
         if (isEffectivelyStationary) {
             stationaryCounter++
             if (stationaryCounter >= AUTO_PAUSE_SECONDS && !_trackingState.value.isPaused) {
                 _trackingState.value = _trackingState.value.copy(isPaused = true, speedKmh = 0.0)
                 Log.d(TAG, "Auto-paused (Stationary)")
+                releaseWakeLock()
             }
         } else {
             if (_trackingState.value.isPaused) {
                 _trackingState.value = _trackingState.value.copy(isPaused = false)
                 Log.d(TAG, "Auto-resumed (Moving)")
+                acquireWakeLock()
             }
             stationaryCounter = 0
         }
@@ -448,10 +450,28 @@ class CyclingTrackingService : Service() {
         }
     }
 
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CyclingService::WakeLock")
+        }
+        if (wakeLock?.isHeld == false) {
+            wakeLock?.acquire(4 * 60 * 60 * 1000L) // 4 hours max
+            Log.d(TAG, "WakeLock acquired")
+        }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+            Log.d(TAG, "WakeLock released")
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
-        wakeLock?.release()
+        releaseWakeLock()
         wakeLock = null
     }
 }
