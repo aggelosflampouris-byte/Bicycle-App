@@ -65,7 +65,7 @@ class ChatViewModel @Inject constructor(
             }
 
             chatSessionDao.getAllSessions().collect { sessions ->
-                _uiState.value = _uiState.value.copy(sessions = sessions)
+                _uiState.update { it.copy(sessions = sessions) }
                 
                 if (_uiState.value.activeSessionId == null && _uiState.value.messages.isEmpty()) {
                     createNewChatSession()
@@ -76,14 +76,16 @@ class ChatViewModel @Inject constructor(
 
     fun switchSession(sessionId: Long) {
         if (_uiState.value.activeSessionId == sessionId) return
-        _uiState.value = _uiState.value.copy(activeSessionId = sessionId, messages = emptyList())
+        _uiState.update { it.copy(activeSessionId = sessionId, messages = emptyList()) }
         
         messageJob?.cancel()
         messageJob = viewModelScope.launch {
             chatDao.getMessagesForSession(sessionId).collect { dbMessages ->
-                _uiState.value = _uiState.value.copy(
-                    messages = dbMessages.map { ChatMessage(role = it.role, text = it.text, isStreaming = false) }
-                )
+                _uiState.update { state ->
+                    state.copy(
+                        messages = dbMessages.map { ChatMessage(role = it.role, text = it.text, isStreaming = false) }
+                    )
+                }
             }
         }
     }
@@ -99,21 +101,25 @@ class ChatViewModel @Inject constructor(
                 "I've analyzed your recent session. Ask me anything about your performance!"
             
             messageJob?.cancel()
-            _uiState.value = _uiState.value.copy(
+            _uiState.update { it.copy(
                 activeSessionId = null,
                 messages = listOf(
                     ChatMessage(role = "model", text = greeting, isStreaming = false)
                 ),
                 error = null
-            )
+            ) }
         }
     }
 
     fun deleteSession(sessionId: Long) {
         viewModelScope.launch {
             chatSessionDao.deleteSession(sessionId)
-            if (_uiState.value.activeSessionId == sessionId) {
-                _uiState.value = _uiState.value.copy(activeSessionId = null)
+            _uiState.update { state ->
+                if (state.activeSessionId == sessionId) {
+                    state.copy(activeSessionId = null)
+                } else {
+                    state
+                }
             }
         }
     }
@@ -139,13 +145,15 @@ class ChatViewModel @Inject constructor(
             chatDao.insertMessage(ChatMessageEntity(role = "user", text = userText, sessionId = sessionId))
             
             if (isNewSession) {
-                _uiState.value = _uiState.value.copy(activeSessionId = sessionId)
+                _uiState.update { it.copy(activeSessionId = sessionId) }
                 messageJob?.cancel()
                 messageJob = viewModelScope.launch {
                     chatDao.getMessagesForSession(sessionId).collect { dbMessages ->
-                        _uiState.value = _uiState.value.copy(
-                            messages = dbMessages.map { ChatMessage(role = it.role, text = it.text, isStreaming = false) }
-                        )
+                        _uiState.update { state ->
+                            state.copy(
+                                messages = dbMessages.map { ChatMessage(role = it.role, text = it.text, isStreaming = false) }
+                            )
+                        }
                     }
                 }
             }
@@ -155,10 +163,10 @@ class ChatViewModel @Inject constructor(
                 .filter { !it.isStreaming }
                 .map { Pair(it.role, it.text) }
 
-            _uiState.value = _uiState.value.copy(
+            _uiState.update { it.copy(
                 isLoading = true,
                 error = null
-            )
+            ) }
 
             val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession, currentActivityType)
 
@@ -176,15 +184,17 @@ class ChatViewModel @Inject constructor(
                 
                 // 2. Insert bot response into DB
                 chatDao.insertMessage(ChatMessageEntity(role = "model", text = finalResponse, sessionId = sessionId))
-                _uiState.value = _uiState.value.copy(isLoading = false)
+                _uiState.update { it.copy(isLoading = false) }
             } catch (e: Exception) {
                 val errorMessage = "⚠️ **Unexpected error** — ${e.message}\n\nPlease try again."
                 // Only show error visually, don't persist network failures to history
                 val errorMsgObj = ChatMessage(role = "model", text = errorMessage, isStreaming = false)
-                _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages + errorMsgObj,
-                    isLoading = false
-                )
+                _uiState.update { state ->
+                    state.copy(
+                        messages = state.messages + errorMsgObj,
+                        isLoading = false
+                    )
+                }
             }
         }
     }
