@@ -126,7 +126,7 @@ fun AiChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(DeepNavy)
-                .systemBarsPadding()
+                .statusBarsPadding()
                 .imePadding()
         ) {
             // App bar
