@@ -62,7 +62,7 @@ fun AiChatScreen(
                 drawerContainerColor = NavyDarker,
                 drawerContentColor = TextPrimary
             ) {
-                Spacer(Modifier.height(16.dp).systemBarsPadding())
+                Spacer(Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -126,7 +126,6 @@ fun AiChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(DeepNavy)
-                .statusBarsPadding()
                 .imePadding()
         ) {
             // App bar
