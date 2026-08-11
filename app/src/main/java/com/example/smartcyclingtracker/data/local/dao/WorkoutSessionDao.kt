@@ -13,6 +13,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions ORDER BY startTime DESC LIMIT :limit")
     suspend fun getRecentSessions(limit: Int = 5): List<WorkoutSessionEntity>
 
+    @Query("SELECT * FROM workout_sessions WHERE activityType = :activityType ORDER BY startTime DESC LIMIT :limit")
+    suspend fun getRecentSessionsByType(activityType: String, limit: Int = 10): List<WorkoutSessionEntity>
+
     @Query("SELECT * FROM workout_sessions WHERE id = :id")
     suspend fun getSessionById(id: Long): WorkoutSessionEntity?
 

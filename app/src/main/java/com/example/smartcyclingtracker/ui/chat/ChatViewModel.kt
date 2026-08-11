@@ -214,7 +214,7 @@ class ChatViewModel @Inject constructor(
 
     fun openSessionPicker() {
         viewModelScope.launch {
-            val sessions = sessionDao.getRecentSessions(10)
+            val sessions = sessionDao.getRecentSessionsByType(currentActivityType, 10)
             if (sessions.isEmpty()) {
                 val activityName = when (currentActivityType) {
                     "WALKING" -> "walk"
