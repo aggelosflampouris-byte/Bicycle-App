@@ -316,6 +316,7 @@ fun LiveTrackingScreen(
             // Top stats panel
             TrackingStatsPanel(
                 stateProvider = { trackingStateFlow.value },
+                elapsedSecondsFlow = viewModel.elapsedSeconds,
                 modifier = Modifier.weight(1f)
             )
 
@@ -379,7 +380,7 @@ fun LiveTrackingScreen(
             FinishWorkoutDialog(
                 activityType = activityType,
                 distanceMeters = trackingStateFlow.value.distanceMeters,
-                elapsedSeconds = trackingStateFlow.value.elapsedSeconds,
+                elapsedSeconds = viewModel.elapsedSeconds.value,
                 calories = trackingStateFlow.value.calories,
                 onResume = { showFinishDialog = false },
                 onDiscard = {
@@ -518,9 +519,9 @@ private fun FinishWorkoutDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     when (activityType) {
-                        "WALKING" -> "Great walk! Are you ready to save your workout summary and get feedback from VeloCoach AI?"
-                        "JOGGING" -> "Great jog! Are you ready to save your workout summary and get feedback from VeloCoach AI?"
-                        else -> "Great ride! Are you ready to save your workout summary and get feedback from VeloCoach AI?"
+                        "WALKING" -> "Great walk! Are you ready to save your workout summary and get feedback from Personal Coach AI?"
+                        "JOGGING" -> "Great jog! Are you ready to save your workout summary and get feedback from Personal Coach AI?"
+                        else -> "Great ride! Are you ready to save your workout summary and get feedback from Personal Coach AI?"
                     },
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
@@ -574,14 +575,16 @@ private fun FinishWorkoutDialog(
 @Composable
 fun TrackingStatsPanel(
     stateProvider: () -> com.example.smartcyclingtracker.service.TrackingState,
+    elapsedSecondsFlow: kotlinx.coroutines.flow.StateFlow<Long>,
     modifier: Modifier = Modifier
 ) {
     val state = stateProvider()
     val speedKmh = state.speedKmh
     val distanceMeters = state.distanceMeters
-    val elapsedSeconds = state.elapsedSeconds
     val calories = state.calories
     val isPaused = state.isPaused
+    
+    val elapsedSeconds by elapsedSecondsFlow.collectAsStateWithLifecycle()
     
     val distanceKm = distanceMeters / 1000.0
     

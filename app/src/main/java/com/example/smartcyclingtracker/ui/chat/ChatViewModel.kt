@@ -102,7 +102,7 @@ class ChatViewModel @Inject constructor(
                 "JOGGING" -> "jogging"
                 else -> "cycling"
             }
-            val greeting = "👋 Hey ${currentUser.name}! I'm VeloCoach, your AI $activityName coach powered by Qwen2.5-72B. " +
+            val greeting = "👋 Hey ${currentUser.name}! I'm your Personal Coach, an AI $activityName coach powered by Gemini. " +
                 "I've analyzed your recent session. Ask me anything about your performance!"
             
             messageJob?.cancel()

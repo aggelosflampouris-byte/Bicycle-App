@@ -135,8 +135,8 @@ fun AiChatScreen(
                 onClear = { viewModel.clearChat() }
             )
 
-        // VeloCoach identity banner
-        VeloCoachBanner()
+        // Personal Coach identity banner
+        PersonalCoachBanner()
 
         // Messages
         LazyColumn(
@@ -208,7 +208,7 @@ private fun ChatAppBar(
             Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
         }
         Text(
-            text = "VeloCoach AI",
+            text = "Personal Coach AI",
             style = MaterialTheme.typography.headlineSmall,
             color = TextPrimary,
             fontWeight = FontWeight.Bold,
@@ -221,7 +221,7 @@ private fun ChatAppBar(
 }
 
 @Composable
-private fun VeloCoachBanner() {
+private fun PersonalCoachBanner() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -254,7 +254,7 @@ private fun VeloCoachBanner() {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "VeloCoach",
+                    text = "Personal Coach",
                     style = MaterialTheme.typography.titleLarge,
                     color = ElectricGreen,
                     fontWeight = FontWeight.Bold
@@ -416,7 +416,7 @@ private fun ChatInputBar(
             onValueChange = onInputChange,
             modifier = Modifier.weight(1f),
             placeholder = {
-                Text("Ask VeloCoach...", color = TextDisabled)
+                Text("Ask Personal Coach...", color = TextDisabled)
             },
             shape = RoundedCornerShape(24.dp),
             colors = OutlinedTextFieldDefaults.colors(

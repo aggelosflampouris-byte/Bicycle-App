@@ -17,7 +17,7 @@ You can download the ready-to-install `.apk` directly from:
 - ⏸️ **Auto-Pause Engine** — Automatically pauses when stationary for 5+ seconds to preserve your stats and battery.
 - 🗺️ **Incremental OpenStreetMap** — O(1) seamless map rendering that prevents lag even on massive 100km+ rides.
 - 🔥 **Physics Engine** — Mifflin-St Jeor BMR, MET-based calories, and Watts/kg estimation.
-- 🤖 **VeloCoach AI** — Google Gemini 1.5 Flash with RAG (injects your real workout data into the prompt). View and send multiple past workouts for deep analysis.
+- 🤖 **Personal Coach AI** — Google Gemini 1.5 Flash with RAG (injects your real workout data into the prompt). View and send multiple past workouts for deep analysis.
 - 📊 **Streaming Chat** — Real-time typing effect as Gemini responds.
 - 🌙 **High-Contrast Dark UI** — Outdoor-readable display optimized for sunlight.
 
@@ -50,7 +50,7 @@ app/
 │   ├── dashboard/      # Dashboard + RoutineProgressCard
 │   ├── tracking/       # Live tracking screen + Map rendering
 │   ├── summary/        # Post-workout summary
-│   ├── chat/           # VeloCoach AI chat + Multi-Session Select
+│   ├── chat/           # Personal Coach AI chat + Multi-Session Select
 │   ├── onboarding/     # Biometrics setup
 │   ├── settings/       # Settings + QR Code share
 │   └── theme/          # Material 3 dynamic themes based on activity
@@ -66,10 +66,10 @@ app/
 
 ## 🤖 AI Coach (RAG)
 
-The VeloCoach system prompt is dynamically built with real user and session data. Users can attach one or more specific workouts to the context before sending a message:
+The Personal Coach system prompt is dynamically built with real user and session data. Users can attach one or more specific workouts to the context before sending a message:
 
 ```
-Act as "VeloCoach", a professional fitness coach.
+Act as a professional fitness coach, acting as my "Personal Coach".
 [USER DATA] Gender: male, Age: 32, Height: 178cm, Weight: 73kg.
 [RECENT SESSION] Type: WALKING, Distance: 5.5km, Avg Speed: 6.3km/h, Calories: 342.
 Analyze this strictly for progress. Keep it short, encouraging, and do not give medical advice.

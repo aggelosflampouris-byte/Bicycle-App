@@ -97,6 +97,10 @@ class CyclingTrackingService : Service() {
         private val _routePointsFlow = MutableStateFlow<List<RoutePoint>>(emptyList())
         val routePointsFlow: StateFlow<List<RoutePoint>> = _routePointsFlow
 
+        // Separate elapsed seconds flow to prevent whole-screen recomposition every second
+        private val _elapsedSecondsFlow = MutableStateFlow(0L)
+        val elapsedSecondsFlow: StateFlow<Long> = _elapsedSecondsFlow
+
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_PAUSE = "ACTION_PAUSE"
@@ -180,6 +184,7 @@ class CyclingTrackingService : Service() {
         totalDistanceMeters = 0.0
         elevationGainMeters = 0.0
         elapsedSeconds = 0L
+        _elapsedSecondsFlow.value = 0L
         lastLocation = null
         routePoints.clear()
         pendingBatchPoints.clear()
@@ -204,10 +209,8 @@ class CyclingTrackingService : Service() {
                 delay(1000L)
                 if (!_trackingState.value.isPaused) {
                     elapsedSeconds++
-                    // IMPORTANT: Update UI state so the timer visually ticks!
-                    _trackingState.value = _trackingState.value.copy(
-                        elapsedSeconds = elapsedSeconds
-                    )
+                    // ONLY update the elapsedSecondsFlow to prevent heavy TrackingState recompositions
+                    _elapsedSecondsFlow.value = elapsedSeconds
                 }
                 // Update notification
                 val notif = NotificationHelper.buildTrackingNotification(

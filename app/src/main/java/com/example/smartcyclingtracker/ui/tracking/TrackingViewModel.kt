@@ -23,6 +23,7 @@ class TrackingViewModel @Inject constructor(
 ) : ViewModel() {
 
     val trackingState: StateFlow<TrackingState> = CyclingTrackingService.trackingState
+    val elapsedSeconds: StateFlow<Long> = CyclingTrackingService.elapsedSecondsFlow
     val routePoints: StateFlow<List<RoutePoint>> = CyclingTrackingService.routePointsFlow
 
     private var cachedUser: UserEntity = UserEntity()

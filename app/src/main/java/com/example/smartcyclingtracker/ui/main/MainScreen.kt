@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 
 enum class MainTab(val label: String, val icon: ImageVector) {
     DASHBOARD("Home", Icons.AutoMirrored.Filled.DirectionsBike),
-    AI_COACH("VeloCoach", Icons.Default.Psychology),
+    AI_COACH("Personal Coach", Icons.Default.Psychology),
     HISTORY("Activities", Icons.Default.Assessment),
     SETTINGS("Settings", Icons.Default.Settings)
 }

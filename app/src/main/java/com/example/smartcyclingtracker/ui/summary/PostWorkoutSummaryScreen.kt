@@ -42,7 +42,7 @@ import java.util.*
 @Composable
 fun PostWorkoutSummaryScreen(
     sessionId: Long,
-    onAskVeloCoach: () -> Unit,
+    onAskPersonalCoach: () -> Unit,
     onBack: () -> Unit,
     viewModel: SummaryViewModel = hiltViewModel()
 ) {
@@ -62,7 +62,7 @@ fun PostWorkoutSummaryScreen(
                     SummaryContent(
                         session = uiState.session!!,
                         context = context,
-                        onAskVeloCoach = onAskVeloCoach,
+                        onAskPersonalCoach = onAskPersonalCoach,
                         onBack = onBack
                     )
                 }
@@ -82,7 +82,7 @@ fun PostWorkoutSummaryScreen(
 private fun SummaryContent(
     session: WorkoutSessionEntity,
     context: Context,
-    onAskVeloCoach: () -> Unit,
+    onAskPersonalCoach: () -> Unit,
     onBack: () -> Unit
 ) {
     val dateFormat = SimpleDateFormat("EEEE, MMM dd yyyy", Locale.getDefault())
@@ -245,9 +245,9 @@ private fun SummaryContent(
                 Spacer(modifier = Modifier.weight(1f))
             }
 
-            // Ask VeloCoach button
+            // Ask Personal Coach button
             Button(
-                onClick = onAskVeloCoach,
+                onClick = onAskPersonalCoach,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp),
@@ -265,7 +265,7 @@ private fun SummaryContent(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Ask VeloCoach AI",
+                    text = "Ask Personal Coach AI",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
