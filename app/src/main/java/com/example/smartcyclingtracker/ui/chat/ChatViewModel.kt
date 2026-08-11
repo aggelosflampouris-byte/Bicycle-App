@@ -15,7 +15,6 @@ import com.example.smartcyclingtracker.data.remote.GeminiRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 import kotlinx.coroutines.Job
 import javax.inject.Inject
 
@@ -37,6 +36,7 @@ data class ChatUiState(
     val availableSessions: List<WorkoutSessionEntity> = emptyList()
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val geminiRepository: GeminiRepository,
