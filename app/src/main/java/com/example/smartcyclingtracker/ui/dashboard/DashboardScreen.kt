@@ -159,12 +159,14 @@ private fun DashboardHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "Hello, $userName 👋",
                 style = MaterialTheme.typography.headlineMedium,
                 color = TextPrimary,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             val subtitleText = when (activityType) {
                 "WALKING" -> "Ready to walk?"

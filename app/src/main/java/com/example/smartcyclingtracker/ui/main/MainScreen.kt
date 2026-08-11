@@ -113,8 +113,17 @@ fun MainScreen(
                                 }
                             },
                             icon = {
+                                val displayIcon = if (tab == MainTab.DASHBOARD) {
+                                    when (activityType) {
+                                        "WALKING" -> Icons.Default.DirectionsWalk
+                                        "JOGGING" -> Icons.Default.DirectionsRun
+                                        else -> Icons.Default.DirectionsBike
+                                    }
+                                } else {
+                                    tab.icon
+                                }
                                 Icon(
-                                    imageVector = tab.icon,
+                                    imageVector = displayIcon,
                                     contentDescription = tab.label,
                                     tint = if (isSelected) ElectricGreen else TextSecondary,
                                     modifier = Modifier.size(24.dp)

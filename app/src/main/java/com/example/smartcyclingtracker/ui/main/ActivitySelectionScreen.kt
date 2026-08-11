@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -56,6 +57,14 @@ fun ActivitySelectionScreen(
             title = "Walking",
             icon = Icons.Default.DirectionsWalk,
             onClick = { onActivitySelected(ActivityType.WALKING) }
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        ActivityCard(
+            title = "Jogging",
+            icon = Icons.Default.DirectionsRun,
+            onClick = { onActivitySelected(ActivityType.JOGGING) }
         )
     }
 }
