@@ -31,7 +31,9 @@ data class ChatUiState(
     val error: String? = null,
     val streamingText: String = "",
     val activeSessionId: Long? = null,
-    val sessions: List<ChatSessionEntity> = emptyList()
+    val sessions: List<ChatSessionEntity> = emptyList(),
+    val showSessionPicker: Boolean = false,
+    val availableSessions: List<WorkoutSessionEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -210,22 +212,42 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun shareRideHistory() {
+    fun openSessionPicker() {
         viewModelScope.launch {
+            val sessions = sessionDao.getRecentSessions(10)
+            if (sessions.isEmpty()) {
+                val activityName = when (currentActivityType) {
+                    "WALKING" -> "walk"
+                    "JOGGING" -> "run"
+                    else -> "ride"
+                }
+                sendMessage("I don't have any saved $activityName history yet. What should I focus on for my first $activityName?")
+            } else {
+                _uiState.update { it.copy(availableSessions = sessions, showSessionPicker = true) }
+            }
+        }
+    }
+
+    fun dismissSessionPicker() {
+        _uiState.update { it.copy(showSessionPicker = false) }
+    }
+
+    fun shareSelectedSessions(selectedIds: Set<Long>) {
+        viewModelScope.launch {
+            val sessionsToShare = _uiState.value.availableSessions.filter { it.id in selectedIds }
+            _uiState.update { it.copy(showSessionPicker = false) }
+            
+            if (sessionsToShare.isEmpty()) return@launch
+
             val activityName = when (currentActivityType) {
                 "WALKING" -> "walk"
                 "JOGGING" -> "run"
                 else -> "ride"
             }
-            val sessions = sessionDao.getRecentSessions(5)
-            if (sessions.isEmpty()) {
-                sendMessage("I don't have any saved $activityName history yet. What should I focus on for my first $activityName?")
-                return@launch
-            }
 
             val sb = java.lang.StringBuilder()
-            sb.append("Here is my recent $activityName history. Can you analyze my progress and give me some tips?\n\n")
-            sessions.forEachIndexed { index, session ->
+            sb.append("Here are some of my recent $activityName sessions. Can you analyze my progress and give me some tips?\n\n")
+            sessionsToShare.forEachIndexed { index, session ->
                 val dist = "%.1f".format(session.totalDistanceMeters / 1000.0)
                 val speed = "%.1f".format(session.avgSpeedKmh)
                 val elev = "%.0f".format(session.elevationGainMeters)

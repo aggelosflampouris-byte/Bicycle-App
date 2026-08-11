@@ -51,7 +51,7 @@ fun AiChatScreen(
 
     LaunchedEffect(triggerAnalysis) {
         if (triggerAnalysis) {
-            viewModel.shareRideHistory()
+            viewModel.openSessionPicker()
         }
     }
 
@@ -175,8 +175,16 @@ fun AiChatScreen(
                     inputText = ""
                 }
             },
-            onShareHistory = { viewModel.shareRideHistory() }
+            onShareHistory = { viewModel.openSessionPicker() }
         )
+        
+        if (uiState.showSessionPicker) {
+            SessionPickerBottomSheet(
+                sessions = uiState.availableSessions,
+                onDismiss = { viewModel.dismissSessionPicker() },
+                onShare = { selectedIds -> viewModel.shareSelectedSessions(selectedIds) }
+            )
+        }
     }
     }
 }
@@ -450,6 +458,108 @@ private fun ChatInputBar(
                     tint = if (inputText.isNotBlank()) DeepNavy else TextDisabled
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SessionPickerBottomSheet(
+    sessions: List<com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity>,
+    onDismiss: () -> Unit,
+    onShare: (Set<Long>) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var selectedIds by remember { mutableStateOf(emptySet<Long>()) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = NavyDarker,
+        contentColor = TextPrimary
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = "Select Sessions to Share",
+                style = MaterialTheme.typography.titleLarge,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            LazyColumn(
+                modifier = Modifier.weight(1f, fill = false)
+            ) {
+                items(sessions, key = { it.id }) { session ->
+                    val isSelected = selectedIds.contains(session.id)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                selectedIds = if (isSelected) {
+                                    selectedIds - session.id
+                                } else {
+                                    selectedIds + session.id
+                                }
+                            }
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = null,
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = ElectricGreen,
+                                uncheckedColor = TextSecondary,
+                                checkmarkColor = DeepNavy
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            val dist = "%.1f".format(session.totalDistanceMeters / 1000.0)
+                            val type = session.activityType
+                            val date = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault()).format(java.util.Date(session.startTime))
+                            Text(
+                                text = "$type - $date",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Distance: ${dist}km",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { onShare(selectedIds) },
+                enabled = selectedIds.isNotEmpty(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ElectricGreen,
+                    disabledContainerColor = NavyMedium,
+                    contentColor = DeepNavy,
+                    disabledContentColor = TextDisabled
+                ),
+                modifier = Modifier.fillMaxWidth().height(50.dp)
+            ) {
+                Text(
+                    text = "Share ${selectedIds.size} Session(s)",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
