@@ -57,6 +57,9 @@ class MainActivity : ComponentActivity() {
         // Request all required runtime permissions together
         requestAllPermissions()
 
+        // Schedule daily routine check
+        com.example.smartcyclingtracker.service.RoutineScheduler.scheduleRoutineCheck(this)
+
         // Determine start destination based on whether user has been set up
         lifecycleScope.launch {
             val user = userDao.getUserFlow().firstOrNull()

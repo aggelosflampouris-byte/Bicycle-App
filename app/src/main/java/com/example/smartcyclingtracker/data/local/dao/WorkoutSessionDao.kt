@@ -52,6 +52,26 @@ interface WorkoutSessionDao {
     """)
     suspend fun getAggregateSummary(): AggregateSummary?
 
+    @Query("""
+        SELECT SUM(totalDistanceMeters) as totalDist,
+               AVG(avgSpeedKmh) as avgSpeed,
+               SUM(caloriesBurned) as totalCals,
+               COUNT(*) as sessionCount
+        FROM workout_sessions
+        WHERE startTime >= :startTime AND startTime <= :endTime
+    """)
+    fun getAggregateSummaryForPeriodFlow(startTime: Long, endTime: Long): Flow<AggregateSummary?>
+
+    @Query("""
+        SELECT SUM(totalDistanceMeters) as totalDist,
+               AVG(avgSpeedKmh) as avgSpeed,
+               SUM(caloriesBurned) as totalCals,
+               COUNT(*) as sessionCount
+        FROM workout_sessions
+        WHERE startTime >= :startTime AND startTime <= :endTime
+    """)
+    suspend fun getAggregateSummaryForPeriod(startTime: Long, endTime: Long): AggregateSummary?
+
     data class AggregateSummary(
         val totalDist: Double?,
         val avgSpeed: Double?,

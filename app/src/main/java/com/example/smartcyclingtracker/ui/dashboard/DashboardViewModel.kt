@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.example.smartcyclingtracker.data.local.RoutineProgress
+import com.example.smartcyclingtracker.data.local.RoutineRepository
+
 data class DashboardUiState(
     val user: UserEntity = UserEntity(),
     val sessions: List<WorkoutSessionEntity> = emptyList(),
@@ -18,6 +21,7 @@ data class DashboardUiState(
     val avgDistanceKm: Double = 0.0,
     val totalSessions: Int = 0,
     val totalCalories: Double = 0.0,
+    val routineProgress: RoutineProgress? = null,
     val isLoading: Boolean = true
 )
 
@@ -25,7 +29,8 @@ data class DashboardUiState(
 class DashboardViewModel @Inject constructor(
     private val userDao: UserDao,
     private val sessionDao: WorkoutSessionDao,
-    private val settingsRepository: com.example.smartcyclingtracker.data.local.SettingsRepository
+    private val settingsRepository: com.example.smartcyclingtracker.data.local.SettingsRepository,
+    private val routineRepository: RoutineRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -35,6 +40,9 @@ class DashboardViewModel @Inject constructor(
 
     init {
         loadData()
+        viewModelScope.launch {
+            routineRepository.checkAndAdvanceRoutine()
+        }
     }
 
     fun setActivityType(type: String) {
@@ -43,14 +51,27 @@ class DashboardViewModel @Inject constructor(
             settingsRepository.setActivityType(type)
         }
     }
+    
+    fun saveRoutine(interval: String, metric: String, targetValue: Double, autoImprove: Boolean) {
+        viewModelScope.launch {
+            routineRepository.saveRoutine(interval, metric, targetValue, autoImprove)
+        }
+    }
+    
+    fun deleteRoutine() {
+        viewModelScope.launch {
+            routineRepository.deleteRoutine()
+        }
+    }
 
     private fun loadData() {
         viewModelScope.launch {
             combine(
                 userDao.getUserFlow().map { it ?: UserEntity() },
                 sessionDao.getAllSessionsFlow(),
-                _activityType
-            ) { user, allSessions, activityType ->
+                _activityType,
+                routineRepository.getRoutineProgressFlow()
+            ) { user, allSessions, activityType, routineProgress ->
                 val sessions = allSessions.filter { it.activityType == activityType }
                 val totalDist = sessions.sumOf { it.totalDistanceMeters } / 1000.0
                 val avgDist = if (sessions.isNotEmpty()) totalDist / sessions.size else 0.0
@@ -63,6 +84,7 @@ class DashboardViewModel @Inject constructor(
                     avgDistanceKm = avgDist,
                     totalSessions = sessions.size,
                     totalCalories = totalCals,
+                    routineProgress = routineProgress,
                     isLoading = false
                 )
             }.collect { state ->

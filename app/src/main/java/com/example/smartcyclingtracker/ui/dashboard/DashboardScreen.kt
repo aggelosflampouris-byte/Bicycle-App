@@ -41,6 +41,7 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val activityType = LocalActivityTheme.current
+    var showRoutineConfig by remember { mutableStateOf(false) }
 
     LaunchedEffect(activityType) {
         viewModel.setActivityType(activityType)
@@ -97,6 +98,19 @@ fun DashboardScreen(
                 )
             }
 
+            // Routine Progress Card
+            item {
+                AnimatedVisibility(
+                    visible = !uiState.isLoading,
+                    enter = fadeIn() + slideInVertically()
+                ) {
+                    RoutineProgressCard(
+                        progress = uiState.routineProgress,
+                        onConfigureClick = { showRoutineConfig = true }
+                    )
+                }
+            }
+
             // Stats cards
             item {
                 AnimatedVisibility(
@@ -141,6 +155,21 @@ fun DashboardScreen(
             }
 
             item { Spacer(modifier = Modifier.height(80.dp)) }
+        }
+
+        if (showRoutineConfig) {
+            RoutineConfigBottomSheet(
+                currentProgress = uiState.routineProgress,
+                onDismiss = { showRoutineConfig = false },
+                onSave = { interval, metric, target, autoImprove ->
+                    viewModel.saveRoutine(interval, metric, target, autoImprove)
+                    showRoutineConfig = false
+                },
+                onDelete = {
+                    viewModel.deleteRoutine()
+                    showRoutineConfig = false
+                }
+            )
         }
     }
 }
@@ -483,5 +512,200 @@ private fun MiniStat(label: String, value: String) {
     Column {
         Text(text = value, style = MaterialTheme.typography.labelLarge, color = ElectricGreen)
         Text(text = label, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RoutineConfigBottomSheet(
+    currentProgress: com.example.smartcyclingtracker.data.local.RoutineProgress?,
+    onDismiss: () -> Unit,
+    onSave: (interval: String, metric: String, target: Double, autoImprove: Boolean) -> Unit,
+    onDelete: () -> Unit
+) {
+    var interval by remember { mutableStateOf(currentProgress?.routine?.interval ?: "WEEKLY") }
+    var metric by remember { mutableStateOf(currentProgress?.routine?.metric ?: "DISTANCE") }
+    var target by remember { mutableStateOf(currentProgress?.routine?.targetValue?.toString() ?: "50.0") }
+    var autoImprove by remember { mutableStateOf(currentProgress?.routine?.autoImprove ?: true) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = DeepNavy,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = GlassBorder) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text("Workout Routine", style = MaterialTheme.typography.headlineSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
+
+            // Interval selector
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("DAILY", "WEEKLY", "MONTHLY").forEach { opt ->
+                    FilterChip(
+                        selected = interval == opt,
+                        onClick = { interval = opt },
+                        label = { Text(opt.lowercase().replaceFirstChar { it.uppercase() }) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ElectricGreen.copy(alpha = 0.2f),
+                            selectedLabelColor = ElectricGreen,
+                            labelColor = TextSecondary
+                        )
+                    )
+                }
+            }
+
+            // Metric selector
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("DISTANCE", "CALORIES").forEach { opt ->
+                    FilterChip(
+                        selected = metric == opt,
+                        onClick = { metric = opt },
+                        label = { Text(if (opt == "DISTANCE") "Distance (km)" else "Calories") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ElectricGreen.copy(alpha = 0.2f),
+                            selectedLabelColor = ElectricGreen,
+                            labelColor = TextSecondary
+                        )
+                    )
+                }
+            }
+
+            // Target Input
+            OutlinedTextField(
+                value = target,
+                onValueChange = { target = it },
+                label = { Text("Target Goal", color = TextSecondary) },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ElectricGreen,
+                    unfocusedBorderColor = GlassBorder,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedContainerColor = NavyCard,
+                    unfocusedContainerColor = NavyCard
+                )
+            )
+
+            // Auto-improve toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Auto-Improve Goal", color = TextPrimary, fontWeight = FontWeight.Bold)
+                    Text("Increases goal by 5% when completed", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(
+                    checked = autoImprove,
+                    onCheckedChange = { autoImprove = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = DeepNavy,
+                        checkedTrackColor = ElectricGreen
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (currentProgress != null) {
+                    OutlinedButton(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = WarningAmber),
+                        border = BorderStroke(1.dp, WarningAmber)
+                    ) {
+                        Text("Clear Routine")
+                    }
+                }
+                Button(
+                    onClick = {
+                        val t = target.toDoubleOrNull() ?: 0.0
+                        if (t > 0) onSave(interval, metric, t, autoImprove)
+                    },
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ElectricGreen, contentColor = DeepNavy)
+                ) {
+                    Text("Save", fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+@Composable
+private fun RoutineProgressCard(
+    progress: com.example.smartcyclingtracker.data.local.RoutineProgress?,
+    onConfigureClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onConfigureClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, GlassBorder)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.TrackChanges, null, tint = ElectricGreen, modifier = Modifier.size(20.dp))
+                    Text(
+                        text = if (progress == null) "Set a Workout Routine" else "${progress.routine.interval} Goal",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                }
+                Icon(Icons.Default.ChevronRight, null, tint = TextSecondary, modifier = Modifier.size(20.dp))
+            }
+            
+            if (progress != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                val percentage = (progress.currentValue / progress.routine.targetValue).coerceIn(0.0, 1.0)
+                val unit = if (progress.routine.metric == "DISTANCE") "km" else "kcal"
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        text = "${"%.1f".format(progress.currentValue)} / ${"%.1f".format(progress.routine.targetValue)} $unit",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${(percentage * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ElectricGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { percentage.toFloat() },
+                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                    color = ElectricGreen,
+                    trackColor = NavyLight
+                )
+                if (progress.isCompleted && progress.routine.autoImprove) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Goal completed! Your next interval goal will increase by ${(progress.routine.autoImprovePercentage * 100).toInt()}%.", style = MaterialTheme.typography.bodySmall, color = VividCyan)
+                } else if (progress.isCompleted) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Goal completed! Excellent work.", style = MaterialTheme.typography.bodySmall, color = ElectricGreen)
+                }
+            } else {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Track progress automatically and get smart reminders.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            }
+        }
     }
 }

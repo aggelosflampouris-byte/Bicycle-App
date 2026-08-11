@@ -11,9 +11,12 @@ import com.example.smartcyclingtracker.data.local.entity.ChatSessionEntity
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 
+import com.example.smartcyclingtracker.data.local.dao.RoutineDao
+import com.example.smartcyclingtracker.data.local.entity.RoutineEntity
+
 @Database(
-    entities = [UserEntity::class, WorkoutSessionEntity::class, ChatMessageEntity::class, ChatSessionEntity::class],
-    version = 4,
+    entities = [UserEntity::class, WorkoutSessionEntity::class, ChatMessageEntity::class, ChatSessionEntity::class, RoutineEntity::class],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -21,6 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workoutSessionDao(): WorkoutSessionDao
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun chatSessionDao(): ChatSessionDao
+    abstract fun routineDao(): RoutineDao
 
     companion object {
         const val DATABASE_NAME = "cycling_tracker.db"
@@ -75,6 +79,14 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
                 database.execSQL(
                     "ALTER TABLE `workout_sessions` ADD COLUMN `activityType` TEXT NOT NULL DEFAULT 'CYCLING'"
+                )
+            }
+        }
+
+        val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `workout_routines` (`id` INTEGER NOT NULL, `interval` TEXT NOT NULL, `metric` TEXT NOT NULL, `targetValue` REAL NOT NULL, `autoImprove` INTEGER NOT NULL, `autoImprovePercentage` REAL NOT NULL, `currentPeriodStart` INTEGER NOT NULL, `currentPeriodEnd` INTEGER NOT NULL, `lastCompletedPeriodEnd` INTEGER NOT NULL, PRIMARY KEY(`id`))"
                 )
             }
         }

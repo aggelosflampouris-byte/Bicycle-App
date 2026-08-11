@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.example.smartcyclingtracker.data.local.AppDatabase
 import com.example.smartcyclingtracker.data.local.dao.ChatMessageDao
 import com.example.smartcyclingtracker.data.local.dao.ChatSessionDao
+import com.example.smartcyclingtracker.data.local.dao.RoutineDao
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
 import com.example.smartcyclingtracker.data.remote.api.HfApiService
@@ -36,7 +37,7 @@ object AppModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
+        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5)
         .build()
 
     @Provides
@@ -54,6 +55,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideChatSessionDao(db: AppDatabase): ChatSessionDao = db.chatSessionDao()
+
+    @Provides
+    @Singleton
+    fun provideRoutineDao(db: AppDatabase): RoutineDao = db.routineDao()
 
     // ── Networking ───────────────────────────────────────────────────────────
 
