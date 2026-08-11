@@ -1,80 +1,83 @@
-# Smart Cycling Tracker — VeloTrack
+# Smart Track
 
-A **100% free-to-operate** Smart Cycling Tracker app built with Kotlin, Jetpack Compose (Material 3), and modern Android architecture patterns.
+A **100% free-to-operate** Smart Fitness Tracker app built with Kotlin, Jetpack Compose (Material 3), and modern Android architecture patterns. Track your Rides, Walks, and Jogs with an AI-powered coach.
 
 ## 📥 Download APK
 
 You can download the ready-to-install `.apk` directly from:
 - **[GitHub Releases](https://github.com/aggelosflampouris-byte/Bicycle-App/releases)** (Recommended — download `app-debug.apk` under the latest release).
-- **GitHub Actions Tab** — Go to **Actions** -> click the latest workflow run -> download the **VeloTrack-Debug-APK** artifact.
+- **GitHub Actions Tab** — Go to **Actions** -> click the latest workflow run -> download the **SmartTrack-Debug-APK** artifact.
+- **In-App Share** — Open Settings inside the app to share a QR code for direct download!
 
+## ✨ Key Features
 
-## Features
+- 🏃 **Multi-Activity Tracking** — Dedicated modes for Cycling, Walking, and Jogging with specific UI colors and physics calculations.
+- 🎯 **Workout Routines** — Set daily, weekly, or monthly goals for distance or calories. The app will notify you when you are falling behind and auto-improve your goals when you crush them!
+- 🔋 **Battery-Optimized GPS** — Dynamic LocationRequest polling with a 3s base interval and 2m movement threshold to drastically save battery.
+- ⏸️ **Auto-Pause Engine** — Automatically pauses when stationary for 5+ seconds to preserve your stats and battery.
+- 🗺️ **Incremental OpenStreetMap** — O(1) seamless map rendering that prevents lag even on massive 100km+ rides.
+- 🔥 **Physics Engine** — Mifflin-St Jeor BMR, MET-based calories, and Watts/kg estimation.
+- 🤖 **VeloCoach AI** — Google Gemini 1.5 Flash with RAG (injects your real workout data into the prompt). View and send multiple past workouts for deep analysis.
+- 📊 **Streaming Chat** — Real-time typing effect as Gemini responds.
+- 🌙 **High-Contrast Dark UI** — Outdoor-readable display optimized for sunlight.
 
-- 🚴 **Live GPS Tracking** — Foreground service with real-time speed, distance, and timer
-- ⏸️ **Auto-Pause Engine** — Automatically pauses when stationary for 5+ seconds (< 2m displacement)
-- 🗺️ **OpenStreetMap Maps** — Free osmdroid maps (no Google Maps billing)
-- 🔥 **Physics Engine** — Mifflin-St Jeor BMR, MET-based calories, Watts/kg estimation
-- 🤖 **VeloCoach AI** — Google Gemini 1.5 Flash with RAG (injects your real workout data into the prompt)
-- 📊 **Streaming Chat** — Real-time typing effect as Gemini responds
-- 🌙 **High-Contrast Dark UI** — Outdoor-readable display optimized for sunlight
-
-## Tech Stack
+## 🛠 Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Language | Kotlin |
 | UI | Jetpack Compose + Material 3 |
 | Architecture | MVVM + Coroutines + Flows |
-| Database | Room (offline-first) |
+| Database | Room (offline-first, complex migrations) |
 | Maps | osmdroid (OpenStreetMap) |
 | Location | FusedLocationProviderClient |
+| Background | AlarmManager (Routines), ForegroundService (GPS) |
 | AI | Google Gemini 1.5 Flash (streaming) |
 | Networking | Retrofit2 + OkHttp |
 | DI | Hilt |
 
-
-## Architecture
+## 🏗 Architecture
 
 ```
 app/
 ├── data/
-│   ├── local/          # Room DB, Entities (User, WorkoutSession), DAOs
+│   ├── local/          # Room DB, Entities (User, WorkoutSession, Routine), DAOs, Repository
 │   └── remote/         # GeminiApiService (Retrofit), GeminiRepository (SSE streaming)
 ├── engine/             # PhysicsEngine — BMR, calories, Watts/kg, Haversine
-├── service/            # CyclingTrackingService (ForegroundService) + NotificationHelper
+├── service/            # CyclingTrackingService (ForegroundService), RoutineScheduler
 ├── di/                 # Hilt modules (AppModule)
 ├── ui/
-│   ├── dashboard/      # Dashboard screen + ViewModel
-│   ├── tracking/       # Live tracking screen + ViewModel
-│   ├── summary/        # Post-workout summary screen + ViewModel
-│   ├── chat/           # VeloCoach AI chat + ViewModel
-│   ├── onboarding/     # Biometrics setup + ViewModel
-│   └── theme/          # Material 3 dark theme (electric green / deep navy)
+│   ├── dashboard/      # Dashboard + RoutineProgressCard
+│   ├── tracking/       # Live tracking screen + Map rendering
+│   ├── summary/        # Post-workout summary
+│   ├── chat/           # VeloCoach AI chat + Multi-Session Select
+│   ├── onboarding/     # Biometrics setup
+│   ├── settings/       # Settings + QR Code share
+│   └── theme/          # Material 3 dynamic themes based on activity
 └── Navigation.kt       # NavHost graph
 ```
 
-## GPS Tracking Details
+## 📍 GPS Tracking Details
 
-- **Accuracy filter**: Discards GPS points with accuracy > 20m
-- **Speed filter**: Discards points with instantaneous speed > 100 km/h
-- **Auto-pause**: Pauses timer when displacement < 2m for 5 consecutive seconds
-- **Batch writes**: Buffers GPS points and writes every 50 to Room DB (IO coroutine)
+- **Battery Saver**: Base interval is 3 seconds, min distance 2m. 
+- **Accuracy filter**: Discards GPS points with accuracy > 35m.
+- **Jump filter**: Discards impossible jumps (> 120 km/h) unless validating a tunnel recovery.
+- **Batch writes**: Buffers GPS points and flushes to Room DB in an IO coroutine to prevent lockups.
 
-## AI Coach (RAG)
+## 🤖 AI Coach (RAG)
 
-The VeloCoach system prompt is dynamically built with real user and session data:
+The VeloCoach system prompt is dynamically built with real user and session data. Users can attach one or more specific workouts to the context before sending a message:
 
 ```
-Act as "VeloCoach", a professional cycling coach.
+Act as "VeloCoach", a professional fitness coach.
 [USER DATA] Gender: male, Age: 32, Height: 178cm, Weight: 73kg.
-[RECENT SESSION] Distance: 24.5km, Avg Speed: 26.3km/h, Performance: 3.21 W/kg, Calories: 742.
-Analyze this strictly for cycling progress. Keep it short, encouraging, and do not give medical advice.
+[RECENT SESSION] Type: WALKING, Distance: 5.5km, Avg Speed: 6.3km/h, Calories: 342.
+Analyze this strictly for progress. Keep it short, encouraging, and do not give medical advice.
 ```
 
-## Permissions
+## 🔒 Permissions Required
 
 - `ACCESS_FINE_LOCATION` — GPS tracking
 - `ACCESS_BACKGROUND_LOCATION` — Tracking with screen off
-- `POST_NOTIFICATIONS` — Persistent tracking notification (Android 13+)
+- `POST_NOTIFICATIONS` — Persistent tracking notification & Routine reminders
 - `FOREGROUND_SERVICE_LOCATION` — Foreground service type
