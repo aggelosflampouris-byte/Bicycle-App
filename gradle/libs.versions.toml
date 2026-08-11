@@ -24,6 +24,8 @@ datastorePrefs = "1.1.2"
 splashscreen = "1.0.1"
 navigationCompose = "2.9.3"
 zxing = "3.5.3"
+workManager = "2.10.0"
+hiltWork = "1.2.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
@@ -84,6 +86,11 @@ androidx-splashscreen = { module = "androidx.core:core-splashscreen", version.re
 
 # ZXing (QR Code)
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+
+# WorkManager
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workManager" }
+androidx-hilt-work = { module = "androidx.hilt:hilt-work", version.ref = "hiltWork" }
+androidx-hilt-compiler = { module = "androidx.hilt:hilt-compiler", version.ref = "hiltWork" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }

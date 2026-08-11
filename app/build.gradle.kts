@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.smartcyclingtracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 67
-        versionName = "1.1.57"
+        versionCode = 68
+        versionName = "1.1.58"
 
         // API key is read from local.properties (gitignored — never committed)
         // or from the GEMINI_API_KEY environment variable (GitHub Actions Secret).
@@ -139,4 +139,9 @@ dependencies {
 
   // QR Code
   implementation(libs.zxing.core)
+
+  // WorkManager
+  implementation(libs.androidx.work.runtime.ktx)
+  implementation(libs.androidx.hilt.work)
+  ksp(libs.androidx.hilt.compiler)
 }

@@ -57,8 +57,16 @@ class MainActivity : ComponentActivity() {
         // Request all required runtime permissions together
         requestAllPermissions()
 
-        // Schedule daily routine check
-        com.example.smartcyclingtracker.service.RoutineScheduler.scheduleRoutineCheck(this)
+        // Schedule WorkManager for routine check (Daily)
+        val workRequest = androidx.work.PeriodicWorkRequestBuilder<com.example.smartcyclingtracker.worker.RoutineReminderWorker>(
+            1, java.util.concurrent.TimeUnit.DAYS
+        ).build()
+        
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "RoutineReminder",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
 
         // Determine start destination based on whether user has been set up
         lifecycleScope.launch {
