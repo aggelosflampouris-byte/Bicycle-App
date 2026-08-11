@@ -568,7 +568,7 @@ private fun FinishWorkoutDialog(
 
 @Composable
 fun TrackingStatsPanel(
-    stateProvider: () -> com.example.smartcyclingtracker.service.CyclingTrackingState,
+    stateProvider: () -> com.example.smartcyclingtracker.service.TrackingState,
     modifier: Modifier = Modifier
 ) {
     val state = stateProvider()

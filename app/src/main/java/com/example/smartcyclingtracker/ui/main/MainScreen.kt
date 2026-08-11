@@ -155,7 +155,6 @@ fun MainScreen(
                 when (tabs[page]) {
                     MainTab.DASHBOARD -> {
                         DashboardScreen(
-                            activityType = activityType,
                             onStartWorkout = onStartWorkout,
                             onSessionClick = onSessionClick,
                             onOpenSettings = {
