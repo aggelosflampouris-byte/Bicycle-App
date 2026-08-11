@@ -24,6 +24,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.graphics.Bitmap
+import android.graphics.Color as AndroidColor
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.window.Dialog
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartcyclingtracker.BuildConfig
@@ -44,6 +51,7 @@ fun SettingsScreen(
     val updateState by updaterViewModel.uiState.collectAsStateWithLifecycle()
 
     var showSaveSuccessSnack by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(showSaveSuccessSnack) {
@@ -209,9 +217,44 @@ fun SettingsScreen(
                         }
                     }
                 }
+                
+                // Share App Row
+                HorizontalDivider(color = GlassBorder, thickness = 0.5.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showShareDialog = true }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(ElectricGreen.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.QrCode, null, tint = ElectricGreen, modifier = Modifier.size(20.dp))
+                        }
+                        Column {
+                            Text("Share App", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text("Show QR code for latest release", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        }
+                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = TextSecondary, modifier = Modifier.size(20.dp))
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        if (showShareDialog) {
+            QrCodeDialog(
+                url = "https://github.com/aggelosflampouris-byte/Bicycle-App/releases/latest",
+                onDismiss = { showShareDialog = false }
+            )
         }
     }
 }
@@ -371,4 +414,85 @@ private fun SettingsTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         singleLine = true
     )
+}
+
+@Composable
+fun QrCodeDialog(url: String, onDismiss: () -> Unit) {
+    val bitmap = remember(url) {
+        val writer = QRCodeWriter()
+        val size = 512
+        val bitMatrix = writer.encode(url, BarcodeFormat.QR_CODE, size, size)
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                bmp.setPixel(x, y, if (bitMatrix.get(x, y)) AndroidColor.BLACK else AndroidColor.WHITE)
+            }
+        }
+        bmp.asImageBitmap()
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = NavyCard),
+            border = BorderStroke(1.dp, GlassBorder)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.QrCodeScanner,
+                    contentDescription = null,
+                    tint = ElectricGreen,
+                    modifier = Modifier.size(32.dp)
+                )
+                
+                Text(
+                    text = "Scan to Download",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TextPrimary
+                )
+                
+                Text(
+                    text = "Scan this QR code to download the latest VeloTrack APK directly from GitHub.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center
+                )
+
+                // The QR Code Image
+                Box(
+                    modifier = Modifier
+                        .size(220.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = "QR Code",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ElectricGreen.copy(alpha = 0.15f),
+                        contentColor = ElectricGreen
+                    )
+                ) {
+                    Text("Close", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
 }
