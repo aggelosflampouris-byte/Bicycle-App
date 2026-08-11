@@ -286,8 +286,11 @@ fun LiveTrackingScreen(
                                 style = MaterialTheme.typography.titleSmall
                             )
                             Text(
-                                if (activityType == "WALKING") "Turn on Location Services to track your walk."
-                                else "Turn on Location Services to track your ride.",
+                                when (activityType) {
+                                    "WALKING" -> "Turn on Location Services to track your walk."
+                                    "JOGGING" -> "Turn on Location Services to track your jog."
+                                    else -> "Turn on Location Services to track your ride."
+                                },
                                 color = TextPrimary,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -509,8 +512,11 @@ private fun FinishWorkoutDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    if (activityType == "WALKING") "Great walk! Are you ready to save your workout summary and get feedback from VeloCoach AI?"
-                    else "Great ride! Are you ready to save your workout summary and get feedback from VeloCoach AI?",
+                    when (activityType) {
+                        "WALKING" -> "Great walk! Are you ready to save your workout summary and get feedback from VeloCoach AI?"
+                        "JOGGING" -> "Great jog! Are you ready to save your workout summary and get feedback from VeloCoach AI?"
+                        else -> "Great ride! Are you ready to save your workout summary and get feedback from VeloCoach AI?"
+                    },
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )

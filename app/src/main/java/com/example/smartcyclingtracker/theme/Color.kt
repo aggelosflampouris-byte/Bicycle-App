@@ -16,21 +16,37 @@ val ActualAzureBlue = Color(0xFF007AFF)
 val ActualAzureBlueDark = Color(0xFF005BB5)
 val ActualAzureBlueDarker = Color(0xFF004080)
 
+val ActualFieryRed = Color(0xFFFF3B30)
+val ActualFieryRedDark = Color(0xFFCC2F26)
+val ActualFieryRedDarker = Color(0xFF99231D)
+
 val ElectricGreen: Color
     @Composable get() {
-        val target = if (LocalActivityTheme.current == "WALKING") ActualAzureBlue else ActualElectricGreen
+        val target = when (LocalActivityTheme.current) {
+            "WALKING" -> ActualAzureBlue
+            "JOGGING" -> ActualFieryRed
+            else -> ActualElectricGreen
+        }
         return animateColorAsState(target, animationSpec = tween(500), label = "Primary").value
     }
 
 val ElectricGreenDark: Color
     @Composable get() {
-        val target = if (LocalActivityTheme.current == "WALKING") ActualAzureBlueDark else ActualElectricGreenDark
+        val target = when (LocalActivityTheme.current) {
+            "WALKING" -> ActualAzureBlueDark
+            "JOGGING" -> ActualFieryRedDark
+            else -> ActualElectricGreenDark
+        }
         return animateColorAsState(target, animationSpec = tween(500), label = "PrimaryDark").value
     }
 
 val ElectricGreenDarker: Color
     @Composable get() {
-        val target = if (LocalActivityTheme.current == "WALKING") ActualAzureBlueDarker else ActualElectricGreenDarker
+        val target = when (LocalActivityTheme.current) {
+            "WALKING" -> ActualAzureBlueDarker
+            "JOGGING" -> ActualFieryRedDarker
+            else -> ActualElectricGreenDarker
+        }
         return animateColorAsState(target, animationSpec = tween(500), label = "PrimaryDarker").value
     }
 

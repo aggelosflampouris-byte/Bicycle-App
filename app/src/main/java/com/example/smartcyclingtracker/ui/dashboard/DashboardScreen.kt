@@ -86,7 +86,11 @@ fun DashboardScreen(
                     userName = uiState.user.name,
                     activityType = activityType,
                     onSwitchActivity = {
-                        val newActivity = if (activityType == "WALKING") "CYCLING" else "WALKING"
+                        val newActivity = when (activityType) {
+                            "CYCLING" -> "WALKING"
+                            "WALKING" -> "JOGGING"
+                            else -> "CYCLING"
+                        }
                         viewModel.setActivityType(newActivity)
                     },
                     onSettingsClick = onOpenSettings
@@ -112,7 +116,11 @@ fun DashboardScreen(
             item {
                 if (uiState.sessions.isNotEmpty()) {
                     Text(
-                        text = if (activityType == "WALKING") "Recent Walks" else "Recent Rides",
+                        text = when (activityType) {
+                            "WALKING" -> "Recent Walks"
+                            "JOGGING" -> "Recent Jogs"
+                            else -> "Recent Rides"
+                        },
                         style = MaterialTheme.typography.headlineSmall,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -158,7 +166,11 @@ private fun DashboardHeader(
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
             )
-            val subtitleText = if (activityType == "WALKING") "Ready to walk?" else "Ready to ride?"
+            val subtitleText = when (activityType) {
+                "WALKING" -> "Ready to walk?"
+                "JOGGING" -> "Ready to jog?"
+                else -> "Ready to ride?"
+            }
             Text(
                 text = subtitleText,
                 style = MaterialTheme.typography.bodyMedium,
@@ -173,8 +185,13 @@ private fun DashboardHeader(
                     .background(NavyCard)
             ) {
                 Crossfade(targetState = activityType, label = "activityIcon") { type ->
+                    val icon = when (type) {
+                        "WALKING" -> Icons.Default.DirectionsWalk
+                        "JOGGING" -> Icons.Default.DirectionsRun
+                        else -> Icons.Default.DirectionsBike
+                    }
                     Icon(
-                        imageVector = if (type == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike,
+                        imageVector = icon,
                         contentDescription = "Switch Activity",
                         tint = TextSecondary
                     )
@@ -226,10 +243,22 @@ private fun StatsRow(uiState: DashboardUiState, activityType: String) {
     ) {
         StatCard(
             modifier = Modifier.weight(1f),
-            label = if (activityType == "WALKING") "Total Walks" else "Total Rides",
+            label = when (activityType) {
+                "WALKING" -> "Total Walks"
+                "JOGGING" -> "Total Jogs"
+                else -> "Total Rides"
+            },
             value = "${uiState.totalSessions}",
-            unit = if (activityType == "WALKING") "walks" else "rides",
-            icon = if (activityType == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike,
+            unit = when (activityType) {
+                "WALKING" -> "walks"
+                "JOGGING" -> "jogs"
+                else -> "rides"
+            },
+            icon = when (activityType) {
+                "WALKING" -> Icons.Default.DirectionsWalk
+                "JOGGING" -> Icons.Default.DirectionsRun
+                else -> Icons.Default.DirectionsBike
+            },
             iconTint = WarningAmber
         )
         StatCard(
@@ -341,14 +370,22 @@ private fun StartWorkoutButton(activityType: String, onClick: () -> Unit) {
             pressedElevation = 2.dp
         )
     ) {
-        val icon = if (activityType == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike
+        val icon = when (activityType) {
+            "WALKING" -> Icons.Default.DirectionsWalk
+            "JOGGING" -> Icons.Default.DirectionsRun
+            else -> Icons.Default.DirectionsBike
+        }
         Icon(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(28.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
-        val actionText = if (activityType == "WALKING") "START WALKING" else "START CYCLING"
+        val actionText = when (activityType) {
+            "WALKING" -> "START WALKING"
+            "JOGGING" -> "START JOGGING"
+            else -> "START CYCLING"
+        }
         Text(
             text = actionText,
             style = MaterialTheme.typography.labelLarge,
@@ -393,8 +430,13 @@ private fun SessionCard(
                     ),
                 contentAlignment = Alignment.Center
             ) {
+                val sessionIcon = when (session.activityType) {
+                    "WALKING" -> Icons.Default.DirectionsWalk
+                    "JOGGING" -> Icons.Default.DirectionsRun
+                    else -> Icons.Default.DirectionsBike
+                }
                 Icon(
-                    imageVector = Icons.Default.DirectionsBike,
+                    imageVector = sessionIcon,
                     contentDescription = null,
                     tint = ElectricGreen,
                     modifier = Modifier.size(24.dp)

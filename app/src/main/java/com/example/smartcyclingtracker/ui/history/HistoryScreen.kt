@@ -49,12 +49,18 @@ fun HistoryScreen(
         when (selectedFilter) {
             HistoryFilter.ALL -> uiState.sessions
             HistoryFilter.LONG_RIDES -> {
-                if (activityType == "WALKING") uiState.sessions.filter { it.totalDistanceMeters >= 5000.0 }
-                else uiState.sessions.filter { it.totalDistanceMeters >= 10000.0 }
+                when (activityType) {
+                    "WALKING" -> uiState.sessions.filter { it.totalDistanceMeters >= 5000.0 }
+                    "JOGGING" -> uiState.sessions.filter { it.totalDistanceMeters >= 5000.0 }
+                    else -> uiState.sessions.filter { it.totalDistanceMeters >= 10000.0 }
+                }
             }
             HistoryFilter.FAST_RIDES -> {
-                if (activityType == "WALKING") uiState.sessions.filter { it.avgSpeedKmh >= 6.0 }
-                else uiState.sessions.filter { it.avgSpeedKmh >= 20.0 }
+                when (activityType) {
+                    "WALKING" -> uiState.sessions.filter { it.avgSpeedKmh >= 6.0 }
+                    "JOGGING" -> uiState.sessions.filter { it.avgSpeedKmh >= 8.0 }
+                    else -> uiState.sessions.filter { it.avgSpeedKmh >= 20.0 }
+                }
             }
         }
     }
@@ -85,7 +91,11 @@ fun HistoryScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (activityType == "WALKING") "Walks" else "Rides",
+                    text = when (activityType) {
+                        "WALKING" -> "Walks"
+                        "JOGGING" -> "Jogs"
+                        else -> "Rides"
+                    },
                     color = if (listSelected) ElectricGreen else TextSecondary,
                     fontWeight = if (listSelected) FontWeight.Bold else FontWeight.Normal,
                     fontSize = 14.sp
@@ -145,7 +155,11 @@ fun HistoryScreen(
                                 color = VividCyan,
                                 fontWeight = FontWeight.Black
                             )
-                            Text(if (activityType == "WALKING") "Walks" else "Rides", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(when (activityType) {
+                                "WALKING" -> "Walks"
+                                "JOGGING" -> "Jogs"
+                                else -> "Rides"
+                            }, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
@@ -178,7 +192,11 @@ fun HistoryScreen(
                     FilterChip(
                         selected = selectedFilter == HistoryFilter.LONG_RIDES,
                         onClick = { selectedFilter = HistoryFilter.LONG_RIDES },
-                        label = { Text(if (activityType == "WALKING") "Long (>5km)" else "Long (>10km)") },
+                        label = { Text(when (activityType) {
+                            "WALKING" -> "Long (>5km)"
+                            "JOGGING" -> "Long (>5km)"
+                            else -> "Long (>10km)"
+                        }) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = VividCyan.copy(alpha = 0.2f),
                             selectedLabelColor = VividCyan
@@ -187,7 +205,11 @@ fun HistoryScreen(
                     FilterChip(
                         selected = selectedFilter == HistoryFilter.FAST_RIDES,
                         onClick = { selectedFilter = HistoryFilter.FAST_RIDES },
-                        label = { Text(if (activityType == "WALKING") "Fast (>6km/h)" else "Fast (>20km/h)") },
+                        label = { Text(when (activityType) {
+                            "WALKING" -> "Fast (>6km/h)"
+                            "JOGGING" -> "Fast (>8km/h)"
+                            else -> "Fast (>20km/h)"
+                        }) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = WarningAmber.copy(alpha = 0.2f),
                             selectedLabelColor = WarningAmber
@@ -213,8 +235,13 @@ fun HistoryScreen(
                                 .background(ElectricGreen.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
+                            val icon = when (activityType) {
+                                "WALKING" -> Icons.Default.DirectionsWalk
+                                "JOGGING" -> Icons.Default.DirectionsRun
+                                else -> Icons.Default.DirectionsBike
+                            }
                             Icon(
-                                imageVector = if (activityType == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike,
+                                imageVector = icon,
                                 contentDescription = null,
                                 tint = ElectricGreen,
                                 modifier = Modifier.size(36.dp)
@@ -222,16 +249,28 @@ fun HistoryScreen(
                         }
                         Text(
                             text = if (uiState.sessions.isEmpty()) {
-                                if (activityType == "WALKING") "No recorded walks yet" else "No recorded rides yet"
+                                when (activityType) {
+                                    "WALKING" -> "No recorded walks yet"
+                                    "JOGGING" -> "No recorded jogs yet"
+                                    else -> "No recorded rides yet"
+                                }
                             } else {
-                                if (activityType == "WALKING") "No walks match this filter" else "No rides match this filter"
+                                when (activityType) {
+                                    "WALKING" -> "No walks match this filter"
+                                    "JOGGING" -> "No jogs match this filter"
+                                    else -> "No rides match this filter"
+                                }
                             },
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = if (activityType == "WALKING") "Record your walking sessions to see detailed stats here" else "Record your cycling sessions to see detailed stats here",
+                            text = when (activityType) {
+                                "WALKING" -> "Record your walking sessions to see detailed stats here"
+                                "JOGGING" -> "Record your jogging sessions to see detailed stats here"
+                                else -> "Record your cycling sessions to see detailed stats here"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -246,7 +285,12 @@ fun HistoryScreen(
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (activityType == "WALKING") "Start a Walk" else "Start a Ride", fontWeight = FontWeight.Bold)
+                            val buttonText = when (activityType) {
+                                "WALKING" -> "Start a Walk"
+                                "JOGGING" -> "Start a Jog"
+                                else -> "Start a Ride"
+                            }
+                            Text(buttonText, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

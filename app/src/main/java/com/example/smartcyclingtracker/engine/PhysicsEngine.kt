@@ -33,7 +33,15 @@ object PhysicsEngine {
             speedKmh < 4.8  -> 3.3    // Moderate walking
             speedKmh < 5.6  -> 4.3    // Brisk walking
             speedKmh < 6.4  -> 5.0    // Very brisk walking
-            else             -> 6.0    // Fast walking / jogging
+            else             -> 6.0    // Fast walking
+        }
+        "JOGGING" -> when {
+            speedKmh < 6.4  -> 6.0    // Jogging / walk combination
+            speedKmh < 8.0  -> 8.3    // Jogging, general
+            speedKmh < 9.7  -> 9.8    // Running, 6 mph
+            speedKmh < 11.3 -> 11.0   // Running, 7 mph
+            speedKmh < 12.9 -> 11.8   // Running, 8 mph
+            else             -> 12.8   // Fast running
         }
         else -> when { // CYCLING
             speedKmh < 10.0  -> 4.0    // Very light cycling / casual

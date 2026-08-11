@@ -3,7 +3,7 @@ package com.example.smartcyclingtracker.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-enum class ActivityType { CYCLING, WALKING }
+enum class ActivityType { CYCLING, WALKING, JOGGING }
 
 /**
  * Room entity for a completed workout session.

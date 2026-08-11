@@ -47,8 +47,16 @@ class GeminiRepository @Inject constructor(
         val wattsPerKg = session?.let { "%.2f".format(it.wattsPerKg) } ?: "N/A"
         val calories = session?.let { "%.0f".format(it.caloriesBurned) } ?: "N/A"
 
-        val activityName = if (activityType == "WALKING") "walking" else "cycling"
-        val coachRole = if (activityType == "WALKING") "professional walking/hiking coach" else "professional cycling coach"
+        val activityName = when (activityType) {
+            "WALKING" -> "walking"
+            "JOGGING" -> "jogging"
+            else -> "cycling"
+        }
+        val coachRole = when (activityType) {
+            "WALKING" -> "professional walking/hiking coach"
+            "JOGGING" -> "professional jogging coach"
+            else -> "professional cycling coach"
+        }
 
         return """
             Act as "VeloCoach", a $coachRole.

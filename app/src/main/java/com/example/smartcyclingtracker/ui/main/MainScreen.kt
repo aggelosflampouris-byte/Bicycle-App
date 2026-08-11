@@ -278,7 +278,11 @@ private fun ActiveRideMiniBanner(
                     color = WarningAmber
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                val icon = if (activityType == "WALKING") Icons.Default.DirectionsWalk else Icons.Default.DirectionsBike
+                val icon = when (activityType) {
+                    "WALKING" -> Icons.Default.DirectionsWalk
+                    "JOGGING" -> Icons.Default.DirectionsRun
+                    else -> Icons.Default.DirectionsBike
+                }
                 Icon(icon, contentDescription = "Active Workout", tint = ElectricGreen)
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
