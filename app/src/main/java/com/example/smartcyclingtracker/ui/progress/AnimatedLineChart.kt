@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,6 +51,7 @@ fun AnimatedLineChart(
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
     val primaryColor = ElectricGreen
+    val textSecondaryColor = TextSecondary
     
     Canvas(
         modifier = modifier
@@ -97,7 +98,7 @@ fun AnimatedLineChart(
 
         // Draw baseline
         drawLine(
-            color = TextSecondary.copy(alpha = 0.2f),
+            color = textSecondaryColor.copy(alpha = 0.2f),
             start = Offset(0f, bottomY),
             end = Offset(size.width, bottomY),
             strokeWidth = 1.dp.toPx()
