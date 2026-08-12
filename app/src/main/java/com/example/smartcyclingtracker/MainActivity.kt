@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
             .build()
         androidx.work.WorkManager.getInstance(this).enqueueUniqueWork(
             "ImmediateChallenge",
-            androidx.work.ExistingWorkPolicy.KEEP,
+            androidx.work.ExistingWorkPolicy.REPLACE,
             immediateChallengeRequest
         )
         
