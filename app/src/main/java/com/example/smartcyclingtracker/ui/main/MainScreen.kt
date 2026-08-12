@@ -7,8 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,7 +56,7 @@ fun MainScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     val tabs = remember { MainTab.entries.toTypedArray() }
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
+    var currentTab by remember { mutableStateOf(MainTab.DASHBOARD) }
 
     val isTracking by remember {
         CyclingTrackingService.trackingState.map { it.isTracking }.distinctUntilChanged()
@@ -65,12 +64,9 @@ fun MainScreen(
     val updateState by updaterViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ── KEY FIX: sync nav bar selection when user swipes the pager ────────────
-    val currentPage by remember { derivedStateOf { pagerState.currentPage } }
-
     // Fluid Back Handling: if not on Home tab, back button returns to Home smoothly
-    BackHandler(enabled = currentPage != 0) {
-        coroutineScope.launch { pagerState.animateScrollToPage(0) }
+    BackHandler(enabled = currentTab != MainTab.DASHBOARD) {
+        currentTab = MainTab.DASHBOARD
     }
 
     // Show feedback snackbar for update check results
@@ -83,121 +79,101 @@ fun MainScreen(
 
     Scaffold(
         containerColor = DeepNavy,
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Floating Active Ride Mini-Player Bar (Strava-style)
+                AnimatedVisibility(
+                    visible = isTracking,
+                    enter = slideInVertically { it } + fadeIn(),
+                    exit = slideOutVertically { it } + fadeOut()
+                ) {
+                    ActiveRideMiniBanner(
+                        onClick = onStartWorkout
+                    )
+                }
+
+                NavigationBar(
+                    containerColor = NavyDarker,
+                    contentColor = TextPrimary,
+                    tonalElevation = 8.dp,
+                    modifier = Modifier.clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                ) {
+                    tabs.forEach { tab ->
+                        val isSelected = currentTab == tab
+                        NavigationBarItem(
+                            selected = isSelected,
+                            onClick = {
+                                currentTab = tab
+                            },
+                            icon = {
+                                val displayIcon = if (tab == MainTab.DASHBOARD) {
+                                    when (activityType) {
+                                        "WALKING" -> Icons.Default.DirectionsWalk
+                                        "JOGGING" -> Icons.Default.DirectionsRun
+                                        else -> Icons.Default.DirectionsBike
+                                    }
+                                } else {
+                                    tab.icon
+                                }
+                                Icon(
+                                    imageVector = displayIcon,
+                                    contentDescription = tab.label,
+                                    tint = if (isSelected) ElectricGreen else TextSecondary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = tab.label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
+                                    color = if (isSelected) ElectricGreen else TextSecondary
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = ElectricGreen,
+                                unselectedIconColor = TextSecondary,
+                                selectedTextColor = ElectricGreen,
+                                unselectedTextColor = TextSecondary,
+                                indicatorColor = ElectricGreen.copy(alpha = 0.15f)
+                            )
+                        )
+                    }
+                }
+            }
+        }
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Swipeable HorizontalPager for fluid gesture-based tab navigation
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = true
-            ) { page ->
-                when (tabs[page]) {
-                    MainTab.DASHBOARD -> {
-                        Scaffold(
-                            containerColor = Color.Transparent,
-                            bottomBar = {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    // Floating Active Ride Mini-Player Bar (Strava-style)
-                                    AnimatedVisibility(
-                                        visible = isTracking,
-                                        enter = slideInVertically { it } + fadeIn(),
-                                        exit = slideOutVertically { it } + fadeOut()
-                                    ) {
-                                        ActiveRideMiniBanner(
-                                            onClick = onStartWorkout
-                                        )
-                                    }
-
-                                    NavigationBar(
-                                        containerColor = NavyDarker,
-                                        contentColor = TextPrimary,
-                                        tonalElevation = 8.dp,
-                                        modifier = Modifier.clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                                    ) {
-                                        tabs.forEachIndexed { index, tab ->
-                                            // currentPage is the swipe-synced page — this is the critical fix
-                                            val isSelected = currentPage == index
-                                            NavigationBarItem(
-                                                selected = isSelected,
-                                                onClick = {
-                                                    coroutineScope.launch {
-                                                        pagerState.animateScrollToPage(index)
-                                                    }
-                                                },
-                                                icon = {
-                                                    val displayIcon = if (tab == MainTab.DASHBOARD) {
-                                                        when (activityType) {
-                                                            "WALKING" -> Icons.Default.DirectionsWalk
-                                                            "JOGGING" -> Icons.Default.DirectionsRun
-                                                            else -> Icons.Default.DirectionsBike
-                                                        }
-                                                    } else {
-                                                        tab.icon
-                                                    }
-                                                    Icon(
-                                                        imageVector = displayIcon,
-                                                        contentDescription = tab.label,
-                                                        tint = if (isSelected) ElectricGreen else TextSecondary,
-                                                        modifier = Modifier.size(24.dp)
-                                                    )
-                                                },
-                                                label = {
-                                                    Text(
-                                                        text = tab.label,
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
-                                                        color = if (isSelected) ElectricGreen else TextSecondary
-                                                    )
-                                                },
-                                                colors = NavigationBarItemDefaults.colors(
-                                                    selectedIconColor = ElectricGreen,
-                                                    unselectedIconColor = TextSecondary,
-                                                    selectedTextColor = ElectricGreen,
-                                                    unselectedTextColor = TextSecondary,
-                                                    indicatorColor = ElectricGreen.copy(alpha = 0.15f)
-                                                )
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        ) { dashPadding ->
-                            Box(modifier = Modifier.fillMaxSize().padding(dashPadding)) {
-                                DashboardScreen(
-                                    onStartWorkout = onStartWorkout,
-                                    onSessionClick = onSessionClick,
-                                    onOpenSettings = {
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(3) // → Settings tab
-                                        }
-                                    }
-                                )
-                            }
+            when (currentTab) {
+                MainTab.DASHBOARD -> {
+                    DashboardScreen(
+                        onStartWorkout = onStartWorkout,
+                        onSessionClick = onSessionClick,
+                        onOpenSettings = {
+                            currentTab = MainTab.SETTINGS
                         }
-                    }
-                    MainTab.AI_COACH -> {
-                        AiChatScreen(
-                            onBack = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(0)
-                                }
-                            }
-                        )
-                    }
-                    MainTab.HISTORY -> {
-                        HistoryScreen(
-                            onSessionClick = onSessionClick,
-                            onStartWorkout = onStartWorkout
-                        )
-                    }
-                    MainTab.SETTINGS -> {
-                        SettingsScreen()
-                    }
+                    )
+                }
+                MainTab.AI_COACH -> {
+                    AiChatScreen(
+                        onBack = {
+                            currentTab = MainTab.DASHBOARD
+                        }
+                    )
+                }
+                MainTab.HISTORY -> {
+                    HistoryScreen(
+                        onSessionClick = onSessionClick,
+                        onStartWorkout = onStartWorkout
+                    )
+                }
+                MainTab.SETTINGS -> {
+                    SettingsScreen()
                 }
             }
 
