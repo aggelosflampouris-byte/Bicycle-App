@@ -42,6 +42,19 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val activityType = LocalActivityTheme.current
     var showRoutineConfig by remember { mutableStateOf(false) }
+    var sessionToDelete by remember { mutableStateOf<Long?>(null) }
+
+    if (sessionToDelete != null) {
+        com.example.smartcyclingtracker.ui.components.DeleteConfirmationDialog(
+            title = "Delete Activity",
+            message = "Are you sure you want to delete this activity?",
+            onConfirm = {
+                viewModel.deleteSession(sessionToDelete!!)
+                sessionToDelete = null
+            },
+            onDismiss = { sessionToDelete = null }
+        )
+    }
 
     LaunchedEffect(activityType) {
         viewModel.setActivityType(activityType)
@@ -111,55 +124,7 @@ fun DashboardScreen(
                 }
             }
 
-            // Active/Pending Challenge Card
-            item {
-                val challenge = uiState.latestChallenge
-                AnimatedVisibility(
-                    visible = !uiState.isLoading,
-                    enter = fadeIn() + slideInVertically()
-                ) {
-                    if (challenge == null || challenge.status == "COMPLETED" || challenge.status == "CANCELLED") {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = NavyCard),
-                            border = BorderStroke(1.dp, GlassBorder)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.EmojiEvents,
-                                    contentDescription = null,
-                                    tint = if (challenge?.status == "COMPLETED") androidx.compose.ui.graphics.Color(0xFFFFD700) else TextSecondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = if (challenge?.status == "COMPLETED") "Challenge Completed!" else if (challenge?.status == "CANCELLED") "Challenge Cancelled" else "Daily Challenges",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = TextPrimary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Next challenge arrives at 12:00 PM tomorrow.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = TextSecondary
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        ChallengeCard(
-                            challenge = challenge,
-                            onAccept = { viewModel.respondToChallenge(challenge, true) },
-                            onDeny = { viewModel.respondToChallenge(challenge, false) }
-                        )
-                    }
-                }
-            }
+
 
             // Stats cards
             item {
@@ -200,7 +165,7 @@ fun DashboardScreen(
                 SessionCard(
                     session = session,
                     onClick = { onSessionClick(session.id) },
-                    onDelete = { viewModel.deleteSession(session.id) }
+                    onDelete = { sessionToDelete = session.id }
                 )
             }
 
@@ -529,7 +494,7 @@ private fun SessionCard(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete",
-                    tint = TextDisabled,
+                    tint = SpeedRed,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -557,6 +522,19 @@ private fun RoutineConfigBottomSheet(
     var metric by remember { mutableStateOf(currentProgress?.routine?.metric ?: "DISTANCE") }
     var target by remember { mutableStateOf(currentProgress?.routine?.targetValue?.toString() ?: "50.0") }
     var autoImprove by remember { mutableStateOf(currentProgress?.routine?.autoImprove ?: true) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        com.example.smartcyclingtracker.ui.components.DeleteConfirmationDialog(
+            title = "Clear Routine",
+            message = "Are you sure you want to clear your workout routine?",
+            onConfirm = {
+                showDeleteDialog = false
+                onDelete()
+            },
+            onDismiss = { showDeleteDialog = false }
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -644,10 +622,10 @@ private fun RoutineConfigBottomSheet(
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 if (currentProgress != null) {
                     OutlinedButton(
-                        onClick = onDelete,
+                        onClick = { showDeleteDialog = true },
                         modifier = Modifier.weight(1f).height(50.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = WarningAmber),
-                        border = BorderStroke(1.dp, WarningAmber)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SpeedRed),
+                        border = BorderStroke(1.dp, SpeedRed)
                     ) {
                         Text("Clear Routine")
                     }

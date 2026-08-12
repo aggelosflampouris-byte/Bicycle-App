@@ -69,7 +69,12 @@ fun AiChatScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Chat History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { scope.launch { drawerState.close() } }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Close History", tint = TextPrimary)
+                        }
+                        Text("Chat History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    }
                     IconButton(onClick = { 
                         viewModel.createNewChatSession() 
                         scope.launch { drawerState.close() }
@@ -79,6 +84,18 @@ fun AiChatScreen(
                 }
                 HorizontalDivider(color = GlassBorder, modifier = Modifier.padding(vertical = 8.dp))
                 
+                var sessionToDelete by remember { mutableStateOf<Long?>(null) }
+                
+                if (sessionToDelete != null) {
+                    com.example.smartcyclingtracker.ui.components.DeleteConfirmationDialog(
+                        onConfirm = {
+                            viewModel.deleteSession(sessionToDelete!!)
+                            sessionToDelete = null
+                        },
+                        onDismiss = { sessionToDelete = null }
+                    )
+                }
+
                 LazyColumn {
                     items(
                         items = uiState.sessions,
@@ -106,13 +123,13 @@ fun AiChatScreen(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             badge = {
                                 IconButton(
-                                    onClick = { viewModel.deleteSession(session.id) },
+                                    onClick = { sessionToDelete = session.id },
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Icon(
                                         Icons.Default.Delete, 
                                         contentDescription = "Delete", 
-                                        tint = if (isSelected) DeepNavy else TextSecondary, 
+                                        tint = if (isSelected) DeepNavy else SpeedRed, 
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -129,11 +146,25 @@ fun AiChatScreen(
                 .background(DeepNavy)
                 .imePadding()
         ) {
+        var showClearChatDialog by remember { mutableStateOf(false) }
+
+        if (showClearChatDialog) {
+            com.example.smartcyclingtracker.ui.components.DeleteConfirmationDialog(
+                title = "Clear Chat",
+                message = "Are you sure you want to clear this entire conversation?",
+                onConfirm = {
+                    viewModel.clearChat()
+                    showClearChatDialog = false
+                },
+                onDismiss = { showClearChatDialog = false }
+            )
+        }
+
             // App bar
             ChatAppBar(
                 onBack = onBack, 
                 onMenuClick = { scope.launch { drawerState.open() } },
-                onClear = { viewModel.clearChat() }
+                onClear = { showClearChatDialog = true }
             )
 
         // Personal Coach identity banner
@@ -216,7 +247,7 @@ private fun ChatAppBar(
             modifier = Modifier.weight(1f)
         )
         IconButton(onClick = onClear) {
-            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear chat", tint = TextSecondary)
+            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear chat", tint = SpeedRed)
         }
     }
 }

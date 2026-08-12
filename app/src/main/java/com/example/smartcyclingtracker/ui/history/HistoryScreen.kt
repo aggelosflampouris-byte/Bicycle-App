@@ -44,8 +44,8 @@ fun HistoryScreen(
     val activityType = LocalActivityTheme.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFilter by remember { mutableStateOf(HistoryFilter.ALL) }
-
     var selectedView by remember { mutableStateOf(HistoryView.LIST) }
+    var sessionToDelete by remember { mutableStateOf<Long?>(null) }
 
     val filteredSessions = remember(uiState.sessions, selectedFilter) {
         when (selectedFilter) {
@@ -122,6 +122,18 @@ fun HistoryScreen(
         }
 
         if (selectedView == HistoryView.LIST) {
+            if (sessionToDelete != null) {
+                com.example.smartcyclingtracker.ui.components.DeleteConfirmationDialog(
+                    title = "Delete Activity",
+                    message = "Are you sure you want to delete this activity?",
+                    onConfirm = {
+                        viewModel.deleteSession(sessionToDelete!!)
+                        sessionToDelete = null
+                    },
+                    onDismiss = { sessionToDelete = null }
+                )
+            }
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -304,7 +316,7 @@ fun HistoryScreen(
                     HistoryItemCard(
                         session = session,
                         onClick = { onSessionClick(session.id) },
-                        onDelete = { viewModel.deleteSession(session.id) }
+                        onDelete = { sessionToDelete = session.id }
                     )
                 }
             }
@@ -366,7 +378,7 @@ private fun HistoryItemCard(
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
                         contentDescription = "Delete",
-                        tint = SpeedRed.copy(alpha = 0.7f),
+                        tint = SpeedRed,
                         modifier = Modifier.size(18.dp)
                     )
                 }
