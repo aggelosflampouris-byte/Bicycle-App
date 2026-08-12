@@ -175,11 +175,13 @@ object NotificationHelper {
     }
 
     fun showNewChallengeNotification(context: Context, id: Long, challenge: com.example.smartcyclingtracker.data.local.entity.ChallengeEntity) {
-        val acceptIntent = Intent(context, ChallengeActionReceiver::class.java).apply {
+        val acceptIntent = Intent(context, MainActivity::class.java).apply {
             action = "ACTION_ACCEPT_CHALLENGE"
             putExtra("CHALLENGE_ID", id)
+            putExtra("ACTIVITY_TYPE", challenge.activityType)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-        val acceptPendingIntent = PendingIntent.getBroadcast(
+        val acceptPendingIntent = PendingIntent.getActivity(
             context, 0, acceptIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
