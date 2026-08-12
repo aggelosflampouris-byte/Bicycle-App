@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,73 +83,7 @@ fun MainScreen(
 
     Scaffold(
         containerColor = DeepNavy,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Floating Active Ride Mini-Player Bar (Strava-style)
-                AnimatedVisibility(
-                    visible = isTracking,
-                    enter = slideInVertically { it } + fadeIn(),
-                    exit = slideOutVertically { it } + fadeOut()
-                ) {
-                    ActiveRideMiniBanner(
-                        onClick = onStartWorkout
-                    )
-                }
-
-                NavigationBar(
-                    containerColor = NavyDarker,
-                    contentColor = TextPrimary,
-                    tonalElevation = 8.dp,
-                    modifier = Modifier.clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                ) {
-                    tabs.forEachIndexed { index, tab ->
-                        // currentPage is the swipe-synced page — this is the critical fix
-                        val isSelected = currentPage == index
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            },
-                            icon = {
-                                val displayIcon = if (tab == MainTab.DASHBOARD) {
-                                    when (activityType) {
-                                        "WALKING" -> Icons.Default.DirectionsWalk
-                                        "JOGGING" -> Icons.Default.DirectionsRun
-                                        else -> Icons.Default.DirectionsBike
-                                    }
-                                } else {
-                                    tab.icon
-                                }
-                                Icon(
-                                    imageVector = displayIcon,
-                                    contentDescription = tab.label,
-                                    tint = if (isSelected) ElectricGreen else TextSecondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = tab.label,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
-                                    color = if (isSelected) ElectricGreen else TextSecondary
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = ElectricGreen,
-                                unselectedIconColor = TextSecondary,
-                                selectedTextColor = ElectricGreen,
-                                unselectedTextColor = TextSecondary,
-                                indicatorColor = ElectricGreen.copy(alpha = 0.15f)
-                            )
-                        )
-                    }
-                }
-            }
-        }
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -163,15 +98,87 @@ fun MainScreen(
             ) { page ->
                 when (tabs[page]) {
                     MainTab.DASHBOARD -> {
-                        DashboardScreen(
-                            onStartWorkout = onStartWorkout,
-                            onSessionClick = onSessionClick,
-                            onOpenSettings = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(3) // → Settings tab
+                        Scaffold(
+                            containerColor = Color.Transparent,
+                            bottomBar = {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    // Floating Active Ride Mini-Player Bar (Strava-style)
+                                    AnimatedVisibility(
+                                        visible = isTracking,
+                                        enter = slideInVertically { it } + fadeIn(),
+                                        exit = slideOutVertically { it } + fadeOut()
+                                    ) {
+                                        ActiveRideMiniBanner(
+                                            onClick = onStartWorkout
+                                        )
+                                    }
+
+                                    NavigationBar(
+                                        containerColor = NavyDarker,
+                                        contentColor = TextPrimary,
+                                        tonalElevation = 8.dp,
+                                        modifier = Modifier.clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                                    ) {
+                                        tabs.forEachIndexed { index, tab ->
+                                            // currentPage is the swipe-synced page — this is the critical fix
+                                            val isSelected = currentPage == index
+                                            NavigationBarItem(
+                                                selected = isSelected,
+                                                onClick = {
+                                                    coroutineScope.launch {
+                                                        pagerState.animateScrollToPage(index)
+                                                    }
+                                                },
+                                                icon = {
+                                                    val displayIcon = if (tab == MainTab.DASHBOARD) {
+                                                        when (activityType) {
+                                                            "WALKING" -> Icons.Default.DirectionsWalk
+                                                            "JOGGING" -> Icons.Default.DirectionsRun
+                                                            else -> Icons.Default.DirectionsBike
+                                                        }
+                                                    } else {
+                                                        tab.icon
+                                                    }
+                                                    Icon(
+                                                        imageVector = displayIcon,
+                                                        contentDescription = tab.label,
+                                                        tint = if (isSelected) ElectricGreen else TextSecondary,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                },
+                                                label = {
+                                                    Text(
+                                                        text = tab.label,
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
+                                                        color = if (isSelected) ElectricGreen else TextSecondary
+                                                    )
+                                                },
+                                                colors = NavigationBarItemDefaults.colors(
+                                                    selectedIconColor = ElectricGreen,
+                                                    unselectedIconColor = TextSecondary,
+                                                    selectedTextColor = ElectricGreen,
+                                                    unselectedTextColor = TextSecondary,
+                                                    indicatorColor = ElectricGreen.copy(alpha = 0.15f)
+                                                )
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                        )
+                        ) { dashPadding ->
+                            Box(modifier = Modifier.fillMaxSize().padding(dashPadding)) {
+                                DashboardScreen(
+                                    onStartWorkout = onStartWorkout,
+                                    onSessionClick = onSessionClick,
+                                    onOpenSettings = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(3) // → Settings tab
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                     MainTab.AI_COACH -> {
                         AiChatScreen(
