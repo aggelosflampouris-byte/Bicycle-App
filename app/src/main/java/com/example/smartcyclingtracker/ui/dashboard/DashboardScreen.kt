@@ -312,17 +312,6 @@ private fun StatCard(
     icon: ImageVector,
     iconTint: Color
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "glow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowAlpha"
-    )
-
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -375,17 +364,6 @@ private fun StatCard(
 
 @Composable
 private fun StartWorkoutButton(activityType: String, onClick: () -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
-
     Button(
         onClick = onClick,
         modifier = Modifier

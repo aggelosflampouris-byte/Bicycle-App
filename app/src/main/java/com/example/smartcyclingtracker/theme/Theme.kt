@@ -57,14 +57,14 @@ val LightColorScheme: ColorScheme
 
     surface = LightSurface,
     onSurface = Color(0xFF1A1A1A),
-    surfaceVariant = Color(0xFFE8F5EE),
+    surfaceVariant = Color(0xFFE2E8F0),
     onSurfaceVariant = Color(0xFF444444),
 
     error = Color(0xFFBA1A1A),
     onError = Color.White,
 
-    outline = Color(0xFFCCCCCC),
-    outlineVariant = Color(0xFFEEEEEE),
+    outline = Color(0xFFCBD5E1),
+    outlineVariant = Color(0xFFE2E8F0),
 )
 
 @Composable

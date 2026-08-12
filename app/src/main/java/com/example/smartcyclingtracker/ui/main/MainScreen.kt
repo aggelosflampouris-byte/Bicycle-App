@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -241,8 +242,9 @@ private fun ActiveRideMiniBanner(
                     modifier = Modifier
                         .size(12.dp)
                         .clip(CircleShape)
+                        .graphicsLayer { alpha = if (isPaused) 1f else pulseAlpha }
                         .background(
-                            if (isPaused) WarningAmber else ElectricGreen.copy(alpha = pulseAlpha)
+                            if (isPaused) WarningAmber else ElectricGreen
                         )
                 )
                 Column {

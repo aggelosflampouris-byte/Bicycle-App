@@ -92,5 +92,5 @@ val GlassBorder: Color @Composable get() = MaterialTheme.colorScheme.outline
 // Light theme (not primary focus but included for Material3 compliance)
 val LightPrimary = Color(0xFF006837)
 val LightOnPrimary = Color(0xFFFFFFFF)
-val LightBackground = Color(0xFFF5F9F2)
-val LightSurface = Color(0xFFFFFFFF)
+val LightBackground = Color(0xFFE5E7EB)
+val LightSurface = Color(0xFFF3F4F6)
