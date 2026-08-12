@@ -48,9 +48,15 @@ object NotificationHelper {
         context: Context,
         speedKmh: Double,
         distanceMeters: Double,
-        durationSeconds: Long
+        durationSeconds: Long,
+        isPaused: Boolean
     ): Notification {
-        val intent = Intent(context, MainActivity::class.java).apply {
+        val intent = Intent(
+            Intent.ACTION_VIEW,
+            android.net.Uri.parse("smartcyclingtracker://live_tracking"),
+            context,
+            MainActivity::class.java
+        ).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
@@ -58,8 +64,32 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("🚴 Smart Track Active")
+        val pauseIntent = Intent(context, CyclingTrackingService::class.java).apply { 
+            action = CyclingTrackingService.ACTION_TOGGLE_PAUSE 
+        }
+        val pausePendingIntent = PendingIntent.getService(
+            context, 1, pauseIntent, 
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val lapIntent = Intent(context, CyclingTrackingService::class.java).apply { 
+            action = CyclingTrackingService.ACTION_LAP 
+        }
+        val lapPendingIntent = PendingIntent.getService(
+            context, 2, lapIntent, 
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val finishIntent = Intent(context, CyclingTrackingService::class.java).apply { 
+            action = CyclingTrackingService.ACTION_STOP 
+        }
+        val finishPendingIntent = PendingIntent.getService(
+            context, 3, finishIntent, 
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle(if (isPaused) "⏸️ Smart Track Paused" else "🚴 Smart Track Active")
             .setContentText(
                 "Speed: ${PhysicsEngine.formatSpeed(speedKmh)} km/h  •  " +
                 "Distance: ${PhysicsEngine.formatDistance(distanceMeters)}"
@@ -70,7 +100,18 @@ object NotificationHelper {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+
+        builder.addAction(
+            if (isPaused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
+            if (isPaused) "Resume" else "Pause",
+            pausePendingIntent
+        )
+        if (!isPaused) {
+            builder.addAction(android.R.drawable.ic_menu_add, "Lap", lapPendingIntent)
+        }
+        builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Finish", finishPendingIntent)
+
+        return builder.build()
     }
 
     fun showUpdateNotification(context: Context, latestVersion: String) {

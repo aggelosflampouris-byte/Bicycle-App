@@ -110,7 +110,8 @@ fun CyclingNavGraph(
         }
 
         composable(
-            route = Screen.LiveTracking.route
+            route = Screen.LiveTracking.route,
+            deepLinks = listOf(androidx.navigation.navDeepLink { uriPattern = "smartcyclingtracker://live_tracking" })
         ) {
             LiveTrackingScreen(
                 onTrackingFinished = { sessionId ->

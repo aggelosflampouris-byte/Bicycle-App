@@ -197,7 +197,7 @@ class CyclingTrackingService : Service() {
 
         acquireWakeLock()
 
-        val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L)
+        val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NotificationHelper.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
@@ -218,7 +218,8 @@ class CyclingTrackingService : Service() {
                     this@CyclingTrackingService,
                     _trackingState.value.speedKmh,
                     totalDistanceMeters,
-                    elapsedSeconds
+                    elapsedSeconds,
+                    _trackingState.value.isPaused
                 )
                 val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
                 manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
