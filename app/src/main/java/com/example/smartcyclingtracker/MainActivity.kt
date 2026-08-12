@@ -67,6 +67,17 @@ class MainActivity : ComponentActivity() {
             androidx.work.ExistingPeriodicWorkPolicy.KEEP,
             workRequest
         )
+        
+        // Schedule WorkManager for Challenge Check (Daily)
+        val challengeRequest = androidx.work.PeriodicWorkRequestBuilder<com.example.smartcyclingtracker.worker.ChallengeWorker>(
+            1, java.util.concurrent.TimeUnit.DAYS
+        ).build()
+        
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "DailyChallenge",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            challengeRequest
+        )
 
         // Determine start destination based on whether user has been set up
         lifecycleScope.launch {

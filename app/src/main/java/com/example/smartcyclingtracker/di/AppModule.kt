@@ -6,6 +6,7 @@ import com.example.smartcyclingtracker.data.local.AppDatabase
 import com.example.smartcyclingtracker.data.local.dao.ChatMessageDao
 import com.example.smartcyclingtracker.data.local.dao.ChatSessionDao
 import com.example.smartcyclingtracker.data.local.dao.RoutineDao
+import com.example.smartcyclingtracker.data.local.dao.ChallengeDao
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
 import com.example.smartcyclingtracker.data.remote.api.HfApiService
@@ -37,7 +38,7 @@ object AppModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7)
+        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8)
         .build()
 
     @Provides
@@ -59,6 +60,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideRoutineDao(db: AppDatabase): RoutineDao = db.routineDao()
+
+    @Provides
+    @Singleton
+    fun provideChallengeDao(db: AppDatabase): ChallengeDao = db.challengeDao()
 
     // ── Networking ───────────────────────────────────────────────────────────
 

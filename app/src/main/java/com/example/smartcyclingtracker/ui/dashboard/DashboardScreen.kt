@@ -428,13 +428,15 @@ private fun SessionCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val isGold = session.isChallengeCompletion
+            val bubbleColor = if (isGold) androidx.compose.ui.graphics.Color(0xFFFFD700) else ElectricGreen
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
-                            colors = listOf(ElectricGreen.copy(alpha = 0.3f), NavyLight)
+                            colors = listOf(bubbleColor.copy(alpha = 0.3f), NavyLight)
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -447,7 +449,7 @@ private fun SessionCard(
                 Icon(
                     imageVector = sessionIcon,
                     contentDescription = null,
-                    tint = ElectricGreen,
+                    tint = bubbleColor,
                     modifier = Modifier.size(24.dp)
                 )
             }

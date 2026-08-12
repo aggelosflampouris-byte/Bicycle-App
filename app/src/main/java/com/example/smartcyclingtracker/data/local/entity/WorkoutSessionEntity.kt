@@ -22,5 +22,6 @@ data class WorkoutSessionEntity(
     val caloriesBurned: Double = 0.0,       // Calculated calories
     val wattsPerKg: Double = 0.0,           // Estimated power-to-weight ratio
     val routePointsJson: String = "[]",     // JSON array of {lat, lng, alt, timestamp}
-    val activityType: String = ActivityType.CYCLING.name // "CYCLING" or "WALKING"
+    val activityType: String = ActivityType.CYCLING.name, // "CYCLING" or "WALKING"
+    val isChallengeCompletion: Boolean = false // True if this session completed a challenge
 )

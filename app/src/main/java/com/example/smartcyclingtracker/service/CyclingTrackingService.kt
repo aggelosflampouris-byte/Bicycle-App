@@ -39,7 +39,8 @@ data class TrackingState(
     val currentLat: Double = 0.0,
     val currentLng: Double = 0.0,
     val lastSavedSessionId: Long? = null,
-    val currentLap: Int = 1
+    val currentLap: Int = 1,
+    val activeChallenge: com.example.smartcyclingtracker.data.local.entity.ChallengeEntity? = null
 )
 
 /**
@@ -54,6 +55,7 @@ data class TrackingState(
 class CyclingTrackingService : Service() {
 
     @Inject lateinit var workoutSessionDao: WorkoutSessionDao
+    @Inject lateinit var challengeDao: com.example.smartcyclingtracker.data.local.dao.ChallengeDao
     @Inject lateinit var gson: Gson
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -108,6 +110,7 @@ class CyclingTrackingService : Service() {
         const val ACTION_TOGGLE_PAUSE = "ACTION_TOGGLE_PAUSE"
         const val ACTION_DISCARD = "ACTION_DISCARD"
         const val ACTION_LAP = "ACTION_LAP"
+        const val ACTION_CANCEL_CHALLENGE = "ACTION_CANCEL_CHALLENGE"
 
         const val EXTRA_WEIGHT = "extra_weight"
         const val EXTRA_GENDER = "EXTRA_GENDER"
@@ -140,6 +143,20 @@ class CyclingTrackingService : Service() {
                 _trackingState.value = _trackingState.value.copy(
                     currentLap = _trackingState.value.currentLap + 1
                 )
+            }
+            ACTION_CANCEL_CHALLENGE -> {
+                _trackingState.value = _trackingState.value.copy(activeChallenge = null)
+                // Force notification update
+                val notif = NotificationHelper.buildTrackingNotification(
+                    this,
+                    _trackingState.value.speedKmh,
+                    totalDistanceMeters,
+                    elapsedSeconds,
+                    _trackingState.value.isPaused,
+                    null
+                )
+                val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+                manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
             }
         }
         return START_STICKY
@@ -196,8 +213,13 @@ class CyclingTrackingService : Service() {
         _trackingState.value = TrackingState(isTracking = true)
 
         acquireWakeLock()
+        
+        serviceScope.launch {
+            val challenge = challengeDao.getActiveChallenge()
+            _trackingState.value = _trackingState.value.copy(activeChallenge = challenge)
+        }
 
-        val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L, false)
+        val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L, false, null)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NotificationHelper.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
@@ -219,7 +241,8 @@ class CyclingTrackingService : Service() {
                     _trackingState.value.speedKmh,
                     totalDistanceMeters,
                     elapsedSeconds,
-                    _trackingState.value.isPaused
+                    _trackingState.value.isPaused,
+                    _trackingState.value.activeChallenge
                 )
                 val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
                 manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
@@ -418,6 +441,34 @@ class CyclingTrackingService : Service() {
                 val calories = PhysicsEngine.calculateCalories(mockUser, elapsedSeconds, avgSpeed, activityType)
                 val wattsPerKg = PhysicsEngine.calculateWattsPerKg(avgSpeed, mockUser)
                 val routeJson = gson.toJson(routePoints)
+                
+                var isChallengeCompletion = false
+                val activeChallenge = _trackingState.value.activeChallenge
+                if (activeChallenge != null && activeChallenge.activityType == activityType) {
+                    val progressVal = when (activeChallenge.metric) {
+                        "DISTANCE" -> totalDistanceMeters
+                        "SPEED" -> avgSpeed
+                        "CALORIES" -> calories
+                        else -> 0.0
+                    }
+                    
+                    val newProgress = if (activeChallenge.metric == "SPEED") progressVal else activeChallenge.currentProgress + progressVal
+                    
+                    if (newProgress >= activeChallenge.targetValue) {
+                        isChallengeCompletion = true
+                        val updatedChallenge = activeChallenge.copy(
+                            currentProgress = newProgress,
+                            status = "COMPLETED",
+                            completedAt = System.currentTimeMillis()
+                        )
+                        challengeDao.updateChallenge(updatedChallenge)
+                    } else {
+                        val updatedChallenge = activeChallenge.copy(
+                            currentProgress = newProgress
+                        )
+                        challengeDao.updateChallenge(updatedChallenge)
+                    }
+                }
 
                 val session = WorkoutSessionEntity(
                     startTime = startTimeMs,
@@ -429,7 +480,8 @@ class CyclingTrackingService : Service() {
                     caloriesBurned = calories,
                     wattsPerKg = wattsPerKg,
                     routePointsJson = routeJson,
-                    activityType = activityType
+                    activityType = activityType,
+                    isChallengeCompletion = isChallengeCompletion
                 )
                 savedId = workoutSessionDao.insertSession(session)
                 Log.d(TAG, "Session saved with id: $savedId")

@@ -14,9 +14,12 @@ import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.data.local.dao.RoutineDao
 import com.example.smartcyclingtracker.data.local.entity.RoutineEntity
 
+import com.example.smartcyclingtracker.data.local.dao.ChallengeDao
+import com.example.smartcyclingtracker.data.local.entity.ChallengeEntity
+
 @Database(
-    entities = [UserEntity::class, WorkoutSessionEntity::class, ChatMessageEntity::class, ChatSessionEntity::class, RoutineEntity::class],
-    version = 7,
+    entities = [UserEntity::class, WorkoutSessionEntity::class, ChatMessageEntity::class, ChatSessionEntity::class, RoutineEntity::class, ChallengeEntity::class],
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -25,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun chatSessionDao(): ChatSessionDao
     abstract fun routineDao(): RoutineDao
+    abstract fun challengeDao(): ChallengeDao
 
     companion object {
         const val DATABASE_NAME = "cycling_tracker.db"
@@ -109,6 +113,17 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 database.execSQL("DROP TABLE `workout_routines`")
                 database.execSQL("ALTER TABLE `workout_routines_new` RENAME TO `workout_routines`")
+            }
+        }
+
+        val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `challenges` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `activityType` TEXT NOT NULL, `metric` TEXT NOT NULL, `targetValue` REAL NOT NULL, `currentProgress` REAL NOT NULL, `period` TEXT NOT NULL, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `completedAt` INTEGER)"
+                )
+                database.execSQL(
+                    "ALTER TABLE `workout_sessions` ADD COLUMN `isChallengeCompletion` INTEGER NOT NULL DEFAULT 0"
+                )
             }
         }
     }

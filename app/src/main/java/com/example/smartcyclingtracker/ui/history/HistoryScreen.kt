@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -329,7 +331,7 @@ private fun HistoryItemCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
-        border = BorderStroke(1.dp, GlassBorder)
+        border = BorderStroke(if (session.isChallengeCompletion) 2.dp else 1.dp, if (session.isChallengeCompletion) androidx.compose.ui.graphics.Color(0xFFFFD700) else GlassBorder)
     ) {
         Column(
             modifier = Modifier
@@ -341,11 +343,22 @@ private fun HistoryItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = dateFormat.format(Date(session.startTime)),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = dateFormat.format(Date(session.startTime)),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextSecondary
+                    )
+                    if (session.isChallengeCompletion) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.EmojiEvents,
+                            contentDescription = "Challenge Completed",
+                            tint = androidx.compose.ui.graphics.Color(0xFFFFD700),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
                 IconButton(
                     onClick = onDelete,
                     modifier = Modifier.size(28.dp)
