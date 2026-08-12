@@ -245,7 +245,7 @@ private fun SummaryContent(
                 Spacer(modifier = Modifier.weight(1f))
             }
 
-            // Ask Personal Coach button
+            // Ask AI Coach button
             Button(
                 onClick = onAskPersonalCoach,
                 modifier = Modifier
@@ -265,7 +265,7 @@ private fun SummaryContent(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Ask Personal Coach AI",
+                    text = "Ask AI Coach AI",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp

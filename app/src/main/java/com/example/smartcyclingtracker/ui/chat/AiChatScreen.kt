@@ -167,7 +167,7 @@ fun AiChatScreen(
                 onClear = { showClearChatDialog = true }
             )
 
-        // Personal Coach identity banner
+        // AI Coach identity banner
         PersonalCoachBanner()
 
         // Messages
@@ -240,7 +240,7 @@ private fun ChatAppBar(
             Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
         }
         Text(
-            text = "Personal Coach AI",
+            text = "AI Coach AI",
             style = MaterialTheme.typography.headlineSmall,
             color = TextPrimary,
             fontWeight = FontWeight.Bold,
@@ -286,7 +286,7 @@ private fun PersonalCoachBanner() {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "Personal Coach",
+                    text = "AI Coach",
                     style = MaterialTheme.typography.titleLarge,
                     color = ElectricGreen,
                     fontWeight = FontWeight.Bold
@@ -449,7 +449,7 @@ private fun ChatInputBar(
             onValueChange = onInputChange,
             modifier = Modifier.weight(1f),
             placeholder = {
-                Text("Ask Personal Coach...", color = TextDisabled)
+                Text("Ask AI Coach...", color = TextDisabled)
             },
             shape = RoundedCornerShape(24.dp),
             colors = OutlinedTextFieldDefaults.colors(

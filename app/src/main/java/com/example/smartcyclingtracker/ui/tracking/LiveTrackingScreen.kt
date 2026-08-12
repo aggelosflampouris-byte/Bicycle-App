@@ -52,12 +52,9 @@ fun LiveTrackingScreen(
     viewModel: TrackingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val trackingStateFlow = viewModel.trackingState.collectAsStateWithLifecycle()
-    val isTracking by remember { derivedStateOf { trackingStateFlow.value.isTracking } }
-    val isPaused by remember { derivedStateOf { trackingStateFlow.value.isPaused } }
-    val lastSavedSessionId by remember { derivedStateOf { trackingStateFlow.value.lastSavedSessionId } }
-    val currentLat by remember { derivedStateOf { trackingStateFlow.value.currentLat } }
-    val currentLng by remember { derivedStateOf { trackingStateFlow.value.currentLng } }
+    val isTracking by remember(trackingStateFlow) { trackingStateFlow.map { it.isTracking }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+    val isPaused by remember(trackingStateFlow) { trackingStateFlow.map { it.isPaused }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+    val lastSavedSessionId by remember(trackingStateFlow) { trackingStateFlow.map { it.lastSavedSessionId }.distinctUntilChanged() }.collectAsStateWithLifecycle(null)
 
     var showFinishDialog by remember { mutableStateOf(false) }
 
@@ -125,43 +122,45 @@ fun LiveTrackingScreen(
     val lapPolylines = remember { mutableMapOf<Int, Polyline>() }
     var lastProcessedIndex by remember { mutableStateOf(0) }
 
-    LaunchedEffect(routePoints.size, currentLat, currentLng) {
-        if (routePoints.size < lastProcessedIndex || routePoints.isEmpty()) {
-            lastProcessedIndex = 0
-            lapPolylines.clear()
-            mapViewRef?.overlays?.removeIf { it is Polyline }
-            mapViewRef?.invalidate()
-        }
+    LaunchedEffect(Unit) {
+        viewModel.routePoints.collect { routePoints ->
+            if (routePoints.size < lastProcessedIndex || routePoints.isEmpty()) {
+                lastProcessedIndex = 0
+                lapPolylines.clear()
+                mapViewRef?.overlays?.removeIf { it is Polyline }
+                mapViewRef?.invalidate()
+            }
 
-        if (routePoints.size > lastProcessedIndex) {
-            mapViewRef?.let { map ->
-                for (i in lastProcessedIndex until routePoints.size) {
-                    val point = routePoints[i]
-                    val lap = point.lap
-                    
-                    val polyline = lapPolylines.getOrPut(lap) {
-                        Polyline().apply {
-                            val colorHex = lapColors[(lap - 1) % lapColors.size]
-                            outlinePaint.color = android.graphics.Color.parseColor(colorHex)
-                            outlinePaint.strokeWidth = 10f
-                            outlinePaint.isAntiAlias = true
-                            map.overlays.add(this)
+            if (routePoints.size > lastProcessedIndex) {
+                mapViewRef?.let { map ->
+                    for (i in lastProcessedIndex until routePoints.size) {
+                        val point = routePoints[i]
+                        val lap = point.lap
+                        
+                        val polyline = lapPolylines.getOrPut(lap) {
+                            Polyline().apply {
+                                val colorHex = lapColors[(lap - 1) % lapColors.size]
+                                outlinePaint.color = android.graphics.Color.parseColor(colorHex)
+                                outlinePaint.strokeWidth = 10f
+                                outlinePaint.isAntiAlias = true
+                                map.overlays.add(this)
+                            }
                         }
+                        
+                        // Seamless lap transition: add the last point of previous lap to this lap's polyline
+                        if (i > 0 && routePoints[i - 1].lap != lap) {
+                            val prev = routePoints[i - 1]
+                            polyline.addPoint(GeoPoint(prev.lat, prev.lng))
+                        }
+                        
+                        polyline.addPoint(GeoPoint(point.lat, point.lng))
                     }
+                    lastProcessedIndex = routePoints.size
                     
-                    // Seamless lap transition: add the last point of previous lap to this lap's polyline
-                    if (i > 0 && routePoints[i - 1].lap != lap) {
-                        val prev = routePoints[i - 1]
-                        polyline.addPoint(GeoPoint(prev.lat, prev.lng))
-                    }
-                    
-                    polyline.addPoint(GeoPoint(point.lat, point.lng))
+                    val lastPoint = routePoints.last()
+                    map.controller.animateTo(GeoPoint(lastPoint.lat, lastPoint.lng))
+                    map.invalidate()
                 }
-                lastProcessedIndex = routePoints.size
-                
-                val lastPoint = routePoints.last()
-                map.controller.animateTo(GeoPoint(lastPoint.lat, lastPoint.lng))
-                map.invalidate()
             }
         }
     }
@@ -379,9 +378,9 @@ fun LiveTrackingScreen(
         if (showFinishDialog) {
             FinishWorkoutDialog(
                 activityType = activityType,
-                distanceMeters = trackingStateFlow.value.distanceMeters,
+                distanceMeters = viewModel.trackingState.value.distanceMeters,
                 elapsedSeconds = viewModel.elapsedSeconds.value,
-                calories = trackingStateFlow.value.calories,
+                calories = viewModel.trackingState.value.calories,
                 onResume = { showFinishDialog = false },
                 onDiscard = {
                     showFinishDialog = false
@@ -519,9 +518,9 @@ private fun FinishWorkoutDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     when (activityType) {
-                        "WALKING" -> "Great walk! Are you ready to save your workout summary and get feedback from Personal Coach AI?"
-                        "JOGGING" -> "Great jog! Are you ready to save your workout summary and get feedback from Personal Coach AI?"
-                        else -> "Great ride! Are you ready to save your workout summary and get feedback from Personal Coach AI?"
+                        "WALKING" -> "Great walk! Are you ready to save your workout summary and get feedback from AI Coach AI?"
+                        "JOGGING" -> "Great jog! Are you ready to save your workout summary and get feedback from AI Coach AI?"
+                        else -> "Great ride! Are you ready to save your workout summary and get feedback from AI Coach AI?"
                     },
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodyMedium

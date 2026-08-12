@@ -39,7 +39,7 @@ class GeminiRepository @Inject constructor(
     }
 
     /**
-     * Builds the Personal Coach RAG system prompt with user & session data.
+     * Builds the AI Coach RAG system prompt with user & session data.
      */
     fun buildSystemPrompt(user: UserEntity, session: WorkoutSessionEntity?, activityType: String = "CYCLING"): String {
         val distance = session?.let { "%.1f".format(it.totalDistanceMeters / 1000.0) } ?: "N/A"
@@ -59,7 +59,7 @@ class GeminiRepository @Inject constructor(
         }
 
         return """
-            Act as a $coachRole, acting as my "Personal Coach".
+            Act as a $coachRole, acting as my "AI Coach".
             [USER DATA] Gender: ${user.gender}, Age: ${user.age}, Height: ${"%.0f".format(user.heightCm)}cm, Weight: ${"%.0f".format(user.weightKg)}kg.
             [RECENT SESSION] Distance: ${distance}km, Avg Speed: ${speed}km/h, Performance: ${wattsPerKg} W/kg, Calories: ${calories}.
             Analyze this strictly for $activityName progress. Keep it short, encouraging, and do not give medical advice.
