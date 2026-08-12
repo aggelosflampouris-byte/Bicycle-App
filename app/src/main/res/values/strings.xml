@@ -8,4 +8,12 @@
     <string name="tracking_stopped">Workout saved!</string>
     <string name="auto_paused">Auto-paused — waiting for movement</string>
     <string name="velocoach_greeting">Hey! I\'m your Personal Coach, powered by Gemini.</string>
+    <string name="notification_title_paused">⏸️ Smart Track Paused</string>
+    <string name="notification_title_active">🚴 Smart Track Active</string>
+    <string name="notification_stats">Speed: %1$s km/h  •  Distance: %2$s</string>
+    <string name="notification_duration">Duration: %1$s</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_lap">Lap</string>
+    <string name="action_finish">Finish</string>
 </resources>

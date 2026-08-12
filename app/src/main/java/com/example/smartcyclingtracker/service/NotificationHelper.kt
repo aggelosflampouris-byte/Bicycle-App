@@ -89,12 +89,9 @@ object NotificationHelper {
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle(if (isPaused) "⏸️ Smart Track Paused" else "🚴 Smart Track Active")
-            .setContentText(
-                "Speed: ${PhysicsEngine.formatSpeed(speedKmh)} km/h  •  " +
-                "Distance: ${PhysicsEngine.formatDistance(distanceMeters)}"
-            )
-            .setSubText("Duration: ${PhysicsEngine.formatDuration(durationSeconds)}")
+            .setContentTitle(if (isPaused) context.getString(R.string.notification_title_paused) else context.getString(R.string.notification_title_active))
+            .setContentText(context.getString(R.string.notification_stats, PhysicsEngine.formatSpeed(speedKmh), PhysicsEngine.formatDistance(distanceMeters)))
+            .setSubText(context.getString(R.string.notification_duration, PhysicsEngine.formatDuration(durationSeconds)))
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -103,13 +100,13 @@ object NotificationHelper {
 
         builder.addAction(
             if (isPaused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
-            if (isPaused) "Resume" else "Pause",
+            if (isPaused) context.getString(R.string.action_resume) else context.getString(R.string.action_pause),
             pausePendingIntent
         )
         if (!isPaused) {
-            builder.addAction(android.R.drawable.ic_menu_add, "Lap", lapPendingIntent)
+            builder.addAction(android.R.drawable.ic_menu_add, context.getString(R.string.action_lap), lapPendingIntent)
         }
-        builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Finish", finishPendingIntent)
+        builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, context.getString(R.string.action_finish), finishPendingIntent)
 
         return builder.build()
     }

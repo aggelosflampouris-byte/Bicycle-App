@@ -378,7 +378,8 @@ private fun TypingIndicator() {
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(ElectricGreen.copy(alpha = alpha))
+                    .graphicsLayer { this.alpha = alpha }
+                    .background(ElectricGreen)
             )
         }
     }
