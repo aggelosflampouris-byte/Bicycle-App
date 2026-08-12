@@ -316,7 +316,7 @@ fun LiveTrackingScreen(
 
             // Top stats panel
             TrackingStatsPanel(
-                stateProvider = { trackingStateFlow.value },
+                stateProvider = { viewModel.trackingState.value },
                 elapsedSecondsFlow = viewModel.elapsedSeconds,
                 modifier = Modifier.weight(1f)
             )
