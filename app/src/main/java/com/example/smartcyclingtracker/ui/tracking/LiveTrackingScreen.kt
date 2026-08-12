@@ -36,6 +36,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartcyclingtracker.engine.PhysicsEngine
 import com.example.smartcyclingtracker.theme.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -52,9 +54,9 @@ fun LiveTrackingScreen(
     viewModel: TrackingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val isTracking by remember(trackingStateFlow) { trackingStateFlow.map { it.isTracking }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
-    val isPaused by remember(trackingStateFlow) { trackingStateFlow.map { it.isPaused }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
-    val lastSavedSessionId by remember(trackingStateFlow) { trackingStateFlow.map { it.lastSavedSessionId }.distinctUntilChanged() }.collectAsStateWithLifecycle(null)
+    val isTracking by remember(viewModel.trackingState) { viewModel.trackingState.map { it.isTracking }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+    val isPaused by remember(viewModel.trackingState) { viewModel.trackingState.map { it.isPaused }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+    val lastSavedSessionId by remember(viewModel.trackingState) { viewModel.trackingState.map { it.lastSavedSessionId }.distinctUntilChanged() }.collectAsStateWithLifecycle(null)
 
     var showFinishDialog by remember { mutableStateOf(false) }
 
