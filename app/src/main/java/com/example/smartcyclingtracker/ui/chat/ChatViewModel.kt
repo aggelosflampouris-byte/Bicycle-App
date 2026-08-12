@@ -248,7 +248,9 @@ class ChatViewModel @Inject constructor(
 
     fun shareSelectedSessions(selectedIds: Set<Long>) {
         viewModelScope.launch {
-            val sessionsToShare = _uiState.value.availableSessions.filter { it.id in selectedIds }
+            val sessionsToShare = _uiState.value.availableSessions
+                .filter { it.id in selectedIds }
+                .sortedBy { it.startTimeMs }
             _uiState.update { it.copy(showSessionPicker = false) }
             
             if (sessionsToShare.isEmpty()) return@launch
