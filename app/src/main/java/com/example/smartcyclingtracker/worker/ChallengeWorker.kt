@@ -20,6 +20,14 @@ class ChallengeWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        val isInitialStartup = inputData.getBoolean("IS_INITIAL_STARTUP", false)
+        val latest = challengeDao.getLatestChallenge()
+        
+        if (isInitialStartup && latest != null) {
+            // Only generate on initial startup if there are NO challenges at all
+            return Result.success()
+        }
+
         val activeChallenge = challengeDao.getActiveChallenge()
         
         // If there's an ongoing challenge, we don't generate a new one.
@@ -31,7 +39,6 @@ class ChallengeWorker @AssistedInject constructor(
         
         // Check if there is a pending challenge that hasn't been accepted or denied.
         // We can overwrite it or skip. Let's just generate a new one if it's older than a day.
-        val latest = challengeDao.getLatestChallenge()
         if (latest != null && latest.status == ChallengeStatus.PENDING.name) {
             val oneDayMs = 24 * 60 * 60 * 1000
             if (System.currentTimeMillis() - latest.createdAt < oneDayMs) {

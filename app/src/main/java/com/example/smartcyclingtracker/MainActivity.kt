@@ -88,7 +88,9 @@ class MainActivity : ComponentActivity() {
         )
         
         // Also fire it immediately just in case they don't have an active one
-        val immediateChallengeRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.smartcyclingtracker.worker.ChallengeWorker>().build()
+        val immediateChallengeRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.smartcyclingtracker.worker.ChallengeWorker>()
+            .setInputData(androidx.work.workDataOf("IS_INITIAL_STARTUP" to true))
+            .build()
         androidx.work.WorkManager.getInstance(this).enqueueUniqueWork(
             "ImmediateChallenge",
             androidx.work.ExistingWorkPolicy.KEEP,
@@ -152,7 +154,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent)
     }
