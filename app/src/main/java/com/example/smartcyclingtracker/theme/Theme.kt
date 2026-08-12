@@ -9,31 +9,31 @@ import com.example.smartcyclingtracker.data.local.ThemeMode
 val DarkColorScheme: ColorScheme
     @Composable get() = darkColorScheme(
     primary = ElectricGreen,
-    onPrimary = DeepNavy,
+    onPrimary = ActualDeepNavy,
     primaryContainer = ElectricGreenDarker,
     onPrimaryContainer = ElectricGreen,
 
     secondary = VividCyan,
-    onSecondary = DeepNavy,
-    secondaryContainer = NavyLight,
+    onSecondary = ActualDeepNavy,
+    secondaryContainer = ActualNavyLight,
     onSecondaryContainer = VividCyan,
 
     tertiary = WarningAmber,
-    onTertiary = DeepNavy,
+    onTertiary = ActualDeepNavy,
 
-    background = DeepNavy,
-    onBackground = TextPrimary,
+    background = ActualDeepNavy,
+    onBackground = ActualTextPrimary,
 
-    surface = NavyMedium,
-    onSurface = TextPrimary,
-    surfaceVariant = NavyCard,
-    onSurfaceVariant = TextSecondary,
+    surface = ActualNavyMedium,
+    onSurface = ActualTextPrimary,
+    surfaceVariant = ActualNavyCard,
+    onSurfaceVariant = ActualTextSecondary,
 
     error = SpeedRed,
     onError = Color.White,
 
-    outline = GlassBorder,
-    outlineVariant = NavyLight,
+    outline = ActualGlassBorder,
+    outlineVariant = ActualNavyLight,
 )
 
 val LightColorScheme: ColorScheme
