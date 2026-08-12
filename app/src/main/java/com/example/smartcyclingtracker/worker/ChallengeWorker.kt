@@ -11,15 +11,23 @@ import com.example.smartcyclingtracker.service.NotificationHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
+import kotlinx.coroutines.flow.first
+
 @HiltWorker
 class ChallengeWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
     private val challengeDao: ChallengeDao,
-    private val challengeGenerator: ChallengeGenerator
+    private val challengeGenerator: ChallengeGenerator,
+    private val settingsRepository: com.example.smartcyclingtracker.data.local.SettingsRepository
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        val challengesEnabled = settingsRepository.challengesEnabled.first()
+        if (!challengesEnabled) {
+            return Result.success()
+        }
+
         val isInitialStartup = inputData.getBoolean("IS_INITIAL_STARTUP", false)
         val latest = challengeDao.getLatestChallenge()
         

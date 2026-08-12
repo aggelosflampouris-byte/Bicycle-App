@@ -10,7 +10,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val themeMode: ThemeMode = ThemeMode.DARK
+    val themeMode: ThemeMode = ThemeMode.DARK,
+    val challengesEnabled: Boolean = true
 )
 
 @HiltViewModel
@@ -23,16 +24,26 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            settingsRepository.themeMode.collect { theme ->
-                _uiState.value = _uiState.value.copy(
-                    themeMode = theme
+            combine(
+                settingsRepository.themeMode,
+                settingsRepository.challengesEnabled
+            ) { theme, challengesEnabled ->
+                SettingsUiState(
+                    themeMode = theme,
+                    challengesEnabled = challengesEnabled
                 )
+            }.collect { state ->
+                _uiState.value = state
             }
         }
     }
 
     fun setTheme(mode: ThemeMode) {
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    }
+    
+    fun setChallengesEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setChallengesEnabled(enabled) }
     }
 }
 

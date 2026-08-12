@@ -42,6 +42,10 @@ class SettingsRepository @Inject constructor(
         prefs[ACTIVITY_TYPE_KEY] ?: "CYCLING"
     }
 
+    val challengesEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[androidx.datastore.preferences.core.booleanPreferencesKey("challenges_enabled")] ?: true
+    }
+
     suspend fun setThemeMode(mode: ThemeMode) {
         context.settingsDataStore.edit { prefs ->
             prefs[THEME_MODE_KEY] = mode.name
@@ -57,6 +61,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setActivityType(type: String) {
         context.settingsDataStore.edit { prefs ->
             prefs[ACTIVITY_TYPE_KEY] = type
+        }
+    }
+
+    suspend fun setChallengesEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[androidx.datastore.preferences.core.booleanPreferencesKey("challenges_enabled")] = enabled
         }
     }
 }

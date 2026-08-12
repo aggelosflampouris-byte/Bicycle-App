@@ -110,6 +110,12 @@ class MainActivity : ComponentActivity() {
                 else -> Screen.ActivitySelection.route
             }
 
+            // Check if there is a pending challenge and show notification
+            val latestChallenge = challengeDao.getLatestChallenge()
+            if (latestChallenge != null && latestChallenge.status == "PENDING") {
+                com.example.smartcyclingtracker.service.NotificationHelper.showNewChallengeNotification(this@MainActivity, latestChallenge.id, latestChallenge)
+            }
+
             setContent {
                 // Collect theme preference reactively
                 val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(ThemeMode.DARK)

@@ -115,16 +115,50 @@ fun DashboardScreen(
             item {
                 val challenge = uiState.latestChallenge
                 AnimatedVisibility(
-                    visible = !uiState.isLoading && challenge != null && 
-                            challenge.status != "COMPLETED" && challenge.status != "CANCELLED",
+                    visible = !uiState.isLoading && challenge != null,
                     enter = fadeIn() + slideInVertically()
                 ) {
                     challenge?.let { c ->
-                        ChallengeCard(
-                            challenge = c,
-                            onAccept = { viewModel.respondToChallenge(c, true) },
-                            onDeny = { viewModel.respondToChallenge(c, false) }
-                        )
+                        if (c.status == "COMPLETED" || c.status == "CANCELLED") {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = NavyCard),
+                                border = BorderStroke(1.dp, GlassBorder)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.EmojiEvents,
+                                        contentDescription = null,
+                                        tint = if (c.status == "COMPLETED") androidx.compose.ui.graphics.Color(0xFFFFD700) else TextSecondary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = if (c.status == "COMPLETED") "Challenge Completed!" else "Challenge Cancelled",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = TextPrimary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Next challenge arrives at 12:00 PM tomorrow.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = TextSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            ChallengeCard(
+                                challenge = c,
+                                onAccept = { viewModel.respondToChallenge(c, true) },
+                                onDeny = { viewModel.respondToChallenge(c, false) }
+                            )
+                        }
                     }
                 }
             }

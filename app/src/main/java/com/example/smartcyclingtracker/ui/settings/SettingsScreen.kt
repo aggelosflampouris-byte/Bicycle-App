@@ -176,6 +176,43 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Features ────────────────────────────────────────────────────────
+            SettingsSectionCard(
+                icon = Icons.Default.EmojiEvents,
+                title = "Features",
+                subtitle = "Enable or disable optional app features"
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Daily Challenges",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Receive automatically generated daily goals.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                    Switch(
+                        checked = settingsState.challengesEnabled,
+                        onCheckedChange = { settingsViewModel.setChallengesEnabled(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = DeepNavy,
+                            checkedTrackColor = ElectricGreen,
+                            uncheckedThumbColor = TextSecondary,
+                            uncheckedTrackColor = NavyDarker
+                        )
+                    )
+                }
+            }
+
 
             // ── App Version & Updates ─────────────────────────────────────────────
             SettingsSectionCard(
