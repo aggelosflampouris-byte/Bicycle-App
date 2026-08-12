@@ -146,40 +146,57 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
+        val saveableStateHolder = rememberSaveableStateHolder()
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            when (currentTab) {
-                MainTab.DASHBOARD -> {
-                    DashboardScreen(
-                        onStartWorkout = onStartWorkout,
-                        onSessionClick = onSessionClick,
-                        onOpenSettings = {
-                            currentTab = MainTab.SETTINGS
+            AnimatedContent(
+                targetState = currentTab,
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(300)) + 
+                     slideInVertically(
+                        animationSpec = tween(300),
+                        initialOffsetY = { fullHeight -> fullHeight / 12 }
+                     )).togetherWith(fadeOut(animationSpec = tween(150)))
+                },
+                label = "tab_transition",
+                modifier = Modifier.fillMaxSize()
+            ) { targetTab ->
+                saveableStateHolder.SaveableStateProvider(targetTab.name) {
+                    when (targetTab) {
+                        MainTab.DASHBOARD -> {
+                            DashboardScreen(
+                                onStartWorkout = onStartWorkout,
+                                onSessionClick = onSessionClick,
+                                onOpenSettings = {
+                                    currentTab = MainTab.SETTINGS
+                                }
+                            )
                         }
-                    )
+                    MainTab.AI_COACH -> {
+                        AiChatScreen(
+                            onBack = {
+                                currentTab = MainTab.DASHBOARD
+                            }
+                        )
+                    }
+                    MainTab.HISTORY -> {
+                        HistoryScreen(
+                            onSessionClick = onSessionClick,
+                            onStartWorkout = onStartWorkout
+                        )
+                    }
+                    MainTab.CHALLENGES -> {
+                        com.example.smartcyclingtracker.ui.challenges.ChallengesScreen()
+                    }
+                    MainTab.SETTINGS -> {
+                        SettingsScreen()
+                    }
                 }
-                MainTab.AI_COACH -> {
-                    AiChatScreen(
-                        onBack = {
-                            currentTab = MainTab.DASHBOARD
-                        }
-                    )
-                }
-                MainTab.HISTORY -> {
-                    HistoryScreen(
-                        onSessionClick = onSessionClick,
-                        onStartWorkout = onStartWorkout
-                    )
-                }
-                MainTab.CHALLENGES -> {
-                    com.example.smartcyclingtracker.ui.challenges.ChallengesScreen()
-                }
-                MainTab.SETTINGS -> {
-                    SettingsScreen()
-                }
+                } // End of SaveableStateProvider
             }
 
             // In-App Update Dialog
