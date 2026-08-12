@@ -113,16 +113,17 @@ fun DashboardScreen(
 
             // Active/Pending Challenge Card
             item {
+                val challenge = uiState.latestChallenge
                 AnimatedVisibility(
-                    visible = !uiState.isLoading && uiState.latestChallenge != null && 
-                            uiState.latestChallenge.status != "COMPLETED" && uiState.latestChallenge.status != "CANCELLED",
+                    visible = !uiState.isLoading && challenge != null && 
+                            challenge.status != "COMPLETED" && challenge.status != "CANCELLED",
                     enter = fadeIn() + slideInVertically()
                 ) {
-                    uiState.latestChallenge?.let { challenge ->
+                    challenge?.let { c ->
                         ChallengeCard(
-                            challenge = challenge,
-                            onAccept = { viewModel.respondToChallenge(challenge, true) },
-                            onDeny = { viewModel.respondToChallenge(challenge, false) }
+                            challenge = c,
+                            onAccept = { viewModel.respondToChallenge(c, true) },
+                            onDeny = { viewModel.respondToChallenge(c, false) }
                         )
                     }
                 }

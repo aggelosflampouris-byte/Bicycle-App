@@ -123,6 +123,8 @@ class DashboardViewModel @Inject constructor(
                 userDao.updateUser(user.copy(id = existing.id))
             }
         }
+    }
+
     fun respondToChallenge(challenge: ChallengeEntity, accepted: Boolean) {
         viewModelScope.launch {
             val status = if (accepted) com.example.smartcyclingtracker.data.local.entity.ChallengeStatus.ACCEPTED.name else com.example.smartcyclingtracker.data.local.entity.ChallengeStatus.DENIED.name
