@@ -111,6 +111,23 @@ fun DashboardScreen(
                 }
             }
 
+            // Active/Pending Challenge Card
+            item {
+                AnimatedVisibility(
+                    visible = !uiState.isLoading && uiState.latestChallenge != null && 
+                            uiState.latestChallenge.status != "COMPLETED" && uiState.latestChallenge.status != "CANCELLED",
+                    enter = fadeIn() + slideInVertically()
+                ) {
+                    uiState.latestChallenge?.let { challenge ->
+                        ChallengeCard(
+                            challenge = challenge,
+                            onAccept = { viewModel.respondToChallenge(challenge, true) },
+                            onDeny = { viewModel.respondToChallenge(challenge, false) }
+                        )
+                    }
+                }
+            }
+
             // Stats cards
             item {
                 AnimatedVisibility(
@@ -685,6 +702,93 @@ private fun RoutineProgressCard(
             } else {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Track progress automatically and get smart reminders.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            }
+        }
+    }
+}
+
+@Composable
+fun ChallengeCard(
+    challenge: com.example.smartcyclingtracker.data.local.entity.ChallengeEntity,
+    onAccept: () -> Unit,
+    onDeny: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFFFD700))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = androidx.compose.ui.graphics.Color(0xFFFFD700),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${challenge.period.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }} Challenge",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            val targetStr = when(challenge.metric) {
+                "DISTANCE" -> PhysicsEngine.formatDistance(challenge.targetValue)
+                "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
+                "CALORIES" -> "${"%.0f".format(challenge.targetValue)} kcal"
+                else -> challenge.targetValue.toString()
+            }
+            val progressStr = when(challenge.metric) {
+                "DISTANCE" -> PhysicsEngine.formatDistance(challenge.currentProgress)
+                "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.currentProgress)} km/h"
+                "CALORIES" -> "${"%.0f".format(challenge.currentProgress)} kcal"
+                else -> challenge.currentProgress.toString()
+            }
+            Text(
+                text = "${challenge.activityType.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }}: $targetStr",
+                style = MaterialTheme.typography.bodyLarge,
+                color = ElectricGreen
+            )
+            
+            if (challenge.status == "PENDING") {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDeny) {
+                        Text("Deny", color = SpeedRed)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = onAccept,
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricGreen, contentColor = DeepNavy)
+                    ) {
+                        Text("Accept", fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else if (challenge.status == "ACTIVE" || challenge.status == "ACCEPTED") {
+                Spacer(modifier = Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    progress = { (challenge.currentProgress / challenge.targetValue).toFloat().coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                    color = androidx.compose.ui.graphics.Color(0xFFFFD700),
+                    trackColor = NavyDarker
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Progress: $progressStr / $targetStr",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
             }
         }
     }

@@ -6,6 +6,8 @@ import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
+import com.example.smartcyclingtracker.data.local.entity.ChallengeEntity
+import com.example.smartcyclingtracker.data.local.dao.ChallengeDao
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -22,6 +24,7 @@ data class DashboardUiState(
     val totalSessions: Int = 0,
     val totalCalories: Double = 0.0,
     val routineProgress: RoutineProgress? = null,
+    val latestChallenge: ChallengeEntity? = null,
     val isLoading: Boolean = true
 )
 
@@ -29,6 +32,7 @@ data class DashboardUiState(
 class DashboardViewModel @Inject constructor(
     private val userDao: UserDao,
     private val sessionDao: WorkoutSessionDao,
+    private val challengeDao: ChallengeDao,
     private val settingsRepository: com.example.smartcyclingtracker.data.local.SettingsRepository,
     private val routineRepository: RoutineRepository
 ) : ViewModel() {
@@ -73,8 +77,15 @@ class DashboardViewModel @Inject constructor(
                 userDao.getUserFlow().map { it ?: UserEntity() },
                 sessionDao.getAllSessionsFlow(),
                 _activityType,
-                routineProgressFlow
-            ) { user, allSessions, activityType, routineProgress ->
+                routineProgressFlow,
+                challengeDao.getLatestChallengeFlow()
+            ) { args ->
+                val user = args[0] as UserEntity
+                @Suppress("UNCHECKED_CAST")
+                val allSessions = args[1] as List<WorkoutSessionEntity>
+                val activityType = args[2] as String
+                val routineProgress = args[3] as RoutineProgress?
+                val latestChallenge = args[4] as ChallengeEntity?
                 val sessions = allSessions.filter { it.activityType == activityType }
                 val totalDist = sessions.sumOf { it.totalDistanceMeters } / 1000.0
                 val avgDist = if (sessions.isNotEmpty()) totalDist / sessions.size else 0.0
@@ -88,6 +99,7 @@ class DashboardViewModel @Inject constructor(
                     totalSessions = sessions.size,
                     totalCalories = totalCals,
                     routineProgress = routineProgress,
+                    latestChallenge = latestChallenge,
                     isLoading = false
                 )
             }.collect { state ->
@@ -109,6 +121,14 @@ class DashboardViewModel @Inject constructor(
                 userDao.insertUser(user)
             } else {
                 userDao.updateUser(user.copy(id = existing.id))
+            }
+        }
+    fun respondToChallenge(challenge: ChallengeEntity, accepted: Boolean) {
+        viewModelScope.launch {
+            val status = if (accepted) com.example.smartcyclingtracker.data.local.entity.ChallengeStatus.ACCEPTED.name else com.example.smartcyclingtracker.data.local.entity.ChallengeStatus.DENIED.name
+            challengeDao.updateChallenge(challenge.copy(status = status))
+            if (accepted) {
+                setActivityType(challenge.activityType)
             }
         }
     }
