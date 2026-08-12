@@ -126,7 +126,11 @@ fun CyclingNavGraph(
                     }
                 },
                 onBack = {
-                    navController.popBackStack()
+                    if (!navController.popBackStack()) {
+                        navController.navigate(Screen.ActivitySelection.route) {
+                            popUpTo(Screen.LiveTracking.route) { inclusive = true }
+                        }
+                    }
                 }
             )
         }
