@@ -47,6 +47,7 @@ fun AnimatedBarChart(
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
     val primaryColor = ElectricGreen
+    val textSecondaryColor = TextSecondary
     
     Canvas(
         modifier = modifier
@@ -92,7 +93,7 @@ fun AnimatedBarChart(
         
         // Draw baseline
         drawLine(
-            color = TextSecondary.copy(alpha = 0.2f),
+            color = textSecondaryColor.copy(alpha = 0.2f),
             start = Offset(0f, size.height - 40.dp.toPx()),
             end = Offset(size.width, size.height - 40.dp.toPx()),
             strokeWidth = 1.dp.toPx()
