@@ -481,6 +481,39 @@ fun QrCodeDialog(url: String, onDismiss: () -> Unit) {
                     )
                 }
 
+                val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(NavyDarker)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy Link",
+                            tint = ElectricGreen,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth().height(48.dp),
