@@ -18,26 +18,81 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.smartcyclingtracker.R
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.engine.PhysicsEngine
 import com.example.smartcyclingtracker.service.RoutePoint
 import com.example.smartcyclingtracker.theme.*
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Polyline
 import java.text.SimpleDateFormat
 import java.util.*
+
+// ── Lap palette (mirrors the map polyline colors) ─────────────────────────────
+private val LAP_COLORS_COMPOSE = listOf(
+    Color(0xFF00FF87), // ElectricGreen
+    Color(0xFFFFEB3B), // Yellow
+    Color(0xFFFF5722), // Orange
+    Color(0xFFE91E63), // Pink
+    Color(0xFF03A9F4), // LightBlue
+    Color(0xFF9C27B0)  // Purple
+)
+
+private val LAP_COLORS_HEX = listOf(
+    "#00FF87", "#FFEB3B", "#FF5722", "#E91E63", "#03A9F4", "#9C27B0"
+)
+
+// ── Per-lap aggregated stats ───────────────────────────────────────────────────
+data class LapSummary(
+    val lap: Int,
+    val distanceMeters: Double,
+    val durationSeconds: Long,
+    val avgSpeedKmh: Double,
+    val color: Color
+)
+
+/** Compute per-lap summaries from raw route points. */
+private fun buildLapSummaries(routePoints: List<RoutePoint>): List<LapSummary> {
+    val grouped = routePoints.groupBy { it.lap }
+    return grouped.keys.sorted().map { lapNum ->
+        val pts = grouped[lapNum] ?: emptyList()
+
+        // Distance: sum haversine between consecutive points
+        var dist = 0.0
+        for (i in 1 until pts.size) {
+            dist += PhysicsEngine.haversineDistance(
+                pts[i - 1].lat, pts[i - 1].lng,
+                pts[i].lat, pts[i].lng
+            )
+        }
+
+        // Duration: span between first and last timestamp
+        val durationMs = if (pts.size >= 2) pts.last().timestamp - pts.first().timestamp else 0L
+        val durationSec = durationMs / 1000L
+
+        // Avg speed in km/h
+        val avgSpeed = if (durationSec > 0) (dist / 1000.0) / (durationSec / 3600.0) else 0.0
+
+        LapSummary(
+            lap = lapNum,
+            distanceMeters = dist,
+            durationSeconds = durationSec,
+            avgSpeedKmh = avgSpeed,
+            color = LAP_COLORS_COMPOSE[(lapNum - 1) % LAP_COLORS_COMPOSE.size]
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 fun PostWorkoutSummaryScreen(
@@ -96,13 +151,22 @@ private fun SummaryContent(
         }
     }
 
+    // Lap summaries — only meaningful when there are multiple laps
+    val lapSummaries: List<LapSummary> = remember(routePoints) {
+        buildLapSummaries(routePoints)
+    }
+    val hasMultipleLaps = lapSummaries.size >= 2
+
+    // Which lap is currently highlighted on the map (null = show all)
+    var selectedLap by remember { mutableStateOf<Int?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(DeepNavy)
             .verticalScroll(rememberScrollState())
     ) {
-        // Map with drawn route
+        // ── Map ───────────────────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -111,6 +175,7 @@ private fun SummaryContent(
         ) {
             SummaryMapView(
                 routePoints = routePoints,
+                selectedLap = selectedLap,
                 context = context,
                 modifier = Modifier
                     .fillMaxSize()
@@ -245,6 +310,17 @@ private fun SummaryContent(
                 Spacer(modifier = Modifier.weight(1f))
             }
 
+            // ── Lap Details Table (only when 2+ laps) ────────────────────────
+            if (hasMultipleLaps) {
+                LapDetailsTable(
+                    laps = lapSummaries,
+                    selectedLap = selectedLap,
+                    onLapClick = { lapNum ->
+                        selectedLap = if (selectedLap == lapNum) null else lapNum
+                    }
+                )
+            }
+
             // Ask AI Coach button
             Button(
                 onClick = onAskPersonalCoach,
@@ -276,6 +352,169 @@ private fun SummaryContent(
         }
     }
 }
+
+// ── Lap Details Table ─────────────────────────────────────────────────────────
+
+@Composable
+private fun LapDetailsTable(
+    laps: List<LapSummary>,
+    selectedLap: Int?,
+    onLapClick: (Int) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, GlassBorder)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Section header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Flag,
+                    contentDescription = null,
+                    tint = ElectricGreen,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Lap Details",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                if (selectedLap != null) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "Tap again to clear",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+
+            // Column header row
+            HorizontalDivider(color = GlassBorder, thickness = 0.5.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Lap",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary,
+                    modifier = Modifier.width(48.dp),
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Distance",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.End,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Time",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.End,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Avg km/h",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.End,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            HorizontalDivider(color = GlassBorder, thickness = 0.5.dp)
+
+            // Data rows
+            laps.forEach { lap ->
+                val isSelected = selectedLap == lap.lap
+                val rowBg = if (isSelected) lap.color.copy(alpha = 0.13f) else Color.Transparent
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(rowBg)
+                        .clickable { onLapClick(lap.lap) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Lap number with colored dot
+                    Row(
+                        modifier = Modifier.width(48.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(lap.color)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "${lap.lap}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isSelected) lap.color else TextPrimary,
+                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold
+                        )
+                    }
+
+                    Text(
+                        text = PhysicsEngine.formatDistance(lap.distanceMeters),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isSelected) lap.color else TextPrimary,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.End
+                    )
+                    Text(
+                        text = PhysicsEngine.formatDuration(lap.durationSeconds),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isSelected) lap.color else TextPrimary,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.End
+                    )
+                    Text(
+                        text = "${"%.1f".format(lap.avgSpeedKmh)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isSelected) lap.color else TextPrimary,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.End
+                    )
+                }
+
+                if (lap.lap != laps.last().lap) {
+                    HorizontalDivider(
+                        color = GlassBorder.copy(alpha = 0.4f),
+                        thickness = 0.5.dp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+    }
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
 
 @Composable
 private fun SummaryStatCard(
@@ -321,21 +560,15 @@ private fun SummaryStatCard(
     }
 }
 
+// ── Map View ──────────────────────────────────────────────────────────────────
+
 @Composable
 private fun SummaryMapView(
     routePoints: List<RoutePoint>,
+    selectedLap: Int?,
     context: Context,
     modifier: Modifier = Modifier
 ) {
-    val lapColors = listOf(
-        "#00FF87", // ElectricGreen
-        "#FFEB3B", // Yellow
-        "#FF5722", // Orange
-        "#E91E63", // Pink
-        "#03A9F4", // LightBlue
-        "#9C27B0"  // Purple
-    )
-
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var mapRef by remember { mutableStateOf<MapView?>(null) }
 
@@ -343,7 +576,7 @@ private fun SummaryMapView(
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> mapRef?.onResume()
-                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> mapRef?.onPause()
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE  -> mapRef?.onPause()
                 else -> {}
             }
         }
@@ -402,11 +635,34 @@ private fun SummaryMapView(
                     }
 
                     if (geoPoints.size >= 2) {
+                        val colorHex = LAP_COLORS_HEX[(lap - 1) % LAP_COLORS_HEX.size]
+                        val lapColor = android.graphics.Color.parseColor(colorHex)
+
+                        val isSelected   = selectedLap == lap
+                        val noneSelected = selectedLap == null
+                        val fullyVisible = noneSelected || isSelected
+
+                        // White glow stroke under the selected lap line
+                        if (isSelected) {
+                            val glowPolyline = Polyline().apply {
+                                setPoints(geoPoints)
+                                outlinePaint.color = android.graphics.Color.WHITE
+                                outlinePaint.alpha = 160
+                                outlinePaint.strokeWidth = 20f
+                                outlinePaint.isAntiAlias = true
+                            }
+                            mapView.overlays.add(glowPolyline)
+                        }
+
                         val polyline = Polyline().apply {
                             setPoints(geoPoints)
-                            val colorHex = lapColors[(lap - 1) % lapColors.size]
-                            outlinePaint.color = android.graphics.Color.parseColor(colorHex)
-                            outlinePaint.strokeWidth = 10f
+                            outlinePaint.color = lapColor
+                            outlinePaint.alpha = if (fullyVisible) 255 else 55
+                            outlinePaint.strokeWidth = when {
+                                isSelected   -> 13f
+                                noneSelected -> 10f
+                                else         -> 6f
+                            }
                             outlinePaint.isAntiAlias = true
                         }
                         mapView.overlays.add(polyline)
@@ -415,14 +671,20 @@ private fun SummaryMapView(
 
                 allGeoPoints.addAll(routePoints.map { GeoPoint(it.lat, it.lng) })
 
-                // Fit map to route bounds
-                if (allGeoPoints.size >= 2) {
-                    val bbox = BoundingBox.fromGeoPoints(allGeoPoints)
+                // Zoom to the selected lap's area, or the full route when none selected
+                val zoomPoints: List<GeoPoint> = if (selectedLap != null) {
+                    (laps[selectedLap] ?: emptyList()).map { GeoPoint(it.lat, it.lng) }
+                } else {
+                    allGeoPoints
+                }
+
+                if (zoomPoints.size >= 2) {
+                    val bbox = BoundingBox.fromGeoPoints(zoomPoints)
                     mapView.post {
-                        mapView.zoomToBoundingBox(bbox.increaseByScale(1.3f), true)
+                        mapView.zoomToBoundingBox(bbox.increaseByScale(1.4f), true)
                     }
-                } else if (allGeoPoints.isNotEmpty()) {
-                    mapView.controller.setCenter(allGeoPoints.first())
+                } else if (zoomPoints.isNotEmpty()) {
+                    mapView.controller.setCenter(zoomPoints.first())
                 }
                 mapView.invalidate()
             }
