@@ -118,7 +118,7 @@ class AuthViewModel @Inject constructor(
         }
         viewModelScope.launch {
             authRepository.sendPasswordResetEmail(trimmed)
-                .onSuccess { onDone(true, "Reset link sent — check your inbox") }
+                .onSuccess { onDone(true, "Reset link sent! (Check your spam folder)") }
                 .onFailure { onDone(false, it.localizedMessage ?: "Failed to send reset email") }
         }
     }
