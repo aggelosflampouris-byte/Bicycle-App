@@ -7,14 +7,14 @@ plugins {
 import java.util.Properties
 
 android {
-    namespace = "com.example.smartcyclingtracker"
+    namespace = "com.fitnessapp.tracker"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.example.smartcyclingtracker"
+        applicationId = "com.fitnessapp.tracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 104
-        versionName = "1.1.94"
+        versionCode = 105
+        versionName = "1.1.95"
 
         // API key is read from local.properties (gitignored — never committed)
         // or from the GEMINI_API_KEY environment variable (GitHub Actions Secret).
