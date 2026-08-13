@@ -19,6 +19,9 @@ You can download the ready-to-install `.apk` directly from:
 - 🔥 **Physics Engine** — Mifflin-St Jeor BMR, MET-based calories, and Watts/kg estimation.
 - 🤖 **Personal Coach AI** — Google Gemini 1.5 Flash with RAG (injects your real workout data into the prompt). View and send multiple past workouts for deep analysis.
 - 📊 **Streaming Chat** — Real-time typing effect as Gemini responds.
+- 🏔️ **Elevation Tracking** — Smartly filters GPS altitude noise to accurately calculate total elevation gain over a session.
+- 📈 **Speed Profile Charts** — Smooth, downsampled, animated charts displaying your pacing strategy for any workout.
+- 💾 **GPX Export** — Generate standard `.gpx` files and export them directly to your device to upload to Strava, Garmin Connect, and more.
 - 🌙 **High-Contrast Dark UI** — Outdoor-readable display optimized for sunlight.
 
 ## 🛠 Tech Stack
