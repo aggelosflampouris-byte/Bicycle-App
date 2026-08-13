@@ -586,6 +586,7 @@ fun TrackingStatsPanel(
     val speedKmh = state.speedKmh
     val distanceMeters = state.distanceMeters
     val calories = state.calories
+    val elevationGain = state.elevationGainMeters
     val isPaused = state.isPaused
 
     val elapsedSeconds by elapsedSecondsFlow.collectAsStateWithLifecycle()
@@ -638,6 +639,12 @@ fun TrackingStatsPanel(
                 value = "${"%.0f".format(calories)}",
                 icon = Icons.Default.LocalFireDepartment,
                 tint = SpeedRed
+            )
+            TrackingStatItem(
+                label = "Elevation",
+                value = "${"%.0f".format(elevationGain)}m",
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                tint = com.example.smartcyclingtracker.theme.ElectricGreen
             )
         }
     }

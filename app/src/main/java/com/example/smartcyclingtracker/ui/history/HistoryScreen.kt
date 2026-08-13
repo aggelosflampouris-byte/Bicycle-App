@@ -391,41 +391,50 @@ private fun HistoryItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = PhysicsEngine.formatDistance(session.totalDistanceMeters),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         color = ElectricGreen,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Distance", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    Text("Dist", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                 }
-                Column {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "${"%.0f".format(session.elevationGainMeters)}m",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = ElectricGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("Elev", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = PhysicsEngine.formatDuration(session.durationSeconds),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         color = WarningAmber,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Duration", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    Text("Time", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                 }
-                Column {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = PhysicsEngine.formatSpeed(session.avgSpeedKmh),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         color = VividCyan,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Avg Speed", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    Text("km/h", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                 }
-                Column {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "${"%.0f".format(session.caloriesBurned)}",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         color = SpeedRed,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("Calories", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    Text("Cals", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                 }
             }
         }

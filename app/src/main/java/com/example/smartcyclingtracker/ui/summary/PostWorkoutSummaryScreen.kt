@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
@@ -25,10 +26,18 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.engine.PhysicsEngine
 import com.example.smartcyclingtracker.service.RoutePoint
 import com.example.smartcyclingtracker.theme.*
+import com.example.smartcyclingtracker.ui.progress.AnimatedLineChart
+import com.example.smartcyclingtracker.ui.progress.ChartBarData
+import com.example.smartcyclingtracker.util.GpxExporter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import org.osmdroid.util.BoundingBox
@@ -141,6 +150,8 @@ private fun SummaryContent(
     onAskPersonalCoach: () -> Unit,
     onBack: () -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val dateFormat = SimpleDateFormat("EEEE, MMM dd yyyy", Locale.getDefault())
     val gson = remember { Gson() }
     val routePoints: List<RoutePoint> = remember(session.routePointsJson) {
@@ -161,13 +172,52 @@ private fun SummaryContent(
     // Which lap is currently highlighted on the map (null = show all)
     var selectedLap by remember { mutableStateOf<Int?>(null) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DeepNavy)
-            .verticalScroll(rememberScrollState())
-    ) {
-        // ── Map ───────────────────────────────────────────────────────────────
+    // GPX Export Launcher
+    val gpxExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/gpx+xml")
+    ) { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                try {
+                    val gpxData = GpxExporter.generateGpx(session, routePoints)
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                            outputStream.write(gpxData.toByteArray())
+                        }
+                    }
+                    snackbarHostState.showSnackbar("GPX exported successfully!")
+                } catch (e: Exception) {
+                    snackbarHostState.showSnackbar("Failed to export GPX: ${e.message}")
+                }
+            }
+        }
+    }
+
+    // Speed Chart Data (downsampled for performance)
+    val speedChartData = remember(routePoints) {
+        if (routePoints.isEmpty()) emptyList<ChartBarData>()
+        else {
+            val targetPoints = 40
+            val segmentSize = maxOf(1, routePoints.size / targetPoints)
+            val segments = routePoints.chunked(segmentSize)
+            segments.mapIndexed { index, chunk ->
+                val avgSpeed = chunk.map { PhysicsEngine.metersPerSecondToKmh(it.speedMps) }.average().toFloat()
+                ChartBarData(
+                    label = "", // Keep labels empty to avoid clutter on a continuous line chart
+                    value = if (avgSpeed.isNaN()) 0f else avgSpeed
+                )
+            }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DeepNavy)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // ── Map ───────────────────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -205,6 +255,22 @@ private fun SummaryContent(
                     .background(NavyCard.copy(alpha = 0.85f), CircleShape)
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+            }
+
+            // GPX Export button
+            if (routePoints.isNotEmpty()) {
+                IconButton(
+                    onClick = {
+                        val dateStr = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date(session.startTime))
+                        gpxExportLauncher.launch("VeloTrack_${session.activityType}_$dateStr.gpx")
+                    },
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .align(Alignment.TopEnd)
+                        .background(NavyCard.copy(alpha = 0.85f), CircleShape)
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = "Export GPX", tint = TextPrimary)
+                }
             }
 
             // Workout complete badge
@@ -322,6 +388,44 @@ private fun SummaryContent(
                 )
             }
 
+            // ── Speed Profile Chart ──────────────────────────────────────────
+            if (speedChartData.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = NavyCard),
+                    border = BorderStroke(1.dp, GlassBorder)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Speed,
+                                contentDescription = null,
+                                tint = VividCyan,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Speed Profile",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        AnimatedLineChart(
+                            data = speedChartData,
+                            modifier = Modifier.fillMaxWidth(),
+                            isArea = true
+                        )
+                    }
+                }
+            }
+
             // Ask AI Coach button
             Button(
                 onClick = onAskPersonalCoach,
@@ -351,8 +455,14 @@ private fun SummaryContent(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
-    }
-}
+    } // Closes main Column
+
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
+    } // Closes Box
+} // Closes SummaryContent
 
 // ── Lap Details Table ─────────────────────────────────────────────────────────
 

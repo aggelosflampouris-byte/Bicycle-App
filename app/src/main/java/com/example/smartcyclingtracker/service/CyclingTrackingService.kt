@@ -40,7 +40,8 @@ data class TrackingState(
     val currentLng: Double = 0.0,
     val lastSavedSessionId: Long? = null,
     val currentLap: Int = 1,
-    val activeChallenge: com.example.smartcyclingtracker.data.local.entity.ChallengeEntity? = null
+    val activeChallenge: com.example.smartcyclingtracker.data.local.entity.ChallengeEntity? = null,
+    val elevationGainMeters: Double = 0.0
 )
 
 /**
@@ -364,8 +365,10 @@ class CyclingTrackingService : Service() {
         if (!_trackingState.value.isPaused && !isEffectivelyStationary) {
             if (last != null && displacement > 0.5) {
                 totalDistanceMeters += displacement
-                // Elevation gain
-                if (alt > last.alt) elevationGainMeters += (alt - last.alt)
+                // Elevation gain - smoothed with a 3m noise threshold
+                if (alt > last.alt && (alt - last.alt) > 3.0) {
+                    elevationGainMeters += (alt - last.alt)
+                }
             }
             lastLocation = point
             routePoints.add(point)
@@ -396,7 +399,8 @@ class CyclingTrackingService : Service() {
             elapsedSeconds = elapsedSeconds,
             calories = calories,
             currentLat = lat,
-            currentLng = lng
+            currentLng = lng,
+            elevationGainMeters = elevationGainMeters
         )
 
         // ── Batch DB Write ───────────────────────────────────────────────────
