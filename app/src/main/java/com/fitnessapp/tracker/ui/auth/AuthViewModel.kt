@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -88,10 +89,23 @@ class AuthViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isLoading = false, error = null)
                 if (state.isLogin) onLoginSuccess() else onSignUpSuccess()
             }.onFailure {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = it.localizedMessage ?: "Authentication failed"
-                )
+                val isEmailInUse = it is FirebaseAuthUserCollisionException || 
+                    it.localizedMessage?.contains("email address is already in use", ignoreCase = true) == true
+                
+                if (!state.isLogin && isEmailInUse) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isLogin = true,
+                        password = "",
+                        confirmPassword = "",
+                        error = "Account already exists. Please sign in."
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = it.localizedMessage ?: "Authentication failed"
+                    )
+                }
             }
         }
     }
