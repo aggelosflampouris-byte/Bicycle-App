@@ -32,6 +32,9 @@ import com.example.smartcyclingtracker.engine.PhysicsEngine
 import com.example.smartcyclingtracker.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.smartcyclingtracker.data.local.entity.DailyPlan
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 @Composable
 fun DashboardScreen(
@@ -126,6 +129,19 @@ fun DashboardScreen(
             }
 
 
+            // Weekly Training Plan Card
+            item {
+                AnimatedVisibility(
+                    visible = !uiState.isLoading,
+                    enter = fadeIn() + slideInVertically()
+                ) {
+                    WeeklyTrainingPlanCard(
+                        trainingPlan = uiState.trainingPlan,
+                        isGenerating = uiState.isGeneratingPlan,
+                        onGeneratePlan = { viewModel.generateTrainingPlan() }
+                    )
+                }
+            }
 
             // Stats cards
             item {
@@ -801,6 +817,132 @@ fun ChallengeCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary
                 )
+            }
+        }
+    }
+}
+
+// ── Weekly Training Plan UI ───────────────────────────────────────────────────
+
+@Composable
+fun WeeklyTrainingPlanCard(
+    trainingPlan: com.example.smartcyclingtracker.data.local.entity.TrainingPlanEntity?,
+    isGenerating: Boolean,
+    onGeneratePlan: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = trainingPlan != null) { expanded = !expanded },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, GlassBorder)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(VividCyan.copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.EventNote,
+                        contentDescription = null,
+                        tint = VividCyan,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "AI Training Plan",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (trainingPlan != null) {
+                        Text(
+                            text = if (expanded) "Tap to collapse" else "Tap to view full week",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    } else {
+                        Text(
+                            text = "No active plan.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
+            }
+
+            if (trainingPlan == null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onGeneratePlan,
+                    enabled = !isGenerating,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = VividCyan)
+                ) {
+                    if (isGenerating) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = DeepNavy)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Generating...", color = DeepNavy)
+                    } else {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = DeepNavy, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Generate 7-Day Plan", color = DeepNavy, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                val plans = remember(trainingPlan.planJson) {
+                    try {
+                        val type = object : TypeToken<List<DailyPlan>>() {}.type
+                        Gson().fromJson<List<DailyPlan>>(trainingPlan.planJson, type)
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+                }
+                
+                AnimatedVisibility(visible = expanded) {
+                    Column(modifier = Modifier.padding(top = 16.dp)) {
+                        plans.forEach { plan ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = plan.day.take(3).uppercase(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = VividCyan,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.width(48.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = plan.title,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = plan.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

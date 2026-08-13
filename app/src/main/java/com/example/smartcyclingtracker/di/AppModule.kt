@@ -8,6 +8,7 @@ import com.example.smartcyclingtracker.data.local.dao.ChatMessageDao
 import com.example.smartcyclingtracker.data.local.dao.ChatSessionDao
 import com.example.smartcyclingtracker.data.local.dao.RoutineDao
 import com.example.smartcyclingtracker.data.local.dao.ChallengeDao
+import com.example.smartcyclingtracker.data.local.dao.TrainingPlanDao
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
 import com.example.smartcyclingtracker.data.remote.api.HfApiService
@@ -65,6 +66,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideChallengeDao(db: AppDatabase): ChallengeDao = db.challengeDao()
+
+    @Provides
+    @Singleton
+    fun provideTrainingPlanDao(db: AppDatabase): TrainingPlanDao = db.trainingPlanDao()
 
     // ── Networking ───────────────────────────────────────────────────────────
 

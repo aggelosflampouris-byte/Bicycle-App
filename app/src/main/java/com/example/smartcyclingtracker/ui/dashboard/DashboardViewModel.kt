@@ -7,7 +7,10 @@ import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.data.local.entity.ChallengeEntity
+import com.example.smartcyclingtracker.data.local.entity.TrainingPlanEntity
 import com.example.smartcyclingtracker.data.local.dao.ChallengeDao
+import com.example.smartcyclingtracker.data.local.dao.TrainingPlanDao
+import com.example.smartcyclingtracker.data.remote.GeminiRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -26,8 +29,10 @@ data class DashboardUiState(
     val totalCalories: Double = 0.0,
     val routineProgress: RoutineProgress? = null,
     val latestChallenge: ChallengeEntity? = null,
+    val trainingPlan: TrainingPlanEntity? = null,
     val showNewChallengeDialog: Boolean = false,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val isGeneratingPlan: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -36,6 +41,8 @@ class DashboardViewModel @Inject constructor(
     private val userDao: UserDao,
     private val sessionDao: WorkoutSessionDao,
     private val challengeDao: ChallengeDao,
+    private val trainingPlanDao: TrainingPlanDao,
+    private val geminiRepository: GeminiRepository,
     private val settingsRepository: com.example.smartcyclingtracker.data.local.SettingsRepository,
     private val routineRepository: RoutineRepository
 ) : ViewModel() {
@@ -87,8 +94,9 @@ class DashboardViewModel @Inject constructor(
                 userDao.getUserFlow().map { it ?: UserEntity() },
                 sessionsAndType,
                 routineProgressFlow,
-                challengeDao.getLatestChallengeFlow()
-            ) { user, (allSessions, activityType), routineProgress, latestChallenge ->
+                challengeDao.getLatestChallengeFlow(),
+                trainingPlanDao.getPlanFlow()
+            ) { user, (allSessions, activityType), routineProgress, latestChallenge, plan ->
                 val sessions = allSessions.filter { it.activityType == activityType }
                 val totalDist = sessions.sumOf { it.totalDistanceMeters } / 1000.0
                 val avgDist = if (sessions.isNotEmpty()) totalDist / sessions.size else 0.0
@@ -103,11 +111,12 @@ class DashboardViewModel @Inject constructor(
                     totalCalories = totalCals,
                     routineProgress = routineProgress,
                     latestChallenge = latestChallenge,
-                    // Show in-app dialog when a PENDING challenge was generated within the last 2 minutes
+                    trainingPlan = plan,
                     showNewChallengeDialog = latestChallenge != null &&
                         latestChallenge.status == "PENDING" &&
                         (System.currentTimeMillis() - latestChallenge.createdAt) < 2 * 60 * 1000L,
-                    isLoading = false
+                    isLoading = false,
+                    isGeneratingPlan = _uiState.value.isGeneratingPlan
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -144,5 +153,29 @@ class DashboardViewModel @Inject constructor(
 
     fun dismissNewChallengeDialog() {
         _uiState.value = _uiState.value.copy(showNewChallengeDialog = false)
+    }
+
+    fun generateTrainingPlan() {
+        if (_uiState.value.isGeneratingPlan) return
+        _uiState.value = _uiState.value.copy(isGeneratingPlan = true)
+        
+        viewModelScope.launch {
+            val user = userDao.getUser() ?: UserEntity()
+            // Provide the last 7 days of sessions for context
+            val oneWeekAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+            val recentSessions = sessionDao.getAllSessionsFlow().first().filter { it.startTime >= oneWeekAgo }
+            
+            val dailyPlans = geminiRepository.generateWeeklyPlan(user, recentSessions)
+            if (dailyPlans != null) {
+                val json = com.google.gson.Gson().toJson(dailyPlans)
+                val entity = TrainingPlanEntity(
+                    id = 1,
+                    generatedAtMs = System.currentTimeMillis(),
+                    planJson = json
+                )
+                trainingPlanDao.insertPlan(entity)
+            }
+            _uiState.value = _uiState.value.copy(isGeneratingPlan = false)
+        }
     }
 }

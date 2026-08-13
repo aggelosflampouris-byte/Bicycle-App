@@ -6,20 +6,28 @@ import com.example.smartcyclingtracker.data.local.dao.ChatMessageDao
 import com.example.smartcyclingtracker.data.local.dao.UserDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
 import com.example.smartcyclingtracker.data.local.dao.ChatSessionDao
+import com.example.smartcyclingtracker.data.local.dao.RoutineDao
+import com.example.smartcyclingtracker.data.local.dao.ChallengeDao
+import com.example.smartcyclingtracker.data.local.dao.TrainingPlanDao
 import com.example.smartcyclingtracker.data.local.entity.ChatMessageEntity
 import com.example.smartcyclingtracker.data.local.entity.ChatSessionEntity
 import com.example.smartcyclingtracker.data.local.entity.UserEntity
 import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
-
-import com.example.smartcyclingtracker.data.local.dao.RoutineDao
 import com.example.smartcyclingtracker.data.local.entity.RoutineEntity
-
-import com.example.smartcyclingtracker.data.local.dao.ChallengeDao
 import com.example.smartcyclingtracker.data.local.entity.ChallengeEntity
+import com.example.smartcyclingtracker.data.local.entity.TrainingPlanEntity
 
 @Database(
-    entities = [UserEntity::class, WorkoutSessionEntity::class, ChatMessageEntity::class, ChatSessionEntity::class, RoutineEntity::class, ChallengeEntity::class],
-    version = 8,
+    entities = [
+        UserEntity::class, 
+        WorkoutSessionEntity::class, 
+        ChatMessageEntity::class, 
+        ChatSessionEntity::class, 
+        RoutineEntity::class, 
+        ChallengeEntity::class,
+        TrainingPlanEntity::class
+    ],
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,6 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun chatSessionDao(): ChatSessionDao
     abstract fun routineDao(): RoutineDao
     abstract fun challengeDao(): ChallengeDao
+    abstract fun trainingPlanDao(): TrainingPlanDao
 
     companion object {
         const val DATABASE_NAME = "cycling_tracker.db"

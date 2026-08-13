@@ -11,7 +11,8 @@ import javax.inject.Inject
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
-    val challengesEnabled: Boolean = true
+    val challengesEnabled: Boolean = true,
+    val voiceCoachingEnabled: Boolean = true
 )
 
 @HiltViewModel
@@ -26,11 +27,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 settingsRepository.themeMode,
-                settingsRepository.challengesEnabled
-            ) { theme, challengesEnabled ->
+                settingsRepository.challengesEnabled,
+                settingsRepository.isVoiceCoachingEnabled
+            ) { theme, challengesEnabled, voiceCoachingEnabled ->
                 SettingsUiState(
                     themeMode = theme,
-                    challengesEnabled = challengesEnabled
+                    challengesEnabled = challengesEnabled,
+                    voiceCoachingEnabled = voiceCoachingEnabled
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -48,5 +51,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setChallengesEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setChallengesEnabled(enabled) }
+    }
+
+    fun setVoiceCoachingEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setVoiceCoachingEnabled(enabled) }
     }
 }

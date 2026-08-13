@@ -25,6 +25,7 @@ class SettingsRepository @Inject constructor(
         private val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
         private val ACTIVITY_TYPE_KEY = stringPreferencesKey("activity_type")
         private val CHALLENGES_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("challenges_enabled")
+        private val VOICE_COACHING_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("voice_coaching_enabled")
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -45,6 +46,10 @@ class SettingsRepository @Inject constructor(
 
     val challengesEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[CHALLENGES_ENABLED_KEY] ?: true
+    }
+
+    val isVoiceCoachingEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[VOICE_COACHING_ENABLED_KEY] ?: true
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -68,6 +73,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setChallengesEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[CHALLENGES_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setVoiceCoachingEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[VOICE_COACHING_ENABLED_KEY] = enabled
         }
     }
 }

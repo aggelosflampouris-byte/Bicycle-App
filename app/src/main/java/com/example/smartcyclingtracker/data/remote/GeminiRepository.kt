@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.example.smartcyclingtracker.data.local.entity.DailyPlan
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 /**
  * Repository for Hugging Face AI chat interactions.
@@ -151,4 +154,52 @@ class GeminiRepository @Inject constructor(
             emit("⚠️ **Connection error** — ${e.message}\n\nCheck your internet connection and try again.")
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Generates a 7-day training plan formatted as JSON.
+     */
+    suspend fun generateWeeklyPlan(
+        user: UserEntity,
+        recentSessions: List<WorkoutSessionEntity>
+    ): List<DailyPlan>? {
+        val apiKey = resolveApiKey() ?: return null
+        
+        val summary = if (recentSessions.isEmpty()) "No recent sessions." else {
+            val totalDist = recentSessions.sumOf { it.totalDistanceMeters } / 1000.0
+            val avgSpeed = recentSessions.map { it.avgSpeedKmh }.average()
+            "Recent week total distance: ${"%.1f".format(totalDist)}km, average speed: ${"%.1f".format(avgSpeed)}km/h."
+        }
+        
+        val systemPrompt = """
+            You are an elite cycling and running coach. Create a structured 7-day training plan for a user (${user.age} yrs, ${"%.0f".format(user.weightKg)} kg).
+            $summary
+            
+            You MUST output ONLY a raw JSON array of 7 items (one for each day, starting Monday). Do NOT include markdown blocks, text, or formatting outside the JSON array.
+            Format exactly like this:
+            [
+              {"day": "Monday", "title": "Rest Day", "description": "Active recovery...", "targetDistance": 0.0},
+              ...
+            ]
+        """.trimIndent()
+        
+        val request = HfChatRequest(
+            model = HfApiService.MODEL,
+            messages = listOf(HfMessage("system", systemPrompt)),
+            maxTokens = 800,
+            temperature = 0.5f
+        )
+        
+        return try {
+            val response = apiService.chatCompletion("Bearer $apiKey", request)
+            if (response.isSuccessful) {
+                var jsonStr = response.body()?.choices?.firstOrNull()?.message?.content ?: return null
+                // Clean up possible markdown wrappers
+                jsonStr = jsonStr.replace("```json", "").replace("```", "").trim()
+                val listType = object : TypeToken<List<DailyPlan>>() {}.type
+                Gson().fromJson<List<DailyPlan>>(jsonStr, listType)
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

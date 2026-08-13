@@ -57,6 +57,7 @@ class CyclingTrackingService : Service() {
 
     @Inject lateinit var workoutSessionDao: WorkoutSessionDao
     @Inject lateinit var challengeDao: com.example.smartcyclingtracker.data.local.dao.ChallengeDao
+    @Inject lateinit var settingsRepository: com.example.smartcyclingtracker.data.local.SettingsRepository
     @Inject lateinit var gson: Gson
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -78,6 +79,11 @@ class CyclingTrackingService : Service() {
     private var gender: String = "Male"
     private var age: Int = 30
     private var activityType: String = "CYCLING"
+    
+    // TTS Voice Coach
+    private lateinit var ttsManager: com.example.smartcyclingtracker.util.TtsManager
+    private var isVoiceCoachingEnabled: Boolean = true
+    private var lastAnnouncedKm: Int = 0
 
     // Auto-pause / manual pause state
     private var isManuallyPaused = false
@@ -123,6 +129,14 @@ class CyclingTrackingService : Service() {
         super.onCreate()
         NotificationHelper.createNotificationChannel(this)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        ttsManager = com.example.smartcyclingtracker.util.TtsManager(this)
+        
+        serviceScope.launch {
+            settingsRepository.isVoiceCoachingEnabled.collect { enabled ->
+                isVoiceCoachingEnabled = enabled
+            }
+        }
+        
         setupLocationCallback()
     }
 
@@ -207,6 +221,7 @@ class CyclingTrackingService : Service() {
         elapsedSeconds = 0L
         _elapsedSecondsFlow.value = 0L
         lastLocation = null
+        lastAnnouncedKm = 0
         routePoints.clear()
         pendingBatchPoints.clear()
         _routePointsFlow.value = emptyList()
@@ -403,6 +418,16 @@ class CyclingTrackingService : Service() {
             elevationGainMeters = elevationGainMeters
         )
 
+        // Check for 1km milestone announcement
+        val currentKm = (totalDistanceMeters / 1000).toInt()
+        if (currentKm > lastAnnouncedKm && currentKm > 0) {
+            lastAnnouncedKm = currentKm
+            if (isVoiceCoachingEnabled) {
+                val speed = "%.1f".format(avgSpeed)
+                ttsManager.speak("$currentKm kilometers reached. Average speed $speed kilometers per hour.")
+            }
+        }
+
         // ── Batch DB Write ───────────────────────────────────────────────────
         if (pendingBatchPoints.size >= BATCH_SIZE) {
             flushBatchToDB()
@@ -537,6 +562,7 @@ class CyclingTrackingService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
+        ttsManager.shutdown()
         releaseWakeLock()
         wakeLock = null
     }
