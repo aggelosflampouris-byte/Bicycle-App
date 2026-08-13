@@ -318,15 +318,20 @@ class CyclingTrackingService : Service() {
 
         // ── Drift & Auto-Pause Detection ─────────────────────────────────────
         // Doppler speed is highly resistant to drift. If reported, we trust it.
+        // Require BOTH hardware speed AND displacement to be low before marking stationary.
+        // This prevents false auto-pauses caused by momentary GPS speed dips mid-ride.
         val hasHardwareSpeed = speedMps > 0.0
         val isEffectivelyStationary = if (hasHardwareSpeed) {
-            speedMps < 0.5 // < 1.8 km/h is stationary
+            // Match the fallback threshold: < 3.6 km/h on both sensors
+            speedMps < 1.0 && rawSpeedMps < 1.0
         } else {
             rawSpeedMps < 1.0 // fallback < 3.6 km/h
         }
 
         if (isManuallyPaused) {
-            // Manually paused: do not accumulate or auto-resume
+            // Manually paused: do not accumulate or auto-resume.
+            // Still advance lastLocation so we don't create a large gap on resume.
+            lastLocation = point
             _trackingState.value = _trackingState.value.copy(
                 speedKmh = 0.0,
                 currentLat = lat,
@@ -342,6 +347,10 @@ class CyclingTrackingService : Service() {
                 Log.d(TAG, "Auto-paused (Stationary)")
                 releaseWakeLock()
             }
+            // Always advance lastLocation during stationary frames so that when movement
+            // resumes, the displacement from the fresh anchor is small and won't be
+            // misclassified as an unrealistic jump by the speed filter above.
+            lastLocation = point
         } else {
             if (_trackingState.value.isPaused) {
                 _trackingState.value = _trackingState.value.copy(isPaused = false)
