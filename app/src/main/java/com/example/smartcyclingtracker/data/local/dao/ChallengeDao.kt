@@ -23,4 +23,7 @@ interface ChallengeDao {
 
     @Query("DELETE FROM challenges")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM challenges")
+    suspend fun getAllChallenges(): List<ChallengeEntity>
 }

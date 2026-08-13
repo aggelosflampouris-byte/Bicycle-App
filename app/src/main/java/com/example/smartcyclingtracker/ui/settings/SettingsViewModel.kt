@@ -8,16 +8,21 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.net.Uri
+import com.example.smartcyclingtracker.util.DataBackupManager
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val challengesEnabled: Boolean = true,
-    val voiceCoachingEnabled: Boolean = true
+    val voiceCoachingEnabled: Boolean = true,
+    val isBackupRunning: Boolean = false,
+    val backupMessage: String? = null
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val backupManager: DataBackupManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -55,5 +60,31 @@ class SettingsViewModel @Inject constructor(
 
     fun setVoiceCoachingEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setVoiceCoachingEnabled(enabled) }
+    }
+
+    fun exportData(uri: Uri, password: String) {
+        _uiState.value = _uiState.value.copy(isBackupRunning = true, backupMessage = null)
+        viewModelScope.launch {
+            val result = backupManager.exportData(uri, password)
+            _uiState.value = _uiState.value.copy(
+                isBackupRunning = false,
+                backupMessage = if (result.isSuccess) "Data exported successfully!" else "Export failed."
+            )
+        }
+    }
+
+    fun importData(uri: Uri, password: String) {
+        _uiState.value = _uiState.value.copy(isBackupRunning = true, backupMessage = null)
+        viewModelScope.launch {
+            val result = backupManager.importData(uri, password)
+            _uiState.value = _uiState.value.copy(
+                isBackupRunning = false,
+                backupMessage = if (result.isSuccess) "Data imported successfully!" else "Import failed. Incorrect password?"
+            )
+        }
+    }
+    
+    fun clearBackupMessage() {
+        _uiState.value = _uiState.value.copy(backupMessage = null)
     }
 }

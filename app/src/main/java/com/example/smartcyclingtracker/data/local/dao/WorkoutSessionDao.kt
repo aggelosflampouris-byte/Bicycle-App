@@ -34,6 +34,9 @@ interface WorkoutSessionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSessions(sessions: List<WorkoutSessionEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertSessionsSync(sessions: List<WorkoutSessionEntity>)
+
     @Update
     suspend fun updateSession(session: WorkoutSessionEntity)
 

@@ -135,5 +135,13 @@ abstract class AppDatabase : RoomDatabase() {
                 )
             }
         }
+
+        val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `training_plan` (`id` INTEGER NOT NULL, `generatedAtMs` INTEGER NOT NULL, `planJson` TEXT NOT NULL, PRIMARY KEY(`id`))"
+                )
+            }
+        }
     }
 }

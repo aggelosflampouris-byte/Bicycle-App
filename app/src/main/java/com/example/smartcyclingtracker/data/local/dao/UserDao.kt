@@ -22,7 +22,9 @@ interface UserDao {
     @Update
     suspend fun updateUser(user: UserEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertUserSync(user: UserEntity)
+
     @Query("DELETE FROM users")
     suspend fun deleteAllUsers()
 }
-

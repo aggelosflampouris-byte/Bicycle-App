@@ -1,5 +1,7 @@
 package com.example.smartcyclingtracker.ui.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -49,6 +51,26 @@ fun SettingsScreen(
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val onboardingState by onboardingViewModel.uiState.collectAsStateWithLifecycle()
     val updateState by updaterViewModel.uiState.collectAsStateWithLifecycle()
+
+    var showPasswordDialog by remember { mutableStateOf(false) }
+    var passwordMode by remember { mutableStateOf("EXPORT") } // EXPORT or IMPORT
+    var pendingUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let { 
+            pendingUri = it
+            passwordMode = "EXPORT"
+            showPasswordDialog = true
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { 
+            pendingUri = it
+            passwordMode = "IMPORT"
+            showPasswordDialog = true
+        }
+    }
 
     var showSaveSuccessSnack by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
@@ -213,7 +235,41 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Data Management ────────────────────────────────────────────────────────
+            SettingsSectionCard(
+                icon = Icons.Default.Storage,
+                title = "Data Backup & Restore",
+                subtitle = "Safely store your data in a local JSON file"
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = { exportLauncher.launch("smart_cycling_backup.json") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        enabled = !settingsState.isBackupRunning,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NavyDarker, contentColor = TextPrimary)
+                    ) {
+                        Icon(Icons.Default.Upload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Export", fontWeight = FontWeight.Bold)
+                    }
 
+                    Button(
+                        onClick = { importLauncher.launch(arrayOf("application/json")) },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        enabled = !settingsState.isBackupRunning,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VividCyan.copy(alpha = 0.2f), contentColor = VividCyan)
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Import", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
             // ── App Version & Updates ─────────────────────────────────────────────
             SettingsSectionCard(
                 icon = Icons.Default.SystemUpdate,
@@ -291,6 +347,52 @@ fun SettingsScreen(
             QrCodeDialog(
                 url = "https://github.com/aggelosflampouris-byte/Bicycle-App/releases/latest",
                 onDismiss = { showShareDialog = false }
+            )
+        }
+
+        if (showPasswordDialog) {
+            var password by remember { mutableStateOf("") }
+            AlertDialog(
+                onDismissRequest = { 
+                    showPasswordDialog = false 
+                    pendingUri = null
+                },
+                title = { Text(if (passwordMode == "EXPORT") "Set Backup Password" else "Enter Backup Password") },
+                text = {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = VividCyan,
+                            focusedLabelColor = VividCyan
+                        )
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showPasswordDialog = false
+                            pendingUri?.let { uri ->
+                                if (passwordMode == "EXPORT") settingsViewModel.exportData(uri, password)
+                                else settingsViewModel.importData(uri, password)
+                            }
+                            pendingUri = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = VividCyan, contentColor = DeepNavy)
+                    ) {
+                        Text("Submit")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPasswordDialog = false; pendingUri = null }) {
+                        Text("Cancel", color = TextSecondary)
+                    }
+                },
+                containerColor = NavyDarker,
+                titleContentColor = TextPrimary,
+                textContentColor = TextSecondary
             )
         }
     }
