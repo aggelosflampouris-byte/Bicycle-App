@@ -3,10 +3,12 @@ package com.example.smartcyclingtracker.data.local
 import com.example.smartcyclingtracker.data.local.dao.RoutineDao
 import com.example.smartcyclingtracker.data.local.dao.WorkoutSessionDao
 import com.example.smartcyclingtracker.data.local.entity.RoutineEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,7 +34,7 @@ class RoutineRepository @Inject constructor(
                 
                 // Check if current period has ended
                 if (currentTime > routine.currentPeriodEnd) {
-                    activeRoutine = advanceRoutinePeriod(routine, currentTime)
+                    activeRoutine = withContext(Dispatchers.IO) { advanceRoutinePeriod(routine, currentTime) }
                 }
                 
                 workoutSessionDao.getAggregateSummaryForPeriodFlow(
@@ -118,13 +120,6 @@ class RoutineRepository @Inject constructor(
         return updatedRoutine
     }
 
-    suspend fun applyAutoImproveIfMet(routine: RoutineEntity, currentValue: Double) {
-        if (routine.autoImprove && currentValue >= routine.targetValue) {
-            // we met the goal!
-            val newTarget = routine.targetValue * (1.0 + routine.autoImprovePercentage)
-            routineDao.saveRoutine(routine.copy(targetValue = newTarget))
-        }
-    }
 
     suspend fun getAllRoutines(): List<RoutineEntity> {
         return routineDao.getAllRoutines()

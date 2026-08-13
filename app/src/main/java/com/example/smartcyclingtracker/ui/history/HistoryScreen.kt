@@ -1,5 +1,7 @@
 package com.example.smartcyclingtracker.ui.history
 
+import androidx.compose.material.icons.automirrored.filled.*
+
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -10,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -250,9 +251,9 @@ fun HistoryScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             val icon = when (activityType) {
-                                "WALKING" -> Icons.Default.DirectionsWalk
-                                "JOGGING" -> Icons.Default.DirectionsRun
-                                else -> Icons.Default.DirectionsBike
+                                "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
+                                "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
+                                else -> Icons.AutoMirrored.Filled.DirectionsBike
                             }
                             Icon(
                                 imageVector = icon,

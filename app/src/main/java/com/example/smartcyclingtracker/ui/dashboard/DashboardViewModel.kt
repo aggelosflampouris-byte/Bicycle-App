@@ -9,6 +9,7 @@ import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.data.local.entity.ChallengeEntity
 import com.example.smartcyclingtracker.data.local.dao.ChallengeDao
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,6 +30,7 @@ data class DashboardUiState(
     val isLoading: Boolean = true
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val userDao: UserDao,
@@ -74,19 +76,19 @@ class DashboardViewModel @Inject constructor(
             val routineProgressFlow = _activityType.flatMapLatest { type ->
                 routineRepository.getRoutineProgressFlow(type)
             }
+            // Nest two type-safe combines to avoid unchecked Array<Any?> casts
+            val sessionsAndType = combine(
+                sessionDao.getAllSessionsFlow(),
+                _activityType
+            ) { allSessions, activityType ->
+                Pair(allSessions, activityType)
+            }
             combine(
                 userDao.getUserFlow().map { it ?: UserEntity() },
-                sessionDao.getAllSessionsFlow(),
-                _activityType,
+                sessionsAndType,
                 routineProgressFlow,
                 challengeDao.getLatestChallengeFlow()
-            ) { args ->
-                val user = args[0] as UserEntity
-                @Suppress("UNCHECKED_CAST")
-                val allSessions = args[1] as List<WorkoutSessionEntity>
-                val activityType = args[2] as String
-                val routineProgress = args[3] as RoutineProgress?
-                val latestChallenge = args[4] as ChallengeEntity?
+            ) { user, (allSessions, activityType), routineProgress, latestChallenge ->
                 val sessions = allSessions.filter { it.activityType == activityType }
                 val totalDist = sessions.sumOf { it.totalDistanceMeters } / 1000.0
                 val avgDist = if (sessions.isNotEmpty()) totalDist / sessions.size else 0.0

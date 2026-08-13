@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -197,7 +198,7 @@ fun LiveTrackingScreen(
                             .background(NavyCard)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back to Menu",
                             tint = TextPrimary
                         )
@@ -318,6 +319,7 @@ fun LiveTrackingScreen(
             TrackingStatsPanel(
                 stateProvider = { viewModel.trackingState.value },
                 elapsedSecondsFlow = viewModel.elapsedSeconds,
+                trackingStateFlow = viewModel.trackingState,
                 modifier = Modifier.weight(1f)
             )
 
@@ -577,18 +579,17 @@ private fun FinishWorkoutDialog(
 fun TrackingStatsPanel(
     stateProvider: () -> com.example.smartcyclingtracker.service.TrackingState,
     elapsedSecondsFlow: kotlinx.coroutines.flow.StateFlow<Long>,
+    trackingStateFlow: kotlinx.coroutines.flow.StateFlow<com.example.smartcyclingtracker.service.TrackingState>,
     modifier: Modifier = Modifier
 ) {
-    val state = stateProvider()
+    val state by trackingStateFlow.collectAsStateWithLifecycle()
     val speedKmh = state.speedKmh
     val distanceMeters = state.distanceMeters
     val calories = state.calories
     val isPaused = state.isPaused
-    
+
     val elapsedSeconds by elapsedSecondsFlow.collectAsStateWithLifecycle()
-    
-    val distanceKm = distanceMeters / 1000.0
-    
+
     Column(
         modifier = modifier
             .fillMaxWidth()

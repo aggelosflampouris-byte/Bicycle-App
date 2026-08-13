@@ -2,6 +2,7 @@ package com.example.smartcyclingtracker.di
 
 import android.content.Context
 import androidx.room.Room
+import com.example.smartcyclingtracker.BuildConfig
 import com.example.smartcyclingtracker.data.local.AppDatabase
 import com.example.smartcyclingtracker.data.local.dao.ChatMessageDao
 import com.example.smartcyclingtracker.data.local.dao.ChatSessionDao
@@ -75,7 +76,8 @@ object AppModule {
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                    else HttpLoggingInterceptor.Level.NONE
         }
         return OkHttpClient.Builder()
             .addInterceptor(logging)

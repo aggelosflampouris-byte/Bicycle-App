@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -116,9 +116,9 @@ fun MainScreen(
                             icon = {
                                 val displayIcon = if (tab == MainTab.DASHBOARD) {
                                     when (activityType) {
-                                        "WALKING" -> Icons.Default.DirectionsWalk
-                                        "JOGGING" -> Icons.Default.DirectionsRun
-                                        else -> Icons.Default.DirectionsBike
+                                        "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
+                                        "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
+                                        else -> Icons.AutoMirrored.Filled.DirectionsBike
                                     }
                                 } else {
                                     tab.icon
@@ -291,11 +291,11 @@ private fun ActiveRideMiniBanner(
     onClick: () -> Unit
 ) {
     val trackingState by CyclingTrackingService.trackingState.collectAsStateWithLifecycle()
+    val elapsedSeconds by CyclingTrackingService.elapsedSecondsFlow.collectAsStateWithLifecycle()
     val activityType = LocalActivityTheme.current
-    
+
     val speedKmh = trackingState.speedKmh
     val distanceMeters = trackingState.distanceMeters
-    val elapsedSeconds = trackingState.elapsedSeconds
     val isPaused = trackingState.isPaused
     
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -364,9 +364,9 @@ private fun ActiveRideMiniBanner(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 val icon = when (activityType) {
-                    "WALKING" -> Icons.Default.DirectionsWalk
-                    "JOGGING" -> Icons.Default.DirectionsRun
-                    else -> Icons.Default.DirectionsBike
+                    "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
+                    "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
+                    else -> Icons.AutoMirrored.Filled.DirectionsBike
                 }
                 Icon(icon, contentDescription = "Active Workout", tint = ElectricGreen)
                 Icon(

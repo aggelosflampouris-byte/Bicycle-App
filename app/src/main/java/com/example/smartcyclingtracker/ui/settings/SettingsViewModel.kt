@@ -16,7 +16,7 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -41,10 +41,12 @@ class SettingsViewModel @Inject constructor(
     fun setTheme(mode: ThemeMode) {
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     }
-    
+
+    fun setActivityType(type: String) {
+        viewModelScope.launch { settingsRepository.setActivityType(type) }
+    }
+
     fun setChallengesEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setChallengesEnabled(enabled) }
     }
 }
-
-

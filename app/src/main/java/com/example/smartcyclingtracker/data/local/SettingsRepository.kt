@@ -24,6 +24,7 @@ class SettingsRepository @Inject constructor(
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         private val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
         private val ACTIVITY_TYPE_KEY = stringPreferencesKey("activity_type")
+        private val CHALLENGES_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("challenges_enabled")
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -43,7 +44,7 @@ class SettingsRepository @Inject constructor(
     }
 
     val challengesEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[androidx.datastore.preferences.core.booleanPreferencesKey("challenges_enabled")] ?: true
+        prefs[CHALLENGES_ENABLED_KEY] ?: true
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -66,7 +67,7 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setChallengesEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
-            prefs[androidx.datastore.preferences.core.booleanPreferencesKey("challenges_enabled")] = enabled
+            prefs[CHALLENGES_ENABLED_KEY] = enabled
         }
     }
 }

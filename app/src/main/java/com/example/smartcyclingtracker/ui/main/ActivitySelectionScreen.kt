@@ -1,13 +1,12 @@
 package com.example.smartcyclingtracker.ui.main
 
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsBike
-import androidx.compose.material.icons.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -47,7 +46,7 @@ fun ActivitySelectionScreen(
         
         ActivityCard(
             title = "Cycling",
-            icon = Icons.Default.DirectionsBike,
+            icon = Icons.AutoMirrored.Filled.DirectionsBike,
             onClick = { onActivitySelected(ActivityType.CYCLING) }
         )
         
@@ -55,7 +54,7 @@ fun ActivitySelectionScreen(
         
         ActivityCard(
             title = "Walking",
-            icon = Icons.Default.DirectionsWalk,
+            icon = Icons.AutoMirrored.Filled.DirectionsWalk,
             onClick = { onActivitySelected(ActivityType.WALKING) }
         )
         
@@ -63,7 +62,7 @@ fun ActivitySelectionScreen(
         
         ActivityCard(
             title = "Jogging",
-            icon = Icons.Default.DirectionsRun,
+            icon = Icons.AutoMirrored.Filled.DirectionsRun,
             onClick = { onActivitySelected(ActivityType.JOGGING) }
         )
     }

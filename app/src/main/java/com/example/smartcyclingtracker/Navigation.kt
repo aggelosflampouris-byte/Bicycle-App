@@ -6,7 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import com.example.smartcyclingtracker.theme.LocalActivityTheme
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -18,9 +17,9 @@ import com.example.smartcyclingtracker.ui.dashboard.DashboardScreen
 import com.example.smartcyclingtracker.ui.main.ActivitySelectionScreen
 import com.example.smartcyclingtracker.ui.main.MainScreen
 import com.example.smartcyclingtracker.ui.onboarding.OnboardingScreen
+import com.example.smartcyclingtracker.ui.settings.SettingsViewModel
 import com.example.smartcyclingtracker.ui.summary.PostWorkoutSummaryScreen
 import com.example.smartcyclingtracker.ui.tracking.LiveTrackingScreen
-import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
     object Onboarding : Screen("onboarding")
@@ -80,15 +79,12 @@ fun CyclingNavGraph(
         }
 
         composable(Screen.ActivitySelection.route) {
-            val settingsRepository = hiltViewModel<com.example.smartcyclingtracker.ui.settings.SettingsViewModel>().settingsRepository
-            val coroutineScope = rememberCoroutineScope()
+            val settingsViewModel = hiltViewModel<SettingsViewModel>()
             ActivitySelectionScreen(
                 onActivitySelected = { activityType ->
-                    coroutineScope.launch {
-                        settingsRepository.setActivityType(activityType.name)
-                        navController.navigate(Screen.Main.route) {
-                            popUpTo(Screen.ActivitySelection.route) { inclusive = true }
-                        }
+                    settingsViewModel.setActivityType(activityType.name)
+                    navController.navigate(Screen.Main.route) {
+                        popUpTo(Screen.ActivitySelection.route) { inclusive = true }
                     }
                 }
             )

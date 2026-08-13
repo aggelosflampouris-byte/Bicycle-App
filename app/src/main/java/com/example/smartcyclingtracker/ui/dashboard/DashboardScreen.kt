@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -232,9 +233,9 @@ private fun DashboardHeader(
             ) {
                 Crossfade(targetState = activityType, label = "activityIcon") { type ->
                     val icon = when (type) {
-                        "WALKING" -> Icons.Default.DirectionsWalk
-                        "JOGGING" -> Icons.Default.DirectionsRun
-                        else -> Icons.Default.DirectionsBike
+                        "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
+                        "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
+                        else -> Icons.AutoMirrored.Filled.DirectionsBike
                     }
                     Icon(
                         imageVector = icon,
@@ -301,9 +302,9 @@ private fun StatsRow(uiState: DashboardUiState, activityType: String) {
                 else -> "rides"
             },
             icon = when (activityType) {
-                "WALKING" -> Icons.Default.DirectionsWalk
-                "JOGGING" -> Icons.Default.DirectionsRun
-                else -> Icons.Default.DirectionsBike
+                "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
+                "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
+                else -> Icons.AutoMirrored.Filled.DirectionsBike
             },
             iconTint = WarningAmber
         )
@@ -395,9 +396,9 @@ private fun StartWorkoutButton(activityType: String, onClick: () -> Unit) {
         )
     ) {
         val icon = when (activityType) {
-            "WALKING" -> Icons.Default.DirectionsWalk
-            "JOGGING" -> Icons.Default.DirectionsRun
-            else -> Icons.Default.DirectionsBike
+            "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
+            "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
+            else -> Icons.AutoMirrored.Filled.DirectionsBike
         }
         Icon(
             imageVector = icon,
@@ -457,9 +458,9 @@ private fun SessionCard(
                 contentAlignment = Alignment.Center
             ) {
                 val sessionIcon = when (session.activityType) {
-                    "WALKING" -> Icons.Default.DirectionsWalk
-                    "JOGGING" -> Icons.Default.DirectionsRun
-                    else -> Icons.Default.DirectionsBike
+                    "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
+                    "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
+                    else -> Icons.AutoMirrored.Filled.DirectionsBike
                 }
                 Icon(
                     imageVector = sessionIcon,
