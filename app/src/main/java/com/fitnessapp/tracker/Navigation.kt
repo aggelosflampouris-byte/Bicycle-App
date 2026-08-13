@@ -71,8 +71,15 @@ fun CyclingNavGraph(
     ) {
         composable(Screen.Auth.route) {
             com.fitnessapp.tracker.ui.auth.AuthScreen(
-                onNavigateToMain = {
+                // Existing user: skip onboarding, go straight to the app
+                onLoginSuccess = {
                     navController.navigate(Screen.ActivitySelection.route) {
+                        popUpTo(Screen.Auth.route) { inclusive = true }
+                    }
+                },
+                // New user: complete onboarding first
+                onSignUpSuccess = {
+                    navController.navigate(Screen.Onboarding.route) {
                         popUpTo(Screen.Auth.route) { inclusive = true }
                     }
                 }
@@ -82,7 +89,7 @@ fun CyclingNavGraph(
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
                 onComplete = {
-                    navController.navigate(Screen.Auth.route) {
+                    navController.navigate(Screen.ActivitySelection.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }

@@ -74,13 +74,22 @@ fun SettingsScreen(
     }
 
     var showSaveSuccessSnack by remember { mutableStateOf(false) }
+    var showPasswordChangedSnack by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(showSaveSuccessSnack) {
         if (showSaveSuccessSnack) {
             snackbarHostState.showSnackbar("✅ Profile saved!", duration = SnackbarDuration.Short)
             showSaveSuccessSnack = false
+        }
+    }
+
+    LaunchedEffect(showPasswordChangedSnack) {
+        if (showPasswordChangedSnack) {
+            snackbarHostState.showSnackbar("🔒 Password changed successfully!", duration = SnackbarDuration.Short)
+            showPasswordChangedSnack = false
         }
     }
 
@@ -341,32 +350,60 @@ fun SettingsScreen(
                 }
             }
             
-            // ── Account Management ─────────────────────────────────────────────
+            // ── Account Management ────────────────────────────────────────
             SettingsSectionCard(
                 icon = Icons.Default.ManageAccounts,
                 title = "Account Management",
                 subtitle = "Manage your cloud profile"
             ) {
-                Button(
-                    onClick = {
-                        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-                        auth.signOut()
-                        onLogout()
-                    },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SpeedRed.copy(alpha = 0.15f),
-                        contentColor = SpeedRed
-                    )
-                ) {
-                    Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Log Out", fontWeight = FontWeight.Bold)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Change Password button
+                    Button(
+                        onClick = { showChangePasswordDialog = true },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = VividCyan.copy(alpha = 0.15f),
+                            contentColor = VividCyan
+                        )
+                    ) {
+                        Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Change Password", fontWeight = FontWeight.Bold)
+                    }
+
+                    // Log Out button
+                    Button(
+                        onClick = {
+                            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                            auth.signOut()
+                            onLogout()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SpeedRed.copy(alpha = 0.15f),
+                            contentColor = SpeedRed
+                        )
+                    ) {
+                        Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Log Out", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        if (showChangePasswordDialog) {
+            ChangePasswordDialog(
+                onDismiss = { showChangePasswordDialog = false },
+                onSuccess = {
+                    showChangePasswordDialog = false
+                    showPasswordChangedSnack = true
+                }
+            )
         }
 
         if (showShareDialog) {

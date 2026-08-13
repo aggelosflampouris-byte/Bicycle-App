@@ -20,7 +20,9 @@ class AuthViewModel @Inject constructor(
     fun toggleAuthMode() {
         _uiState.value = _uiState.value.copy(
             isLogin = !_uiState.value.isLogin,
-            error = null
+            error = null,
+            confirmPassword = "",
+            passwordResetSent = false
         )
     }
 
@@ -32,24 +34,51 @@ class AuthViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(password = password, error = null)
     }
 
+    fun onConfirmPasswordChange(value: String) {
+        _uiState.value = _uiState.value.copy(confirmPassword = value, error = null)
+    }
+
     fun onUsernameChange(username: String) {
         _uiState.value = _uiState.value.copy(username = username, error = null)
     }
 
-    fun authenticate(onSuccess: () -> Unit) {
-        val email = _uiState.value.email
-        val password = _uiState.value.password
-        val isLogin = _uiState.value.isLogin
+    /**
+     * Authenticates the user.
+     * @param onLoginSuccess called when an existing user signs in successfully.
+     * @param onSignUpSuccess called when a new user registers successfully (→ Onboarding).
+     */
+    fun authenticate(
+        onLoginSuccess: () -> Unit,
+        onSignUpSuccess: () -> Unit
+    ) {
+        val state = _uiState.value
+        val email = state.email.trim()
+        val password = state.password
 
         if (email.isBlank() || password.isBlank()) {
-            _uiState.value = _uiState.value.copy(error = "Fields cannot be empty")
+            _uiState.value = state.copy(error = "Email and password cannot be empty")
             return
         }
 
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        if (!state.isLogin) {
+            if (state.confirmPassword.isBlank()) {
+                _uiState.value = state.copy(error = "Please confirm your password")
+                return
+            }
+            if (password != state.confirmPassword) {
+                _uiState.value = state.copy(error = "Passwords do not match")
+                return
+            }
+            if (password.length < 8) {
+                _uiState.value = state.copy(error = "Password must be at least 8 characters")
+                return
+            }
+        }
+
+        _uiState.value = state.copy(isLoading = true, error = null)
 
         viewModelScope.launch {
-            val result = if (isLogin) {
+            val result = if (state.isLogin) {
                 authRepository.signIn(email, password)
             } else {
                 authRepository.signUp(email, password)
@@ -57,7 +86,7 @@ class AuthViewModel @Inject constructor(
 
             result.onSuccess {
                 _uiState.value = _uiState.value.copy(isLoading = false, error = null)
-                onSuccess()
+                if (state.isLogin) onLoginSuccess() else onSignUpSuccess()
             }.onFailure {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -66,13 +95,28 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
+
+    fun sendPasswordReset(email: String, onDone: (success: Boolean, message: String) -> Unit) {
+        val trimmed = email.trim()
+        if (trimmed.isBlank()) {
+            onDone(false, "Please enter your email address")
+            return
+        }
+        viewModelScope.launch {
+            authRepository.sendPasswordResetEmail(trimmed)
+                .onSuccess { onDone(true, "Reset link sent — check your inbox") }
+                .onFailure { onDone(false, it.localizedMessage ?: "Failed to send reset email") }
+        }
+    }
 }
 
 data class AuthUiState(
     val isLogin: Boolean = true,
     val email: String = "",
     val password: String = "",
+    val confirmPassword: String = "",
     val username: String = "",
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val passwordResetSent: Boolean = false
 )
