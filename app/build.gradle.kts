@@ -3,6 +3,7 @@ plugins {
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.ksp)
   alias(libs.plugins.hilt)
+  id("com.google.gms.google-services")
 }
 import java.util.Properties
 
@@ -144,4 +145,10 @@ dependencies {
   implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.androidx.hilt.work)
   ksp(libs.androidx.hilt.compiler)
+
+  // Firebase
+  implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+  implementation("com.google.firebase:firebase-analytics")
+  implementation("com.google.firebase:firebase-auth-ktx")
+  implementation("com.google.firebase:firebase-firestore-ktx")
 }

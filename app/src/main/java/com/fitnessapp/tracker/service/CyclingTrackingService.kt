@@ -59,6 +59,7 @@ class CyclingTrackingService : Service() {
     @Inject lateinit var challengeDao: com.fitnessapp.tracker.data.local.dao.ChallengeDao
     @Inject lateinit var settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository
     @Inject lateinit var gson: Gson
+    @Inject lateinit var firestoreRepository: com.fitnessapp.tracker.data.remote.FirestoreRepository
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
@@ -522,6 +523,11 @@ class CyclingTrackingService : Service() {
                     isChallengeCompletion = isChallengeCompletion
                 )
                 savedId = workoutSessionDao.insertSession(session)
+                
+                // Sync to cloud
+                val updatedSession = session.copy(id = savedId)
+                firestoreRepository.syncWorkoutSession(updatedSession)
+                
                 Log.d(TAG, "Session saved with id: $savedId")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save session: ${e.message}")

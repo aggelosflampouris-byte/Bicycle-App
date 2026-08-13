@@ -54,6 +54,7 @@ fun MainScreen(
     onStartWorkout: () -> Unit,
     onSessionClick: (Long) -> Unit,
     onOpenSettings: () -> Unit,
+    onLogout: () -> Unit,
     updaterViewModel: UpdaterViewModel = hiltViewModel(),
     dashboardViewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -198,7 +199,9 @@ fun MainScreen(
                         com.fitnessapp.tracker.ui.challenges.ChallengesScreen()
                     }
                     MainTab.SETTINGS -> {
-                        SettingsScreen()
+                        SettingsScreen(
+                            onLogout = onLogout
+                        )
                     }
                 }
                 } // End of SaveableStateProvider

@@ -22,6 +22,7 @@ import com.fitnessapp.tracker.ui.summary.PostWorkoutSummaryScreen
 import com.fitnessapp.tracker.ui.tracking.LiveTrackingScreen
 
 sealed class Screen(val route: String) {
+    object Auth : Screen("auth")
     object Onboarding : Screen("onboarding")
     object ActivitySelection : Screen("activity_selection")
     object Main : Screen("main")
@@ -68,10 +69,20 @@ fun CyclingNavGraph(
             ) + fadeOut(animationSpec = tween(300))
         }
     ) {
+        composable(Screen.Auth.route) {
+            com.fitnessapp.tracker.ui.auth.AuthScreen(
+                onNavigateToMain = {
+                    navController.navigate(Screen.ActivitySelection.route) {
+                        popUpTo(Screen.Auth.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
                 onComplete = {
-                    navController.navigate(Screen.ActivitySelection.route) {
+                    navController.navigate(Screen.Auth.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }
@@ -102,6 +113,11 @@ fun CyclingNavGraph(
                 },
                 onOpenSettings = {
                     navController.navigate(Screen.Onboarding.route)
+                },
+                onLogout = {
+                    navController.navigate(Screen.Auth.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

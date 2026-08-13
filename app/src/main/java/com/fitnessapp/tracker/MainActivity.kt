@@ -42,6 +42,9 @@ class MainActivity : ComponentActivity() {
     lateinit var settingsRepository: SettingsRepository
 
     @Inject
+    lateinit var authRepository: com.fitnessapp.tracker.data.remote.AuthRepository
+
+    @Inject
     lateinit var challengeDao: ChallengeDao
 
     private var startDestination = Screen.Onboarding.route
@@ -106,6 +109,7 @@ class MainActivity : ComponentActivity() {
             
             startDestination = when {
                 user == null -> Screen.Onboarding.route
+                !authRepository.isUserLoggedIn -> Screen.Auth.route
                 isTracking -> Screen.LiveTracking.route
                 else -> Screen.ActivitySelection.route
             }

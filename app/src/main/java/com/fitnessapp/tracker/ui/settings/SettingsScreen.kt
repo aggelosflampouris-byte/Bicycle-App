@@ -45,7 +45,8 @@ import com.fitnessapp.tracker.updater.UpdaterViewModel
 fun SettingsScreen(
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     onboardingViewModel: OnboardingViewModel = hiltViewModel(),
-    updaterViewModel: UpdaterViewModel = hiltViewModel()
+    updaterViewModel: UpdaterViewModel = hiltViewModel(),
+    onLogout: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
@@ -337,6 +338,31 @@ fun SettingsScreen(
                         }
                     }
                     Icon(Icons.Default.ChevronRight, null, tint = TextSecondary, modifier = Modifier.size(20.dp))
+                }
+            }
+            
+            // ── Account Management ─────────────────────────────────────────────
+            SettingsSectionCard(
+                icon = Icons.Default.ManageAccounts,
+                title = "Account Management",
+                subtitle = "Manage your cloud profile"
+            ) {
+                Button(
+                    onClick = {
+                        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                        auth.signOut()
+                        onLogout()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SpeedRed.copy(alpha = 0.15f),
+                        contentColor = SpeedRed
+                    )
+                ) {
+                    Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Log Out", fontWeight = FontWeight.Bold)
                 }
             }
 

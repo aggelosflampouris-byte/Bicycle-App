@@ -17,3 +17,6 @@ local.properties
 
 # Gemini API Key — NEVER commit to VCS
 # Add GEMINI_API_KEY=your_actual_key to local.properties
+
+# Firebase config — contains API key, kept local only
+app/google-services.json
