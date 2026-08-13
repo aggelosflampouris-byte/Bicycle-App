@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import com.example.smartcyclingtracker.theme.LocalActivityTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -113,7 +114,10 @@ fun CyclingNavGraph(
             route = Screen.LiveTracking.route,
             deepLinks = listOf(androidx.navigation.navDeepLink { uriPattern = "smartcyclingtracker://live_tracking" })
         ) {
+            // Read the activity type chosen on ActivitySelectionScreen (stored in LocalActivityTheme)
+            val activityType = LocalActivityTheme.current
             LiveTrackingScreen(
+                activityType = activityType,
                 onTrackingFinished = { sessionId ->
                     if (sessionId > 0) {
                         navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId)) {

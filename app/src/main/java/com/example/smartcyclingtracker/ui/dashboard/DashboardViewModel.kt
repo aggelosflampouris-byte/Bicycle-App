@@ -25,6 +25,7 @@ data class DashboardUiState(
     val totalCalories: Double = 0.0,
     val routineProgress: RoutineProgress? = null,
     val latestChallenge: ChallengeEntity? = null,
+    val showNewChallengeDialog: Boolean = false,
     val isLoading: Boolean = true
 )
 
@@ -100,6 +101,10 @@ class DashboardViewModel @Inject constructor(
                     totalCalories = totalCals,
                     routineProgress = routineProgress,
                     latestChallenge = latestChallenge,
+                    // Show in-app dialog when a PENDING challenge was generated within the last 2 minutes
+                    showNewChallengeDialog = latestChallenge != null &&
+                        latestChallenge.status == "PENDING" &&
+                        (System.currentTimeMillis() - latestChallenge.createdAt) < 2 * 60 * 1000L,
                     isLoading = false
                 )
             }.collect { state ->
@@ -133,5 +138,9 @@ class DashboardViewModel @Inject constructor(
                 setActivityType(challenge.activityType)
             }
         }
+    }
+
+    fun dismissNewChallengeDialog() {
+        _uiState.value = _uiState.value.copy(showNewChallengeDialog = false)
     }
 }

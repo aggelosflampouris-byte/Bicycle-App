@@ -11,8 +11,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +28,7 @@ import com.example.smartcyclingtracker.data.local.entity.WorkoutSessionEntity
 import com.example.smartcyclingtracker.engine.PhysicsEngine
 import com.example.smartcyclingtracker.theme.*
 import com.example.smartcyclingtracker.ui.dashboard.DashboardViewModel
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -67,6 +71,29 @@ fun ChallengesScreen(
                 )
 
                 if (challenge == null || challenge.status == "COMPLETED" || challenge.status == "CANCELLED") {
+                    // Compute a live countdown to the next noon
+                    var nextChallengeCountdown by remember { mutableStateOf("") }
+                    LaunchedEffect(Unit) {
+                        while (true) {
+                            val now = Calendar.getInstance()
+                            val nextNoon = Calendar.getInstance().apply {
+                                set(Calendar.HOUR_OF_DAY, 12)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
+                                if (before(now)) add(Calendar.DAY_OF_YEAR, 1)
+                            }
+                            val diffMs = nextNoon.timeInMillis - now.timeInMillis
+                            val hours = diffMs / (1000 * 60 * 60)
+                            val minutes = (diffMs % (1000 * 60 * 60)) / (1000 * 60)
+                            nextChallengeCountdown = when {
+                                hours > 0  -> "in ${hours}h ${minutes}m"
+                                minutes > 0 -> "in ${minutes}m"
+                                else       -> "soon!"
+                            }
+                            delay(60_000L) // refresh every minute
+                        }
+                    }
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
@@ -92,7 +119,7 @@ fun ChallengesScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Next challenge arrives at 12:00 PM tomorrow.",
+                                    text = "Next challenge arrives $nextChallengeCountdown",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextSecondary
                                 )

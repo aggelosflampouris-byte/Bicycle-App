@@ -11,6 +11,10 @@ import com.example.smartcyclingtracker.service.NotificationHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.first
 
 @HiltWorker
@@ -59,8 +63,17 @@ class ChallengeWorker @AssistedInject constructor(
         val newChallenge = challengeGenerator.generateNewChallenge()
         val id = challengeDao.insertChallenge(newChallenge)
         
-        // Show notification
-        NotificationHelper.showNewChallengeNotification(context, id, newChallenge)
+        // Show notification only when POST_NOTIFICATIONS permission is granted (Android 13+)
+        val canNotify = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+        if (canNotify) {
+            NotificationHelper.showNewChallengeNotification(context, id, newChallenge)
+        }
         
         return Result.success()
     }

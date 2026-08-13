@@ -32,6 +32,7 @@ import com.example.smartcyclingtracker.service.CyclingTrackingService
 import com.example.smartcyclingtracker.theme.*
 import com.example.smartcyclingtracker.ui.chat.AiChatScreen
 import com.example.smartcyclingtracker.ui.dashboard.DashboardScreen
+import com.example.smartcyclingtracker.ui.dashboard.DashboardViewModel
 import com.example.smartcyclingtracker.ui.history.HistoryScreen
 import com.example.smartcyclingtracker.ui.settings.SettingsScreen
 import com.example.smartcyclingtracker.updater.UpdateDialog
@@ -53,13 +54,16 @@ fun MainScreen(
     onStartWorkout: () -> Unit,
     onSessionClick: (Long) -> Unit,
     onOpenSettings: () -> Unit,
-    updaterViewModel: UpdaterViewModel = hiltViewModel()
+    updaterViewModel: UpdaterViewModel = hiltViewModel(),
+    dashboardViewModel: DashboardViewModel = hiltViewModel()
 ) {
     val activityType = LocalActivityTheme.current
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     val tabs = remember { MainTab.entries.toTypedArray() }
     var currentTab by remember { mutableStateOf(MainTab.DASHBOARD) }
+
+    val dashboardUiState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
 
     val isTracking by remember {
         CyclingTrackingService.trackingState.map { it.isTracking }.distinctUntilChanged()
@@ -210,6 +214,72 @@ fun MainScreen(
                         updaterViewModel.startDownloadAndInstall(context)
                     },
                     onDismiss = { updaterViewModel.dismissDialog() }
+                )
+            }
+
+            // In-App New Challenge Dialog
+            val pendingChallenge = dashboardUiState.latestChallenge
+            if (dashboardUiState.showNewChallengeDialog && pendingChallenge != null) {
+                AlertDialog(
+                    onDismissRequest = { dashboardViewModel.dismissNewChallengeDialog() },
+                    containerColor = NavyCard,
+                    titleContentColor = TextPrimary,
+                    textContentColor = TextSecondary,
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.EmojiEvents,
+                                contentDescription = null,
+                                tint = Color(0xFFFFD700),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "🏅 New Challenge!",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    text = {
+                        val metricLabel = when (pendingChallenge.metric) {
+                            "DISTANCE" -> PhysicsEngine.formatDistance(pendingChallenge.targetValue)
+                            "SPEED"    -> "${PhysicsEngine.formatSpeed(pendingChallenge.targetValue)} km/h"
+                            "CALORIES" -> "${"%.0f".format(pendingChallenge.targetValue)} kcal"
+                            else       -> pendingChallenge.targetValue.toString()
+                        }
+                        Text(
+                            "A new ${pendingChallenge.period.lowercase()} " +
+                            "${pendingChallenge.activityType.lowercase()} challenge has arrived!\n\n" +
+                            "Goal: $metricLabel",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                dashboardViewModel.respondToChallenge(pendingChallenge, true)
+                                dashboardViewModel.dismissNewChallengeDialog()
+                                currentTab = MainTab.CHALLENGES
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ElectricGreen,
+                                contentColor = DeepNavy
+                            )
+                        ) {
+                            Text("Accept", fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                dashboardViewModel.respondToChallenge(pendingChallenge, false)
+                                dashboardViewModel.dismissNewChallengeDialog()
+                            }
+                        ) {
+                            Text("Deny", color = SpeedRed)
+                        }
+                    }
                 )
             }
         }

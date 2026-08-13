@@ -175,6 +175,9 @@ object NotificationHelper {
     }
 
     fun showNewChallengeNotification(context: Context, id: Long, challenge: com.example.smartcyclingtracker.data.local.entity.ChallengeEntity) {
+        // Ensure channel exists – this is a no-op if already registered
+        createNotificationChannel(context)
+
         val acceptIntent = Intent(context, MainActivity::class.java).apply {
             action = "ACTION_ACCEPT_CHALLENGE"
             putExtra("CHALLENGE_ID", id)
