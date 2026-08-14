@@ -36,6 +36,9 @@ import com.fitnessapp.tracker.data.local.entity.DailyPlan
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
+import com.fitnessapp.tracker.service.CyclingTrackingService
+import android.widget.Toast
+
 @Composable
 fun DashboardScreen(
     onStartWorkout: () -> Unit,
@@ -44,6 +47,9 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val trackingState by CyclingTrackingService.trackingState.collectAsStateWithLifecycle()
+    val isTracking = trackingState.isTracking
+    val context = androidx.compose.ui.platform.LocalContext.current
     val activityType = LocalActivityTheme.current
     var showRoutineConfig by remember { mutableStateOf(false) }
     var sessionToDelete by remember { mutableStateOf<Long?>(null) }
@@ -104,12 +110,16 @@ fun DashboardScreen(
                     userName = uiState.user.name,
                     activityType = activityType,
                     onSwitchActivity = {
-                        val newActivity = when (activityType) {
-                            "CYCLING" -> "WALKING"
-                            "WALKING" -> "JOGGING"
-                            else -> "CYCLING"
+                        if (isTracking) {
+                            Toast.makeText(context, "Cannot switch activity while a workout is in progress.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val newActivity = when (activityType) {
+                                "CYCLING" -> "WALKING"
+                                "WALKING" -> "JOGGING"
+                                else -> "CYCLING"
+                            }
+                            viewModel.setActivityType(newActivity)
                         }
-                        viewModel.setActivityType(newActivity)
                     },
                     onSettingsClick = onOpenSettings
                 )
