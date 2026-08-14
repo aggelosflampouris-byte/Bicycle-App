@@ -20,6 +20,7 @@ import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.service.CyclingTrackingService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.getValue
 
 @Composable
 fun ActivitySelectionScreen(
@@ -99,6 +100,7 @@ fun ActivitySelectionScreen(
             }
         )
     }
+}
 }
 
 @Composable
