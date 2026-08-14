@@ -88,10 +88,28 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun setActivityType(type: String) {
-        _activityType.value = type
+    fun setActivityType(type: String, force: Boolean = false) {
         viewModelScope.launch {
+            val activeChallenge = challengeDao.getActiveChallenge()
+            if (!force && activeChallenge != null && 
+                (activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACCEPTED.name || 
+                 activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACTIVE.name) && 
+                activeChallenge.activityType != type) {
+                // Block activity change if challenge for another activity is active
+                return@launch
+            }
+            _activityType.value = type
             settingsRepository.setActivityType(type)
+        }
+    }
+
+    fun cancelChallenge(challenge: ChallengeEntity) {
+        viewModelScope.launch {
+            challengeDao.updateChallenge(
+                challenge.copy(
+                    status = com.fitnessapp.tracker.data.local.entity.ChallengeStatus.CANCELLED.name
+                )
+            )
         }
     }
     

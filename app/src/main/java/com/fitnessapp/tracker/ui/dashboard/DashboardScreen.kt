@@ -110,8 +110,18 @@ fun DashboardScreen(
                     userName = uiState.user.name,
                     activityType = activityType,
                     onSwitchActivity = {
+                        val activeChallenge = uiState.latestChallenge
+                        val isChallengeActive = activeChallenge != null && 
+                            (activeChallenge.status == "ACCEPTED" || activeChallenge.status == "ACTIVE")
+
                         if (isTracking) {
                             Toast.makeText(context, "Cannot switch activity while a workout is in progress.", Toast.LENGTH_SHORT).show()
+                        } else if (isChallengeActive && activeChallenge != null) {
+                            Toast.makeText(
+                                context,
+                                "A ${activeChallenge.activityType.lowercase()} challenge is currently active. You must complete it through a workout or cancel it before switching activities.",
+                                Toast.LENGTH_LONG
+                            ).show()
                         } else {
                             val newActivity = when (activityType) {
                                 "CYCLING" -> "WALKING"
@@ -149,7 +159,8 @@ fun DashboardScreen(
                         ChallengeCard(
                             challenge = challenge,
                             onAccept = { viewModel.respondToChallenge(challenge, true) },
-                            onDeny = { viewModel.respondToChallenge(challenge, false) }
+                            onDeny = { viewModel.respondToChallenge(challenge, false) },
+                            onCancel = { viewModel.cancelChallenge(challenge) }
                         )
                     }
                 }
@@ -767,8 +778,23 @@ private fun RoutineProgressCard(
 fun ChallengeCard(
     challenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity,
     onAccept: () -> Unit,
-    onDeny: () -> Unit
+    onDeny: () -> Unit,
+    onCancel: () -> Unit
 ) {
+    var showCancelDialog by remember { mutableStateOf(false) }
+
+    if (showCancelDialog) {
+        com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog(
+            title = "Cancel Challenge",
+            message = "Are you sure you want to cancel this active challenge? You will be able to switch activities or start a new challenge afterwards.",
+            onConfirm = {
+                onCancel()
+                showCancelDialog = false
+            },
+            onDismiss = { showCancelDialog = false }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -839,12 +865,26 @@ fun ChallengeCard(
                     color = androidx.compose.ui.graphics.Color(0xFFFFD700),
                     trackColor = NavyDarker
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Progress: $progressStr / $targetStr",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary
-                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Progress: $progressStr / $targetStr",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                    TextButton(
+                        onClick = { showCancelDialog = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = SpeedRed)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Cancel Challenge", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }

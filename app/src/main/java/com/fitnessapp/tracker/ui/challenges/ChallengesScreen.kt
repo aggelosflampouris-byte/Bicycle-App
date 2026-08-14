@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -151,7 +152,8 @@ fun ChallengesScreen(
                     ChallengeCard(
                         challenge = challenge,
                         onAccept = { viewModel.respondToChallenge(challenge, true) },
-                        onDeny = { viewModel.respondToChallenge(challenge, false) }
+                        onDeny = { viewModel.respondToChallenge(challenge, false) },
+                        onCancel = { viewModel.cancelChallenge(challenge) }
                     )
                 }
             }
@@ -180,8 +182,23 @@ fun ChallengesScreen(
 fun ChallengeCard(
     challenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity,
     onAccept: () -> Unit,
-    onDeny: () -> Unit
+    onDeny: () -> Unit,
+    onCancel: () -> Unit
 ) {
+    var showCancelDialog by remember { mutableStateOf(false) }
+
+    if (showCancelDialog) {
+        com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog(
+            title = "Cancel Challenge",
+            message = "Are you sure you want to cancel this active challenge? You will be able to switch activities or start a new challenge afterwards.",
+            onConfirm = {
+                onCancel()
+                showCancelDialog = false
+            },
+            onDismiss = { showCancelDialog = false }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -252,12 +269,26 @@ fun ChallengeCard(
                     color = Color(0xFFFFD700),
                     trackColor = NavyDarker
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Progress: $progressStr / $targetStr",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary
-                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Progress: $progressStr / $targetStr",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                    TextButton(
+                        onClick = { showCancelDialog = true },
+                        colors = ButtonDefaults.textButtonColors(contentColor = SpeedRed)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Cancel Challenge", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }
