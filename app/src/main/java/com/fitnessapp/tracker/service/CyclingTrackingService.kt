@@ -102,6 +102,10 @@ class CyclingTrackingService : Service() {
         // StateFlow for UI binding
         private val _trackingState = MutableStateFlow(TrackingState())
         val trackingState: StateFlow<TrackingState> = _trackingState
+        
+        fun clearLastSavedSessionId() {
+            _trackingState.value = _trackingState.value.copy(lastSavedSessionId = null)
+        }
 
         // Route points flow for live tracking map
         private val _routePointsFlow = MutableStateFlow<List<RoutePoint>>(emptyList())

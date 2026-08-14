@@ -86,4 +86,8 @@ class TrackingViewModel @Inject constructor(
         }
         context.startService(intent)
     }
+
+    fun clearLastSavedSessionId() {
+        CyclingTrackingService.clearLastSavedSessionId()
+    }
 }

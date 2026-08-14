@@ -166,6 +166,7 @@ fun LiveTrackingScreen(
     // Navigate to summary once session is saved
     LaunchedEffect(lastSavedSessionId) {
         lastSavedSessionId?.let { id ->
+            viewModel.clearLastSavedSessionId()
             onTrackingFinished(id)
         }
     }
