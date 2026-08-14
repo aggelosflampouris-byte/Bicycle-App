@@ -22,6 +22,9 @@ object NotificationHelper {
     const val CHALLENGE_CHANNEL_ID = "challenge_channel"
     const val CHALLENGE_NOTIFICATION_ID = 3003
 
+    const val REMINDER_CHANNEL_ID = "workout_reminder_channel"
+    const val REMINDER_NOTIFICATION_ID = 4004
+
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val trackingChannel = NotificationChannel(
@@ -48,11 +51,20 @@ object NotificationHelper {
             ).apply {
                 description = "Daily fitness challenges"
             }
+
+            val reminderChannel = NotificationChannel(
+                REMINDER_CHANNEL_ID,
+                "Workout Reminders",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Reminders to stay active and workout"
+            }
             
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(trackingChannel)
             manager.createNotificationChannel(updateChannel)
             manager.createNotificationChannel(challengeChannel)
+            manager.createNotificationChannel(reminderChannel)
         }
     }
 
@@ -212,5 +224,37 @@ object NotificationHelper {
 
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.notify(CHALLENGE_NOTIFICATION_ID, notification)
+    }
+
+    fun showWorkoutReminderNotification(
+        context: Context,
+        recommendedActivity: String,
+        title: String,
+        message: String
+    ) {
+        createNotificationChannel(context)
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = "ACTION_RECOMMENDED_WORKOUT"
+            putExtra("RECOMMENDED_ACTIVITY", recommendedActivity)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 2, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, REMINDER_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.notify(REMINDER_NOTIFICATION_ID, notification)
     }
 }

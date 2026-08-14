@@ -100,6 +100,16 @@ class MainActivity : ComponentActivity() {
             immediateChallengeRequest
         )
         
+        // Schedule WorkManager for Inactivity Workout Reminder (Daily Check)
+        val reminderPeriodicRequest = androidx.work.PeriodicWorkRequestBuilder<com.fitnessapp.tracker.worker.WorkoutReminderWorker>(
+            1, java.util.concurrent.TimeUnit.DAYS
+        ).build()
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "PeriodicWorkoutReminder",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            reminderPeriodicRequest
+        )
+        
         handleIntent(intent)
 
         // Determine start destination based on whether user has been set up, workout is active, or challenge is active
@@ -107,11 +117,17 @@ class MainActivity : ComponentActivity() {
             val user = userDao.getUserFlow().firstOrNull()
             val isTracking = com.fitnessapp.tracker.service.CyclingTrackingService.trackingState.value.isTracking
             val activeChallenge = challengeDao.getActiveChallenge()
+            val isRecommendedWorkout = intent?.action == "ACTION_RECOMMENDED_WORKOUT"
+            val recommendedActivity = intent?.getStringExtra("RECOMMENDED_ACTIVITY")
             
             startDestination = when {
                 user == null -> Screen.Onboarding.route
                 !authRepository.isUserLoggedIn -> Screen.Auth.route
                 isTracking -> Screen.LiveTracking.route
+                isRecommendedWorkout && !recommendedActivity.isNullOrBlank() -> {
+                    settingsRepository.setActivityType(recommendedActivity)
+                    Screen.Main.route
+                }
                 activeChallenge != null && 
                 (activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACCEPTED.name || 
                  activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACTIVE.name) -> {
@@ -193,6 +209,14 @@ class MainActivity : ComponentActivity() {
                     }
                     settingsRepository.setActivityType(activityType)
                 }
+            }
+        } else if (intent?.action == "ACTION_RECOMMENDED_WORKOUT") {
+            val recommendedActivity = intent.getStringExtra("RECOMMENDED_ACTIVITY") ?: "CYCLING"
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager.cancel(com.fitnessapp.tracker.service.NotificationHelper.REMINDER_NOTIFICATION_ID)
+            
+            lifecycleScope.launch(Dispatchers.IO) {
+                settingsRepository.setActivityType(recommendedActivity)
             }
         }
     }

@@ -529,6 +529,16 @@ class CyclingTrackingService : Service() {
                 )
                 savedId = workoutSessionDao.insertSession(session)
                 
+                // Schedule 2-day inactivity reminder
+                val reminderRequest = androidx.work.OneTimeWorkRequestBuilder<com.fitnessapp.tracker.worker.WorkoutReminderWorker>()
+                    .setInitialDelay(2, java.util.concurrent.TimeUnit.DAYS)
+                    .build()
+                androidx.work.WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                    "WorkoutTwoDayReminder",
+                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    reminderRequest
+                )
+
                 // Sync to cloud (fire-and-forget so it doesn't block UI navigation)
                 val updatedSession = session.copy(id = savedId)
                 CoroutineScope(Dispatchers.IO).launch {
