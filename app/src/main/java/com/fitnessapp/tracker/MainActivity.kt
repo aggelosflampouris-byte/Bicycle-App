@@ -102,15 +102,22 @@ class MainActivity : ComponentActivity() {
         
         handleIntent(intent)
 
-        // Determine start destination based on whether user has been set up
+        // Determine start destination based on whether user has been set up, workout is active, or challenge is active
         lifecycleScope.launch {
             val user = userDao.getUserFlow().firstOrNull()
             val isTracking = com.fitnessapp.tracker.service.CyclingTrackingService.trackingState.value.isTracking
+            val activeChallenge = challengeDao.getActiveChallenge()
             
             startDestination = when {
                 user == null -> Screen.Onboarding.route
                 !authRepository.isUserLoggedIn -> Screen.Auth.route
                 isTracking -> Screen.LiveTracking.route
+                activeChallenge != null && 
+                (activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACCEPTED.name || 
+                 activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACTIVE.name) -> {
+                    settingsRepository.setActivityType(activeChallenge.activityType)
+                    Screen.Main.route
+                }
                 else -> Screen.ActivitySelection.route
             }
 
