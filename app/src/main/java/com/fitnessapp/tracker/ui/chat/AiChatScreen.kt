@@ -62,7 +62,10 @@ fun AiChatScreen(
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = NavyDarker,
-                drawerContentColor = TextPrimary
+                drawerContentColor = TextPrimary,
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
             ) {
                 Spacer(Modifier.height(16.dp))
                 Row(
@@ -145,6 +148,8 @@ fun AiChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(DeepNavy)
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .imePadding()
         ) {
         var showClearChatDialog by remember { mutableStateOf(false) }
@@ -241,7 +246,7 @@ private fun ChatAppBar(
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
         }
         Text(
-            text = "AI Coach AI",
+            text = "AI Coach",
             style = MaterialTheme.typography.headlineSmall,
             color = TextPrimary,
             fontWeight = FontWeight.Bold,
