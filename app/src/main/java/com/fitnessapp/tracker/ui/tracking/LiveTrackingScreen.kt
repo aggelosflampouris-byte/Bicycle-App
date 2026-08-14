@@ -101,12 +101,7 @@ fun LiveTrackingScreen(
         }
     }
 
-    // Auto-start tracking if not active and permission is granted and GPS is on
-    LaunchedEffect(hasLocationPermission, isGpsEnabled) {
-        if (hasLocationPermission && isGpsEnabled && !isTracking) {
-            viewModel.startTracking(context, activityType)
-        }
-    }
+    // Auto-start tracking is handled by ON_RESUME observer and permission launcher callback
 
     // Track route on map from Service StateFlow
     val routePoints by viewModel.routePoints.collectAsStateWithLifecycle()

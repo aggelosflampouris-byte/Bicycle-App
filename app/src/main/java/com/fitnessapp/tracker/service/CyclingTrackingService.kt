@@ -213,6 +213,7 @@ class CyclingTrackingService : Service() {
     }
 
     private fun startTracking() {
+        timerJob?.cancel()
         startTimeMs = System.currentTimeMillis()
         isManuallyPaused = false
         stationaryCounter = 0
@@ -524,9 +525,11 @@ class CyclingTrackingService : Service() {
                 )
                 savedId = workoutSessionDao.insertSession(session)
                 
-                // Sync to cloud
+                // Sync to cloud (fire-and-forget so it doesn't block UI navigation)
                 val updatedSession = session.copy(id = savedId)
-                firestoreRepository.syncWorkoutSession(updatedSession)
+                CoroutineScope(Dispatchers.IO).launch {
+                    firestoreRepository.syncWorkoutSession(updatedSession)
+                }
                 
                 Log.d(TAG, "Session saved with id: $savedId")
             } catch (e: Exception) {
