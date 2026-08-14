@@ -15,5 +15,6 @@ data class DailyPlan(
     val day: String,
     val title: String,
     val description: String,
-    val targetDistance: Double?
+    val targetDistance: Double?,
+    val isCompleted: Boolean = false
 )

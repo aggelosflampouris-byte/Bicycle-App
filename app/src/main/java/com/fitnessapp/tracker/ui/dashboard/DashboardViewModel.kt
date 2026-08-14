@@ -178,4 +178,25 @@ class DashboardViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isGeneratingPlan = false)
         }
     }
+
+    fun toggleDailyPlanCompleted(day: String) {
+        viewModelScope.launch {
+            val currentPlan = _uiState.value.trainingPlan ?: return@launch
+            try {
+                val type = object : com.google.gson.reflect.TypeToken<List<com.fitnessapp.tracker.data.local.entity.DailyPlan>>() {}.type
+                val plans: MutableList<com.fitnessapp.tracker.data.local.entity.DailyPlan> = com.google.gson.Gson().fromJson(currentPlan.planJson, type)
+                
+                val index = plans.indexOfFirst { it.day == day }
+                if (index != -1) {
+                    val plan = plans[index]
+                    plans[index] = plan.copy(isCompleted = !plan.isCompleted)
+                    val newJson = com.google.gson.Gson().toJson(plans)
+                    val newPlan = currentPlan.copy(planJson = newJson)
+                    trainingPlanDao.insertPlan(newPlan)
+                }
+            } catch (e: Exception) {
+                // Do nothing
+            }
+        }
+    }
 }

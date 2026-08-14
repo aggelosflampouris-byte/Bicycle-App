@@ -148,7 +148,8 @@ fun DashboardScreen(
                     WeeklyTrainingPlanCard(
                         trainingPlan = uiState.trainingPlan,
                         isGenerating = uiState.isGeneratingPlan,
-                        onGeneratePlan = { viewModel.generateTrainingPlan() }
+                        onGeneratePlan = { viewModel.generateTrainingPlan() },
+                        onTogglePlanCompleted = { day -> viewModel.toggleDailyPlanCompleted(day) }
                     )
                 }
             }
@@ -553,8 +554,8 @@ private fun RoutineConfigBottomSheet(
 
     if (showDeleteDialog) {
         com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog(
-            title = "Clear Routine",
-            message = "Are you sure you want to clear your workout routine?",
+            title = "Clear Goal",
+            message = "Are you sure you want to clear your workout goal?",
             onConfirm = {
                 showDeleteDialog = false
                 onDelete()
@@ -574,7 +575,7 @@ private fun RoutineConfigBottomSheet(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Workout Routine", style = MaterialTheme.typography.headlineSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
+            Text("Workout Goal", style = MaterialTheme.typography.headlineSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
 
             // Interval selector
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -654,7 +655,7 @@ private fun RoutineConfigBottomSheet(
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = SpeedRed),
                         border = BorderStroke(1.dp, SpeedRed)
                     ) {
-                        Text("Clear Routine")
+                        Text("Clear Goal")
                     }
                 }
                 Button(
@@ -695,7 +696,7 @@ private fun RoutineProgressCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.TrackChanges, null, tint = ElectricGreen, modifier = Modifier.size(20.dp))
                     Text(
-                        text = if (progress == null) "Set a Workout Routine" else "${progress.routine.interval} Goal",
+                        text = if (progress == null) "Set a Workout Goal" else "${progress.routine.interval} Goal",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
@@ -838,7 +839,8 @@ fun ChallengeCard(
 fun WeeklyTrainingPlanCard(
     trainingPlan: com.fitnessapp.tracker.data.local.entity.TrainingPlanEntity?,
     isGenerating: Boolean,
-    onGeneratePlan: () -> Unit
+    onGeneratePlan: () -> Unit,
+    onTogglePlanCompleted: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     
@@ -927,21 +929,24 @@ fun WeeklyTrainingPlanCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp)
+                                    .clickable { onTogglePlanCompleted(plan.day) }
+                                    .background(if (plan.isCompleted) ElectricGreen.copy(alpha = 0.1f) else Color.Transparent, RoundedCornerShape(8.dp))
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = plan.day.take(3).uppercase(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = VividCyan,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.width(48.dp)
+                                Checkbox(
+                                    checked = plan.isCompleted,
+                                    onCheckedChange = { onTogglePlanCompleted(plan.day) },
+                                    colors = CheckboxDefaults.colors(checkedColor = ElectricGreen)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text(
-                                        text = plan.title,
+                                        text = "${plan.day.take(3).uppercase()} - ${plan.title}",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = TextPrimary,
-                                        fontWeight = FontWeight.Bold
+                                        color = if (plan.isCompleted) ElectricGreen else TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        textDecoration = if (plan.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                                     )
                                     Text(
                                         text = plan.description,
