@@ -316,14 +316,14 @@ fun LiveTrackingScreen(
                 stateProvider = { viewModel.trackingState.value },
                 elapsedSecondsFlow = viewModel.elapsedSeconds,
                 trackingStateFlow = viewModel.trackingState,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             )
 
             // Map view section
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(240.dp)
+                    .weight(1f)
                     .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                     .background(NavyCard)
             ) {
@@ -592,7 +592,7 @@ fun TrackingStatsPanel(
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // Big speed display
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
