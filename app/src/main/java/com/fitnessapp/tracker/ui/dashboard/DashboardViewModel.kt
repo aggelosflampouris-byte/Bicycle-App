@@ -107,44 +107,68 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    private data class SessionStats(
+        val sessions: List<WorkoutSessionEntity>,
+        val totalDistanceKm: Double,
+        val avgDistanceKm: Double,
+        val totalCalories: Double
+    )
+
+    private data class ChallengeState(
+        val latestChallenge: ChallengeEntity?,
+        val showNewChallengeDialog: Boolean
+    )
+
     private fun loadData() {
         viewModelScope.launch {
             val routineProgressFlow = _activityType.flatMapLatest { type ->
                 routineRepository.getRoutineProgressFlow(type)
             }
-            // Nest two type-safe combines to avoid unchecked Array<Any?> casts
-            val sessionsAndType = combine(
+            val sessionStatsFlow = combine(
                 sessionDao.getAllSessionsFlow(),
                 _activityType
             ) { allSessions, activityType ->
-                Pair(allSessions, activityType)
-            }
-            combine(
-                userDao.getUserFlow().map { it ?: UserEntity() },
-                sessionsAndType,
-                routineProgressFlow,
-                challengeDao.getLatestChallengeFlow(),
-                trainingPlanDao.getPlanFlow(),
-                _dismissedChallengeId
-            ) { user, (allSessions, activityType), routineProgress, latestChallenge, plan, dismissedId ->
                 val sessions = allSessions.filter { it.activityType == activityType }
                 val totalDist = sessions.sumOf { it.totalDistanceMeters } / 1000.0
                 val avgDist = if (sessions.isNotEmpty()) totalDist / sessions.size else 0.0
                 val totalCals = sessions.sumOf { it.caloriesBurned }
-
-                DashboardUiState(
-                    user = user,
+                SessionStats(
                     sessions = sessions,
                     totalDistanceKm = totalDist,
                     avgDistanceKm = avgDist,
-                    totalSessions = sessions.size,
-                    totalCalories = totalCals,
-                    routineProgress = routineProgress,
+                    totalCalories = totalCals
+                )
+            }
+            val challengeStateFlow = combine(
+                challengeDao.getLatestChallengeFlow(),
+                _dismissedChallengeId
+            ) { latestChallenge, dismissedId ->
+                val showDialog = latestChallenge != null &&
+                    latestChallenge.status == "PENDING" &&
+                    latestChallenge.id != dismissedId
+                ChallengeState(
                     latestChallenge = latestChallenge,
+                    showNewChallengeDialog = showDialog
+                )
+            }
+            combine(
+                userDao.getUserFlow().map { it ?: UserEntity() },
+                sessionStatsFlow,
+                routineProgressFlow,
+                challengeStateFlow,
+                trainingPlanDao.getPlanFlow()
+            ) { user, sessionStats, routineProgress, challengeState, plan ->
+                DashboardUiState(
+                    user = user,
+                    sessions = sessionStats.sessions,
+                    totalDistanceKm = sessionStats.totalDistanceKm,
+                    avgDistanceKm = sessionStats.avgDistanceKm,
+                    totalSessions = sessionStats.sessions.size,
+                    totalCalories = sessionStats.totalCalories,
+                    routineProgress = routineProgress,
+                    latestChallenge = challengeState.latestChallenge,
                     trainingPlan = plan,
-                    showNewChallengeDialog = latestChallenge != null &&
-                        latestChallenge.status == "PENDING" &&
-                        latestChallenge.id != dismissedId,
+                    showNewChallengeDialog = challengeState.showNewChallengeDialog,
                     isLoading = false,
                     isGeneratingPlan = _uiState.value.isGeneratingPlan
                 )
