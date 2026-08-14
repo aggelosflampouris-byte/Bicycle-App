@@ -12,20 +12,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fitnessapp.tracker.data.local.entity.ActivityType
 import com.fitnessapp.tracker.theme.*
+import com.fitnessapp.tracker.service.CyclingTrackingService
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 
 @Composable
 fun ActivitySelectionScreen(
-    onActivitySelected: (ActivityType) -> Unit
+    onActivitySelected: (ActivityType) -> Unit,
+    currentActivityType: String
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DeepNavy)
-            .padding(24.dp),
+    val trackingState by CyclingTrackingService.trackingState.collectAsStateWithLifecycle()
+    val isTracking = trackingState.isTracking
+    
+    val snackbarHostState = androidx.compose.runtime.remember { SnackbarHostState() }
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = DeepNavy
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -47,7 +62,13 @@ fun ActivitySelectionScreen(
         ActivityCard(
             title = "Cycling",
             icon = Icons.AutoMirrored.Filled.DirectionsBike,
-            onClick = { onActivitySelected(ActivityType.CYCLING) }
+            onClick = { 
+                if (isTracking && currentActivityType != ActivityType.CYCLING.name) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar("Cannot switch activity while a workout is in progress.") }
+                } else {
+                    onActivitySelected(ActivityType.CYCLING)
+                }
+            }
         )
         
         Spacer(modifier = Modifier.height(24.dp))
@@ -55,7 +76,13 @@ fun ActivitySelectionScreen(
         ActivityCard(
             title = "Walking",
             icon = Icons.AutoMirrored.Filled.DirectionsWalk,
-            onClick = { onActivitySelected(ActivityType.WALKING) }
+            onClick = { 
+                if (isTracking && currentActivityType != ActivityType.WALKING.name) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar("Cannot switch activity while a workout is in progress.") }
+                } else {
+                    onActivitySelected(ActivityType.WALKING)
+                }
+            }
         )
         
         Spacer(modifier = Modifier.height(24.dp))
@@ -63,7 +90,13 @@ fun ActivitySelectionScreen(
         ActivityCard(
             title = "Jogging",
             icon = Icons.AutoMirrored.Filled.DirectionsRun,
-            onClick = { onActivitySelected(ActivityType.JOGGING) }
+            onClick = { 
+                if (isTracking && currentActivityType != ActivityType.JOGGING.name) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar("Cannot switch activity while a workout is in progress.") }
+                } else {
+                    onActivitySelected(ActivityType.JOGGING)
+                }
+            }
         )
     }
 }

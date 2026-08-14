@@ -98,7 +98,9 @@ fun CyclingNavGraph(
 
         composable(Screen.ActivitySelection.route) {
             val settingsViewModel = hiltViewModel<SettingsViewModel>()
+            val currentActivityType = LocalActivityTheme.current
             ActivitySelectionScreen(
+                currentActivityType = currentActivityType,
                 onActivitySelected = { activityType ->
                     settingsViewModel.setActivityType(activityType.name)
                     navController.navigate(Screen.Main.route) {
