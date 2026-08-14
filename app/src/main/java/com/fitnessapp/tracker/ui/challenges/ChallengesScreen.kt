@@ -70,7 +70,7 @@ fun ChallengesScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                if (challenge == null || challenge.status == "COMPLETED" || challenge.status == "CANCELLED") {
+                if (challenge == null || challenge.status == "COMPLETED" || challenge.status == "CANCELLED" || challenge.status == "DENIED") {
                     // Compute a live countdown to the next noon
                     var nextChallengeCountdown by remember { mutableStateOf("") }
                     LaunchedEffect(Unit) {
@@ -100,29 +100,50 @@ fun ChallengesScreen(
                         colors = CardDefaults.cardColors(containerColor = NavyCard),
                         border = BorderStroke(1.dp, GlassBorder)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.EmojiEvents,
-                                contentDescription = null,
-                                tint = if (challenge?.status == "COMPLETED") Color(0xFFFFD700) else TextSecondary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = if (challenge?.status == "COMPLETED") "Challenge Completed!" else if (challenge?.status == "CANCELLED") "Challenge Cancelled" else "Daily Challenges",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.EmojiEvents,
+                                    contentDescription = null,
+                                    tint = if (challenge?.status == "COMPLETED") Color(0xFFFFD700) else TextSecondary,
+                                    modifier = Modifier.size(28.dp)
                                 )
-                                Text(
-                                    text = "Next challenge arrives $nextChallengeCountdown",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = when (challenge?.status) {
+                                            "COMPLETED" -> "Challenge Completed! 🏆"
+                                            "DENIED" -> "Challenge Denied"
+                                            "CANCELLED" -> "Challenge Cancelled"
+                                            else -> "Daily Challenges"
+                                        },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Next scheduled challenge arrives $nextChallengeCountdown",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                            Button(
+                                onClick = { viewModel.generateNewChallenge() },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ElectricGreen,
+                                    contentColor = DeepNavy
                                 )
+                            ) {
+                                Text("🎯 Generate Challenge Now", fontWeight = FontWeight.Bold)
                             }
                         }
                     }

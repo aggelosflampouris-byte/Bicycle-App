@@ -138,6 +138,23 @@ fun DashboardScreen(
                 }
             }
 
+            // Daily Challenge Card
+            item {
+                AnimatedVisibility(
+                    visible = !uiState.isLoading,
+                    enter = fadeIn() + slideInVertically()
+                ) {
+                    val challenge = uiState.latestChallenge
+                    if (challenge != null && (challenge.status == "PENDING" || challenge.status == "ACCEPTED" || challenge.status == "ACTIVE")) {
+                        ChallengeCard(
+                            challenge = challenge,
+                            onAccept = { viewModel.respondToChallenge(challenge, true) },
+                            onDeny = { viewModel.respondToChallenge(challenge, false) }
+                        )
+                    }
+                }
+            }
+
 
             // Weekly Training Plan Card
             item {

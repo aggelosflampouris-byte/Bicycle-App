@@ -44,18 +44,47 @@ class DashboardViewModel @Inject constructor(
     private val trainingPlanDao: TrainingPlanDao,
     private val geminiRepository: GeminiRepository,
     private val settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository,
-    private val routineRepository: RoutineRepository
+    private val routineRepository: RoutineRepository,
+    private val challengeGenerator: com.fitnessapp.tracker.engine.ChallengeGenerator
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     private val _activityType = MutableStateFlow("CYCLING")
+    private val _dismissedChallengeId = MutableStateFlow<Long?>(null)
 
     init {
         loadData()
         viewModelScope.launch {
             routineRepository.checkAndAdvanceRoutine(_activityType.value)
+            checkAndGenerateChallenge()
+        }
+    }
+
+    suspend fun checkAndGenerateChallenge() {
+        val enabled = settingsRepository.challengesEnabled.first()
+        if (!enabled) return
+        val active = challengeDao.getActiveChallenge()
+        if (active != null) return
+        val latest = challengeDao.getLatestChallenge()
+        val oneDayMs = 24 * 60 * 60 * 1000L
+        if (latest == null || 
+            (latest.status == "PENDING" && System.currentTimeMillis() - latest.createdAt >= oneDayMs) ||
+            ((latest.status == "COMPLETED" || latest.status == "CANCELLED" || latest.status == "DENIED") && System.currentTimeMillis() - (latest.completedAt ?: latest.createdAt) >= oneDayMs)) {
+            val newChallenge = challengeGenerator.generateNewChallenge()
+            challengeDao.insertChallenge(newChallenge)
+        }
+    }
+
+    fun generateNewChallenge() {
+        viewModelScope.launch {
+            val enabled = settingsRepository.challengesEnabled.first()
+            if (!enabled) {
+                settingsRepository.setChallengesEnabled(true)
+            }
+            val newChallenge = challengeGenerator.generateNewChallenge()
+            challengeDao.insertChallenge(newChallenge)
         }
     }
 
@@ -95,8 +124,9 @@ class DashboardViewModel @Inject constructor(
                 sessionsAndType,
                 routineProgressFlow,
                 challengeDao.getLatestChallengeFlow(),
-                trainingPlanDao.getPlanFlow()
-            ) { user, (allSessions, activityType), routineProgress, latestChallenge, plan ->
+                trainingPlanDao.getPlanFlow(),
+                _dismissedChallengeId
+            ) { user, (allSessions, activityType), routineProgress, latestChallenge, plan, dismissedId ->
                 val sessions = allSessions.filter { it.activityType == activityType }
                 val totalDist = sessions.sumOf { it.totalDistanceMeters } / 1000.0
                 val avgDist = if (sessions.isNotEmpty()) totalDist / sessions.size else 0.0
@@ -114,7 +144,7 @@ class DashboardViewModel @Inject constructor(
                     trainingPlan = plan,
                     showNewChallengeDialog = latestChallenge != null &&
                         latestChallenge.status == "PENDING" &&
-                        (System.currentTimeMillis() - latestChallenge.createdAt) < 2 * 60 * 1000L,
+                        latestChallenge.id != dismissedId,
                     isLoading = false,
                     isGeneratingPlan = _uiState.value.isGeneratingPlan
                 )
@@ -142,6 +172,7 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun respondToChallenge(challenge: ChallengeEntity, accepted: Boolean) {
+        _dismissedChallengeId.value = challenge.id
         viewModelScope.launch {
             val status = if (accepted) com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACCEPTED.name else com.fitnessapp.tracker.data.local.entity.ChallengeStatus.DENIED.name
             challengeDao.updateChallenge(challenge.copy(status = status))
@@ -152,6 +183,9 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun dismissNewChallengeDialog() {
+        _uiState.value.latestChallenge?.let {
+            _dismissedChallengeId.value = it.id
+        }
         _uiState.value = _uiState.value.copy(showNewChallengeDialog = false)
     }
 

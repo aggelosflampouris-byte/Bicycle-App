@@ -32,14 +32,7 @@ class ChallengeWorker @AssistedInject constructor(
             return Result.success()
         }
 
-        val isInitialStartup = inputData.getBoolean("IS_INITIAL_STARTUP", false)
         val latest = challengeDao.getLatestChallenge()
-        
-        if (isInitialStartup && latest != null) {
-            // Only generate on initial startup if there are NO challenges at all
-            return Result.success()
-        }
-
         val activeChallenge = challengeDao.getActiveChallenge()
         
         // If there's an ongoing challenge, we don't generate a new one.
@@ -49,12 +42,11 @@ class ChallengeWorker @AssistedInject constructor(
             return Result.success()
         }
         
-        // Check if there is a pending challenge that hasn't been accepted or denied.
-        // We can overwrite it or skip. Let's just generate a new one if it's older than a day.
+        // Check if there is a pending challenge that hasn't been answered yet.
         if (latest != null && latest.status == ChallengeStatus.PENDING.name) {
-            val oneDayMs = 24 * 60 * 60 * 1000
+            val oneDayMs = 24 * 60 * 60 * 1000L
             if (System.currentTimeMillis() - latest.createdAt < oneDayMs) {
-                // There is already a pending challenge generated less than 24h ago
+                // There is already an active pending challenge from today
                 return Result.success()
             }
         }
