@@ -9,6 +9,7 @@ import com.fitnessapp.tracker.theme.*
 fun DeleteConfirmationDialog(
     title: String = "Delete Confirmation",
     message: String = "Are you sure you want to delete this?",
+    confirmButtonText: String = "Delete",
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -31,7 +32,7 @@ fun DeleteConfirmationDialog(
                     contentColor = DeepNavy
                 )
             ) {
-                Text("Delete", fontWeight = FontWeight.Bold)
+                Text(confirmButtonText, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

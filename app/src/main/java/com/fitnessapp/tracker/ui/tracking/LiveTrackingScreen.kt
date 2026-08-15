@@ -38,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.theme.*
+import com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -63,6 +64,7 @@ fun LiveTrackingScreen(
     val lastSavedSessionId by remember(viewModel.trackingState) { viewModel.trackingState.map { it.lastSavedSessionId }.distinctUntilChanged() }.collectAsStateWithLifecycle(null)
 
     var showFinishDialog by remember { mutableStateOf(false) }
+    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
     var lastCompletedLapMessage by remember { mutableStateOf<String?>(null) }
     var lastSeenLap by remember { mutableIntStateOf(1) }
 
@@ -449,13 +451,29 @@ fun LiveTrackingScreen(
                 calories = viewModel.trackingState.value.calories,
                 onResume = { showFinishDialog = false },
                 onDiscard = {
-                    showFinishDialog = false
-                    viewModel.discardTracking(context)
-                    if (onBack != null) onBack() else onTrackingFinished(-1L)
+                    showDiscardConfirmDialog = true
                 },
                 onSaveAndFinish = {
                     showFinishDialog = false
                     viewModel.stopTracking(context)
+                }
+            )
+        }
+
+        // Discard Workout Warning Confirmation Dialog
+        if (showDiscardConfirmDialog) {
+            DeleteConfirmationDialog(
+                title = "Discard Workout?",
+                message = "Are you sure you want to discard this workout session? All recorded data and progress for this workout will be permanently deleted and cannot be recovered.",
+                confirmButtonText = "Discard",
+                onConfirm = {
+                    showDiscardConfirmDialog = false
+                    showFinishDialog = false
+                    viewModel.discardTracking(context)
+                    if (onBack != null) onBack() else onTrackingFinished(-1L)
+                },
+                onDismiss = {
+                    showDiscardConfirmDialog = false
                 }
             )
         }
