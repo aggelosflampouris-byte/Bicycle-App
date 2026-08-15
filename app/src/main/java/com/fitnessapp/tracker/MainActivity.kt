@@ -30,6 +30,7 @@ import android.content.Intent
 import android.app.NotificationManager
 import com.fitnessapp.tracker.data.local.dao.ChallengeDao
 import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
+import com.fitnessapp.tracker.service.IntentActions
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -117,7 +118,7 @@ class MainActivity : ComponentActivity() {
             val user = userDao.getUserFlow().firstOrNull()
             val isTracking = com.fitnessapp.tracker.service.CyclingTrackingService.trackingState.value.isTracking
             val activeChallenge = challengeDao.getActiveChallenge()
-            val isRecommendedWorkout = intent?.action == "ACTION_RECOMMENDED_WORKOUT"
+            val isRecommendedWorkout = intent?.action == IntentActions.RECOMMENDED_WORKOUT
             val recommendedActivity = intent?.getStringExtra("RECOMMENDED_ACTIVITY")
             
             startDestination = when {
@@ -128,9 +129,9 @@ class MainActivity : ComponentActivity() {
                     settingsRepository.setActivityType(recommendedActivity)
                     Screen.Main.route
                 }
-                activeChallenge != null && 
-                (activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACCEPTED.name || 
-                 activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACTIVE.name) -> {
+                activeChallenge != null &&
+                (activeChallenge.status == ChallengeStatus.ACCEPTED ||
+                 activeChallenge.status == ChallengeStatus.ACTIVE) -> {
                     settingsRepository.setActivityType(activeChallenge.activityType)
                     Screen.Main.route
                 }
@@ -139,7 +140,7 @@ class MainActivity : ComponentActivity() {
 
             // Check if there is a pending challenge and show notification
             val latestChallenge = challengeDao.getLatestChallenge()
-            if (latestChallenge != null && latestChallenge.status == "PENDING") {
+            if (latestChallenge != null && latestChallenge.status == ChallengeStatus.PENDING) {
                 com.fitnessapp.tracker.service.NotificationHelper.showNewChallengeNotification(this@MainActivity, latestChallenge.id, latestChallenge)
             }
 
@@ -193,7 +194,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action == "ACTION_ACCEPT_CHALLENGE") {
+        if (intent?.action == IntentActions.ACCEPT_CHALLENGE) {
             val challengeId = intent.getLongExtra("CHALLENGE_ID", -1L)
             val activityType = intent.getStringExtra("ACTIVITY_TYPE") ?: "CYCLING"
             
@@ -205,12 +206,12 @@ class MainActivity : ComponentActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     val challenge = challengeDao.getLatestChallenge()
                     if (challenge != null && challenge.id == challengeId) {
-                        challengeDao.updateChallenge(challenge.copy(status = ChallengeStatus.ACCEPTED.name))
+                        challengeDao.updateChallenge(challenge.copy(status = ChallengeStatus.ACCEPTED))
                     }
                     settingsRepository.setActivityType(activityType)
                 }
             }
-        } else if (intent?.action == "ACTION_RECOMMENDED_WORKOUT") {
+        } else if (intent?.action == IntentActions.RECOMMENDED_WORKOUT) {
             val recommendedActivity = intent.getStringExtra("RECOMMENDED_ACTIVITY") ?: "CYCLING"
             val manager = getSystemService(android.app.NotificationManager::class.java)
             manager.cancel(com.fitnessapp.tracker.service.NotificationHelper.REMINDER_NOTIFICATION_ID)

@@ -7,6 +7,7 @@ import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
 import com.fitnessapp.tracker.data.local.entity.UserEntity
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.data.local.entity.ChallengeEntity
+import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
 import com.fitnessapp.tracker.data.local.entity.TrainingPlanEntity
 import com.fitnessapp.tracker.data.local.dao.ChallengeDao
 import com.fitnessapp.tracker.data.local.dao.TrainingPlanDao
@@ -70,9 +71,10 @@ class DashboardViewModel @Inject constructor(
         if (active != null) return
         val latest = challengeDao.getLatestChallenge()
         val oneDayMs = 24 * 60 * 60 * 1000L
-        if (latest == null || 
-            (latest.status == "PENDING" && System.currentTimeMillis() - latest.createdAt >= oneDayMs) ||
-            ((latest.status == "COMPLETED" || latest.status == "CANCELLED" || latest.status == "DENIED") && System.currentTimeMillis() - (latest.completedAt ?: latest.createdAt) >= oneDayMs)) {
+        if (latest == null ||
+            (latest.status == ChallengeStatus.PENDING && System.currentTimeMillis() - latest.createdAt >= oneDayMs) ||
+            ((latest.status == ChallengeStatus.COMPLETED || latest.status == ChallengeStatus.CANCELLED || latest.status == ChallengeStatus.DENIED) &&
+             System.currentTimeMillis() - (latest.completedAt ?: latest.createdAt) >= oneDayMs)) {
             val newChallenge = challengeGenerator.generateNewChallenge()
             challengeDao.insertChallenge(newChallenge)
         }
@@ -92,9 +94,9 @@ class DashboardViewModel @Inject constructor(
     fun setActivityType(type: String, force: Boolean = false) {
         viewModelScope.launch {
             val activeChallenge = challengeDao.getActiveChallenge()
-            if (!force && activeChallenge != null && 
-                (activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACCEPTED.name || 
-                 activeChallenge.status == com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACTIVE.name) && 
+            if (!force && activeChallenge != null &&
+                (activeChallenge.status == ChallengeStatus.ACCEPTED ||
+                 activeChallenge.status == ChallengeStatus.ACTIVE) &&
                 activeChallenge.activityType != type) {
                 // Block activity change if challenge for another activity is active
                 return@launch
@@ -107,9 +109,7 @@ class DashboardViewModel @Inject constructor(
     fun cancelChallenge(challenge: ChallengeEntity) {
         viewModelScope.launch {
             challengeDao.updateChallenge(
-                challenge.copy(
-                    status = com.fitnessapp.tracker.data.local.entity.ChallengeStatus.CANCELLED.name
-                )
+                challenge.copy(status = ChallengeStatus.CANCELLED)
             )
         }
     }
@@ -171,7 +171,7 @@ class DashboardViewModel @Inject constructor(
                 _dismissedChallengeId
             ) { latestChallenge, completedChallenges, dismissedId ->
                 val showDialog = latestChallenge != null &&
-                    latestChallenge.status == "PENDING" &&
+                    latestChallenge.status == ChallengeStatus.PENDING &&
                     latestChallenge.id != dismissedId
                 ChallengeState(
                     latestChallenge = latestChallenge,
@@ -227,7 +227,7 @@ class DashboardViewModel @Inject constructor(
     fun respondToChallenge(challenge: ChallengeEntity, accepted: Boolean) {
         _dismissedChallengeId.value = challenge.id
         viewModelScope.launch {
-            val status = if (accepted) com.fitnessapp.tracker.data.local.entity.ChallengeStatus.ACCEPTED.name else com.fitnessapp.tracker.data.local.entity.ChallengeStatus.DENIED.name
+            val status = if (accepted) ChallengeStatus.ACCEPTED else ChallengeStatus.DENIED
             challengeDao.updateChallenge(challenge.copy(status = status))
             if (accepted) {
                 setActivityType(challenge.activityType)
@@ -282,7 +282,7 @@ class DashboardViewModel @Inject constructor(
                     trainingPlanDao.insertPlan(newPlan)
                 }
             } catch (e: Exception) {
-                // Do nothing
+                android.util.Log.e("DashboardViewModel", "Error toggling daily plan completion for day: $day", e)
             }
         }
     }

@@ -76,7 +76,7 @@ class WorkoutReminderWorker @AssistedInject constructor(
 
             return Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("WorkoutReminderWorker", "Error executing workout reminder worker", e)
             return Result.failure()
         }
     }

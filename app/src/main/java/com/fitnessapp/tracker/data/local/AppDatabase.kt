@@ -2,6 +2,7 @@ package com.fitnessapp.tracker.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import com.fitnessapp.tracker.data.local.dao.ChatMessageDao
 import com.fitnessapp.tracker.data.local.dao.UserDao
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
@@ -19,17 +20,18 @@ import com.fitnessapp.tracker.data.local.entity.TrainingPlanEntity
 
 @Database(
     entities = [
-        UserEntity::class, 
-        WorkoutSessionEntity::class, 
-        ChatMessageEntity::class, 
-        ChatSessionEntity::class, 
-        RoutineEntity::class, 
+        UserEntity::class,
+        WorkoutSessionEntity::class,
+        ChatMessageEntity::class,
+        ChatSessionEntity::class,
+        RoutineEntity::class,
         ChallengeEntity::class,
         TrainingPlanEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
+@TypeConverters(ChallengeTypeConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
@@ -141,6 +143,17 @@ abstract class AppDatabase : RoomDatabase() {
                 database.execSQL(
                     "CREATE TABLE IF NOT EXISTS `training_plan` (`id` INTEGER NOT NULL, `generatedAtMs` INTEGER NOT NULL, `planJson` TEXT NOT NULL, PRIMARY KEY(`id`))"
                 )
+            }
+        }
+
+        /**
+         * No schema change — enums are stored as their String name, which matches
+         * the existing raw String values already in the database.
+         * Room requires a migration entry whenever the version is bumped.
+         */
+        val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // No DDL changes — TypeConverters handle Kotlin ↔ String mapping transparently.
             }
         }
     }

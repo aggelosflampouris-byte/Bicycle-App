@@ -25,25 +25,32 @@ class ChallengeActionReceiver : BroadcastReceiver() {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.cancel(NotificationHelper.CHALLENGE_NOTIFICATION_ID)
 
+        val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
-            val challenge = challengeDao.getLatestChallenge()
-            if (challenge != null && challenge.id == challengeId) {
-                when (intent.action) {
-                    "ACTION_ACCEPT_CHALLENGE" -> {
-                        challengeDao.updateChallenge(challenge.copy(status = ChallengeStatus.ACCEPTED.name))
-                    }
-                    "ACTION_DENY_CHALLENGE" -> {
-                        challengeDao.updateChallenge(challenge.copy(status = ChallengeStatus.DENIED.name))
-                    }
-                    "ACTION_CANCEL_CHALLENGE" -> {
-                        challengeDao.updateChallenge(challenge.copy(status = ChallengeStatus.CANCELLED.name))
-                        // Also notify the active service to drop it
-                        val stopChallengeIntent = Intent(context, CyclingTrackingService::class.java).apply {
-                            action = "ACTION_CANCEL_CHALLENGE"
+            try {
+                val challenge = challengeDao.getLatestChallenge()
+                if (challenge != null && challenge.id == challengeId) {
+                    when (intent.action) {
+                        IntentActions.ACCEPT_CHALLENGE -> {
+                            challengeDao.updateChallenge(challenge.copy(status = ChallengeStatus.ACCEPTED))
                         }
-                        context.startService(stopChallengeIntent)
+                        IntentActions.DENY_CHALLENGE -> {
+                            challengeDao.updateChallenge(challenge.copy(status = ChallengeStatus.DENIED))
+                        }
+                        IntentActions.CANCEL_CHALLENGE -> {
+                            challengeDao.updateChallenge(challenge.copy(status = ChallengeStatus.CANCELLED))
+                            // Also notify the active service to drop it
+                            val stopChallengeIntent = Intent(context, CyclingTrackingService::class.java).apply {
+                                action = CyclingTrackingService.ACTION_CANCEL_CHALLENGE
+                            }
+                            context.startService(stopChallengeIntent)
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("ChallengeActionReceiver", "Error processing challenge intent", e)
+            } finally {
+                pendingResult.finish()
             }
         }
     }

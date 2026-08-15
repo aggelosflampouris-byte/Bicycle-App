@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AiChatScreen(
     onBack: (() -> Unit)? = null,
-    showBackButton: Boolean = false,
+    showBackButton: Boolean = (onBack != null),
     triggerAnalysis: Boolean = false,
     viewModel: ChatViewModel = hiltViewModel()
 ) {

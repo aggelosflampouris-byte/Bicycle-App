@@ -6,6 +6,8 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
+import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
+import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.google.android.gms.location.*
@@ -60,6 +62,7 @@ class CyclingTrackingService : Service() {
     @Inject lateinit var settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository
     @Inject lateinit var gson: Gson
     @Inject lateinit var firestoreRepository: com.fitnessapp.tracker.data.remote.FirestoreRepository
+    @Inject lateinit var routeCryptoManager: com.fitnessapp.tracker.util.RouteCryptoManager
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
@@ -70,7 +73,6 @@ class CyclingTrackingService : Service() {
 
     // GPS tracking data
     private val routePoints = mutableListOf<RoutePoint>()
-    private val pendingBatchPoints = mutableListOf<RoutePoint>()
     private var lastLocation: RoutePoint? = null
     private var totalDistanceMeters = 0.0
     private var elevationGainMeters = 0.0
@@ -80,6 +82,13 @@ class CyclingTrackingService : Service() {
     private var gender: String = "Male"
     private var age: Int = 30
     private var activityType: String = "CYCLING"
+    
+    private val currentUserProfile: com.fitnessapp.tracker.data.local.entity.UserEntity
+        get() = com.fitnessapp.tracker.data.local.entity.UserEntity(
+            weightKg = weightKg,
+            gender = gender,
+            age = age
+        )
     
     // TTS Voice Coach
     private lateinit var ttsManager: com.fitnessapp.tracker.util.TtsManager
@@ -92,9 +101,6 @@ class CyclingTrackingService : Service() {
     private var consecutiveJumpCount = 0
     private val AUTO_PAUSE_SECONDS = 5
     private val AUTO_PAUSE_DISTANCE_M = 2.0
-
-    // Batch write trigger
-    private val BATCH_SIZE = 50
 
     companion object {
         private const val TAG = "CyclingService"
@@ -243,7 +249,6 @@ class CyclingTrackingService : Service() {
         lastLocation = null
         lastAnnouncedKm = 0
         routePoints.clear()
-        pendingBatchPoints.clear()
         _routePointsFlow.value = emptyList()
 
         _trackingState.value = TrackingState(isTracking = true)
@@ -408,23 +413,18 @@ class CyclingTrackingService : Service() {
             }
             lastLocation = point
             routePoints.add(point)
-            pendingBatchPoints.add(point)
             _routePointsFlow.value = routePoints.toList()
         } else if (last == null) {
             // Initial anchor point
             lastLocation = point
             routePoints.add(point)
-            pendingBatchPoints.add(point)
             _routePointsFlow.value = routePoints.toList()
         }
 
         // Calculate current calories
         val avgSpeed = if (totalDistanceMeters > 0 && elapsedSeconds > 0)
             (totalDistanceMeters / 1000.0) / (elapsedSeconds / 3600.0) else 0.0
-        val mockUser = com.fitnessapp.tracker.data.local.entity.UserEntity(
-            weightKg = weightKg, gender = gender, age = age
-        )
-        val calories = PhysicsEngine.calculateCalories(mockUser, elapsedSeconds, avgSpeed, activityType)
+        val calories = PhysicsEngine.calculateCalories(currentUserProfile, elapsedSeconds, avgSpeed, activityType)
 
         val speedKmh = if (_trackingState.value.isPaused) 0.0 else PhysicsEngine.metersPerSecondToKmh(speedMps)
 
@@ -446,26 +446,6 @@ class CyclingTrackingService : Service() {
             if (isVoiceCoachingEnabled) {
                 val speed = "%.1f".format(avgSpeed)
                 ttsManager.speak("$currentKm kilometers reached. Average speed $speed kilometers per hour.")
-            }
-        }
-
-        // ── Batch DB Write ───────────────────────────────────────────────────
-        if (pendingBatchPoints.size >= BATCH_SIZE) {
-            flushBatchToDB()
-        }
-    }
-
-    private fun flushBatchToDB() {
-        val snapshot = pendingBatchPoints.toList()
-        pendingBatchPoints.clear()
-        // Write to DB off main thread — fire and forget with structured scope
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                // Update the most recent session's route points
-                // (We'll save the full session on stop)
-                Log.d(TAG, "Flushed ${snapshot.size} GPS points (total: ${routePoints.size})")
-            } catch (e: Exception) {
-                Log.e(TAG, "DB flush error: ${e.message}")
             }
         }
     }
@@ -494,30 +474,27 @@ class CyclingTrackingService : Service() {
                 val avgSpeed = if (totalDistanceMeters > 0 && elapsedSeconds > 0)
                     (totalDistanceMeters / 1000.0) / (elapsedSeconds / 3600.0) else 0.0
 
-                val mockUser = com.fitnessapp.tracker.data.local.entity.UserEntity(
-                    weightKg = weightKg, gender = gender, age = age
-                )
-                val calories = PhysicsEngine.calculateCalories(mockUser, elapsedSeconds, avgSpeed, activityType)
-                val wattsPerKg = PhysicsEngine.calculateWattsPerKg(avgSpeed, mockUser)
+                val profile = currentUserProfile
+                val calories = PhysicsEngine.calculateCalories(profile, elapsedSeconds, avgSpeed, activityType)
+                val wattsPerKg = PhysicsEngine.calculateWattsPerKg(avgSpeed, profile)
                 val routeJson = gson.toJson(routePoints)
                 
                 var isChallengeCompletion = false
                 val activeChallenge = _trackingState.value.activeChallenge
                 if (activeChallenge != null && activeChallenge.activityType == activityType) {
                     val progressVal = when (activeChallenge.metric) {
-                        "DISTANCE" -> totalDistanceMeters
-                        "SPEED" -> avgSpeed
-                        "CALORIES" -> calories
-                        else -> 0.0
+                        ChallengeMetric.DISTANCE -> totalDistanceMeters
+                        ChallengeMetric.SPEED    -> avgSpeed
+                        ChallengeMetric.CALORIES -> calories
                     }
                     
-                    val newProgress = if (activeChallenge.metric == "SPEED") progressVal else activeChallenge.currentProgress + progressVal
+                    val newProgress = if (activeChallenge.metric == ChallengeMetric.SPEED) progressVal else activeChallenge.currentProgress + progressVal
                     
                     if (newProgress >= activeChallenge.targetValue) {
                         isChallengeCompletion = true
                         val updatedChallenge = activeChallenge.copy(
                             currentProgress = newProgress,
-                            status = "COMPLETED",
+                            status = ChallengeStatus.COMPLETED,
                             completedAt = System.currentTimeMillis()
                         )
                         challengeDao.updateChallenge(updatedChallenge)
@@ -530,6 +507,7 @@ class CyclingTrackingService : Service() {
                     }
                 }
 
+                val encryptedRouteJson = routeCryptoManager.encryptRoute(routeJson)
                 val session = WorkoutSessionEntity(
                     startTime = startTimeMs,
                     endTime = System.currentTimeMillis(),
@@ -539,7 +517,7 @@ class CyclingTrackingService : Service() {
                     avgSpeedKmh = avgSpeed,
                     caloriesBurned = calories,
                     wattsPerKg = wattsPerKg,
-                    routePointsJson = routeJson,
+                    routePointsJson = encryptedRouteJson,
                     activityType = activityType,
                     isChallengeCompletion = isChallengeCompletion
                 )
@@ -555,10 +533,10 @@ class CyclingTrackingService : Service() {
                     reminderRequest
                 )
 
-                // Sync to cloud (fire-and-forget so it doesn't block UI navigation)
-                val updatedSession = session.copy(id = savedId)
-                CoroutineScope(Dispatchers.IO).launch {
-                    firestoreRepository.syncWorkoutSession(updatedSession)
+                // Sync to cloud — strip GPS route for privacy (route stays in local Room DB)
+                val cloudSession = session.copy(id = savedId, routePointsJson = "[]")
+                serviceScope.launch(Dispatchers.IO) {
+                    firestoreRepository.syncWorkoutSession(cloudSession)
                 }
                 
                 Log.d(TAG, "Session saved with id: $savedId")

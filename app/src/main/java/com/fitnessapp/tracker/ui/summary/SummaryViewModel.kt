@@ -24,6 +24,7 @@ data class SummaryUiState(
 class SummaryViewModel @Inject constructor(
     private val sessionDao: WorkoutSessionDao,
     private val userDao: UserDao,
+    private val routeCryptoManager: com.fitnessapp.tracker.util.RouteCryptoManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -39,11 +40,14 @@ class SummaryViewModel @Inject constructor(
     private fun loadSession() {
         viewModelScope.launch {
             val user = userDao.getUser() ?: UserEntity()
-            val session = if (sessionId > 0) {
+            val rawSession = if (sessionId > 0) {
                 sessionDao.getSessionById(sessionId)
             } else {
                 // Load most recent session (after a workout completes)
                 sessionDao.getRecentSessions(1).firstOrNull()
+            }
+            val session = rawSession?.let {
+                it.copy(routePointsJson = routeCryptoManager.decryptRoute(it.routePointsJson))
             }
             _uiState.value = SummaryUiState(
                 session = session,

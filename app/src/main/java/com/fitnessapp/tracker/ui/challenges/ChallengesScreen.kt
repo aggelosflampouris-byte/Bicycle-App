@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
+import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
+import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.dashboard.DashboardViewModel
@@ -69,7 +71,7 @@ fun ChallengesScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                if (challenge == null || challenge.status == "COMPLETED" || challenge.status == "CANCELLED" || challenge.status == "DENIED") {
+                if (challenge == null || challenge.status == ChallengeStatus.COMPLETED || challenge.status == ChallengeStatus.CANCELLED || challenge.status == ChallengeStatus.DENIED) {
                     // Compute a live countdown to the next noon
                     var nextChallengeCountdown by remember { mutableStateOf("") }
                     LaunchedEffect(Unit) {
@@ -110,16 +112,16 @@ fun ChallengesScreen(
                                 Icon(
                                     imageVector = Icons.Default.EmojiEvents,
                                     contentDescription = null,
-                                    tint = if (challenge?.status == "COMPLETED") Color(0xFFFFD700) else TextSecondary,
+                                    tint = if (challenge?.status == ChallengeStatus.COMPLETED) Color(0xFFFFD700) else TextSecondary,
                                     modifier = Modifier.size(28.dp)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
                                         text = when (challenge?.status) {
-                                            "COMPLETED" -> "Challenge Completed! 🏆"
-                                            "DENIED" -> "Challenge Denied"
-                                            "CANCELLED" -> "Challenge Cancelled"
+                                            ChallengeStatus.COMPLETED -> "Challenge Completed! 🏆"
+                                            ChallengeStatus.DENIED -> "Challenge Denied"
+                                            ChallengeStatus.CANCELLED -> "Challenge Cancelled"
                                             else -> "Daily Challenges"
                                         },
                                         style = MaterialTheme.typography.titleMedium,
@@ -265,24 +267,22 @@ fun ChallengeCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "${challenge.period.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }} Challenge",
+                    text = "${challenge.period.name.lowercase().replaceFirstChar { it.uppercase() }} Challenge",
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
-            val targetStr = when(challenge.metric) {
-                "DISTANCE" -> PhysicsEngine.formatDistance(challenge.targetValue)
-                "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
-                "CALORIES" -> "${"%.0f".format(challenge.targetValue)} kcal"
-                else -> challenge.targetValue.toString()
+            val targetStr = when (challenge.metric) {
+                ChallengeMetric.DISTANCE -> PhysicsEngine.formatDistance(challenge.targetValue)
+                ChallengeMetric.SPEED    -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
+                ChallengeMetric.CALORIES -> "${"%.0f".format(challenge.targetValue)} kcal"
             }
-            val progressStr = when(challenge.metric) {
-                "DISTANCE" -> PhysicsEngine.formatDistance(challenge.currentProgress)
-                "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.currentProgress)} km/h"
-                "CALORIES" -> "${"%.0f".format(challenge.currentProgress)} kcal"
-                else -> challenge.currentProgress.toString()
+            val progressStr = when (challenge.metric) {
+                ChallengeMetric.DISTANCE -> PhysicsEngine.formatDistance(challenge.currentProgress)
+                ChallengeMetric.SPEED    -> "${PhysicsEngine.formatSpeed(challenge.currentProgress)} km/h"
+                ChallengeMetric.CALORIES -> "${"%.0f".format(challenge.currentProgress)} kcal"
             }
             Text(
                 text = "${challenge.activityType.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }}: $targetStr",
@@ -290,7 +290,7 @@ fun ChallengeCard(
                 color = ElectricGreen
             )
             
-            if (challenge.status == "PENDING") {
+            if (challenge.status == ChallengeStatus.PENDING) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -307,7 +307,7 @@ fun ChallengeCard(
                         Text("Accept", fontWeight = FontWeight.Bold)
                     }
                 }
-            } else if (challenge.status == "ACTIVE" || challenge.status == "ACCEPTED") {
+            } else if (challenge.status == ChallengeStatus.ACTIVE || challenge.status == ChallengeStatus.ACCEPTED) {
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
                     progress = { (challenge.currentProgress / challenge.targetValue).toFloat().coerceIn(0f, 1f) },
@@ -346,20 +346,18 @@ fun CompletedChallengeCard(challenge: com.fitnessapp.tracker.data.local.entity.C
     val date = dateFormat.format(Date(challenge.completedAt ?: challenge.createdAt))
 
     val targetStr = when (challenge.metric) {
-        "DISTANCE" -> PhysicsEngine.formatDistance(challenge.targetValue)
-        "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
-        "CALORIES" -> "${"%.0f".format(challenge.targetValue)} kcal"
-        else -> challenge.targetValue.toString()
+        ChallengeMetric.DISTANCE -> PhysicsEngine.formatDistance(challenge.targetValue)
+        ChallengeMetric.SPEED    -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
+        ChallengeMetric.CALORIES -> "${"%.0f".format(challenge.targetValue)} kcal"
     }
     val progressStr = when (challenge.metric) {
-        "DISTANCE" -> PhysicsEngine.formatDistance(challenge.currentProgress)
-        "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.currentProgress)} km/h"
-        "CALORIES" -> "${"%.0f".format(challenge.currentProgress)} kcal"
-        else -> challenge.currentProgress.toString()
+        ChallengeMetric.DISTANCE -> PhysicsEngine.formatDistance(challenge.currentProgress)
+        ChallengeMetric.SPEED    -> "${PhysicsEngine.formatSpeed(challenge.currentProgress)} km/h"
+        ChallengeMetric.CALORIES -> "${"%.0f".format(challenge.currentProgress)} kcal"
     }
 
-    val periodStr = challenge.period.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-    val activityStr = challenge.activityType.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    val periodStr = challenge.period.name.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    val activityStr = challenge.activityType.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),

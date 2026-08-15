@@ -36,14 +36,14 @@ class ChallengeWorker @AssistedInject constructor(
         val activeChallenge = challengeDao.getActiveChallenge()
         
         // If there's an ongoing challenge, we don't generate a new one.
-        if (activeChallenge != null && 
-            (activeChallenge.status == ChallengeStatus.ACCEPTED.name || 
-             activeChallenge.status == ChallengeStatus.ACTIVE.name)) {
+        if (activeChallenge != null &&
+            (activeChallenge.status == ChallengeStatus.ACCEPTED ||
+             activeChallenge.status == ChallengeStatus.ACTIVE)) {
             return Result.success()
         }
         
         // Check if there is a pending challenge that hasn't been answered yet.
-        if (latest != null && latest.status == ChallengeStatus.PENDING.name) {
+        if (latest != null && latest.status == ChallengeStatus.PENDING) {
             val oneDayMs = 24 * 60 * 60 * 1000L
             if (System.currentTimeMillis() - latest.createdAt < oneDayMs) {
                 // There is already an active pending challenge from today

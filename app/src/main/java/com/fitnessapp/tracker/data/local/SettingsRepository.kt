@@ -22,7 +22,6 @@ class SettingsRepository @Inject constructor(
 ) {
     companion object {
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
-        private val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
         private val ACTIVITY_TYPE_KEY = stringPreferencesKey("activity_type")
         private val CHALLENGES_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("challenges_enabled")
         private val VOICE_COACHING_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("voice_coaching_enabled")
@@ -34,10 +33,6 @@ class SettingsRepository @Inject constructor(
             "SYSTEM" -> ThemeMode.SYSTEM
             else -> ThemeMode.DARK
         }
-    }
-
-    val geminiApiKey: Flow<String> = context.settingsDataStore.data.map { prefs ->
-        prefs[GEMINI_API_KEY] ?: ""
     }
 
     val activityType: Flow<String> = context.settingsDataStore.data.map { prefs ->
@@ -55,12 +50,6 @@ class SettingsRepository @Inject constructor(
     suspend fun setThemeMode(mode: ThemeMode) {
         context.settingsDataStore.edit { prefs ->
             prefs[THEME_MODE_KEY] = mode.name
-        }
-    }
-
-    suspend fun setGeminiApiKey(key: String) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[GEMINI_API_KEY] = key.trim()
         }
     }
 

@@ -25,6 +25,9 @@ object NotificationHelper {
     const val REMINDER_CHANNEL_ID = "workout_reminder_channel"
     const val REMINDER_NOTIFICATION_ID = 4004
 
+    const val ROUTINE_CHANNEL_ID = "routine_reminder_channel"
+    const val ROUTINE_NOTIFICATION_ID = 5005
+
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val trackingChannel = NotificationChannel(
@@ -60,11 +63,20 @@ object NotificationHelper {
                 description = "Reminders to stay active and workout"
             }
             
+            val routineChannel = NotificationChannel(
+                ROUTINE_CHANNEL_ID,
+                "Routine Reminders",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Reminders for routine goals and streaks"
+            }
+            
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(trackingChannel)
             manager.createNotificationChannel(updateChannel)
             manager.createNotificationChannel(challengeChannel)
             manager.createNotificationChannel(reminderChannel)
+            manager.createNotificationChannel(routineChannel)
         }
     }
 
@@ -143,7 +155,7 @@ object NotificationHelper {
         )
         if (activeChallenge != null) {
             val cancelIntent = Intent(context, ChallengeActionReceiver::class.java).apply {
-                action = "ACTION_CANCEL_CHALLENGE"
+                action = IntentActions.CANCEL_CHALLENGE
                 putExtra("CHALLENGE_ID", activeChallenge.id)
             }
             val cancelPendingIntent = PendingIntent.getBroadcast(
@@ -192,7 +204,7 @@ object NotificationHelper {
         createNotificationChannel(context)
 
         val acceptIntent = Intent(context, MainActivity::class.java).apply {
-            action = "ACTION_ACCEPT_CHALLENGE"
+            action = IntentActions.ACCEPT_CHALLENGE
             putExtra("CHALLENGE_ID", id)
             putExtra("ACTIVITY_TYPE", challenge.activityType)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -203,7 +215,7 @@ object NotificationHelper {
         )
 
         val denyIntent = Intent(context, ChallengeActionReceiver::class.java).apply {
-            action = "ACTION_DENY_CHALLENGE"
+            action = IntentActions.DENY_CHALLENGE
             putExtra("CHALLENGE_ID", id)
         }
         val denyPendingIntent = PendingIntent.getBroadcast(
@@ -211,7 +223,7 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val text = "Your new ${challenge.period.lowercase()} challenge is ready: ${challenge.activityType} - ${challenge.metric} = ${challenge.targetValue}!"
+        val text = "Your new ${challenge.period.name.lowercase()} challenge is ready: ${challenge.activityType} - ${challenge.metric.name} = ${challenge.targetValue}!"
 
         val notification = NotificationCompat.Builder(context, CHALLENGE_CHANNEL_ID)
             .setContentTitle("🏅 New Challenge!")
@@ -224,7 +236,32 @@ object NotificationHelper {
             .build()
 
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.notify(CHALLENGE_NOTIFICATION_ID, notification)
+        manager.notify(CHALLENGE_NOTIFICATION_ID + 100, notification)
+    }
+
+    fun showRoutineReminderNotification(context: Context, title: String, message: String) {
+        createNotificationChannel(context)
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 5, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, ROUTINE_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.notify(ROUTINE_NOTIFICATION_ID, notification)
     }
 
     fun showWorkoutReminderNotification(
@@ -236,7 +273,7 @@ object NotificationHelper {
         createNotificationChannel(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
-            action = "ACTION_RECOMMENDED_WORKOUT"
+            action = IntentActions.RECOMMENDED_WORKOUT
             putExtra("RECOMMENDED_ACTIVITY", recommendedActivity)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -268,7 +305,7 @@ object NotificationHelper {
         createNotificationChannel(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
-            action = "ACTION_VIEW_CHALLENGES"
+            action = IntentActions.VIEW_CHALLENGES
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
@@ -277,13 +314,12 @@ object NotificationHelper {
         )
 
         val targetStr = when (challenge.metric) {
-            "DISTANCE" -> PhysicsEngine.formatDistance(challenge.targetValue)
-            "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
-            "CALORIES" -> "${"%.0f".format(challenge.targetValue)} kcal"
-            else -> challenge.targetValue.toString()
+            com.fitnessapp.tracker.data.local.entity.ChallengeMetric.DISTANCE -> PhysicsEngine.formatDistance(challenge.targetValue)
+            com.fitnessapp.tracker.data.local.entity.ChallengeMetric.SPEED    -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
+            com.fitnessapp.tracker.data.local.entity.ChallengeMetric.CALORIES -> "${"%.0f".format(challenge.targetValue)} kcal"
         }
 
-        val periodStr = challenge.period.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+        val periodStr = challenge.period.name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
         val activityStr = challenge.activityType.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
 
         val title = "🏆 Challenge Completed!"

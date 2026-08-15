@@ -29,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.service.CyclingTrackingService
+import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.chat.AiChatScreen
 import com.fitnessapp.tracker.ui.dashboard.DashboardScreen
@@ -245,13 +246,12 @@ fun MainScreen(
                     },
                     text = {
                         val metricLabel = when (pendingChallenge.metric) {
-                            "DISTANCE" -> PhysicsEngine.formatDistance(pendingChallenge.targetValue)
-                            "SPEED"    -> "${PhysicsEngine.formatSpeed(pendingChallenge.targetValue)} km/h"
-                            "CALORIES" -> "${"%.0f".format(pendingChallenge.targetValue)} kcal"
-                            else       -> pendingChallenge.targetValue.toString()
+                            ChallengeMetric.DISTANCE -> PhysicsEngine.formatDistance(pendingChallenge.targetValue)
+                            ChallengeMetric.SPEED    -> "${PhysicsEngine.formatSpeed(pendingChallenge.targetValue)} km/h"
+                            ChallengeMetric.CALORIES -> "${"%.0f".format(pendingChallenge.targetValue)} kcal"
                         }
                         Text(
-                            "A new ${pendingChallenge.period.lowercase()} " +
+                            "A new ${pendingChallenge.period.name.lowercase()} " +
                             "${pendingChallenge.activityType.lowercase()} challenge has arrived!\n\n" +
                             "Goal: $metricLabel",
                             style = MaterialTheme.typography.bodyMedium

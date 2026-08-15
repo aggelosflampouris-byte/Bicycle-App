@@ -37,6 +37,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 import com.fitnessapp.tracker.service.CyclingTrackingService
+import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
+import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
 import android.widget.Toast
 
 @Composable
@@ -111,8 +113,8 @@ fun DashboardScreen(
                     activityType = activityType,
                     onSwitchActivity = {
                         val activeChallenge = uiState.latestChallenge
-                        val isChallengeActive = activeChallenge != null && 
-                            (activeChallenge.status == "ACCEPTED" || activeChallenge.status == "ACTIVE")
+                        val isChallengeActive = activeChallenge != null &&
+                            (activeChallenge.status == ChallengeStatus.ACCEPTED || activeChallenge.status == ChallengeStatus.ACTIVE)
 
                         if (isTracking) {
                             Toast.makeText(context, "Cannot switch activity while a workout is in progress.", Toast.LENGTH_SHORT).show()
@@ -155,7 +157,7 @@ fun DashboardScreen(
                     enter = fadeIn() + slideInVertically()
                 ) {
                     val challenge = uiState.latestChallenge
-                    if (challenge != null && (challenge.status == "PENDING" || challenge.status == "ACCEPTED" || challenge.status == "ACTIVE")) {
+                    if (challenge != null && (challenge.status == ChallengeStatus.PENDING || challenge.status == ChallengeStatus.ACCEPTED || challenge.status == ChallengeStatus.ACTIVE)) {
                         ChallengeCard(
                             challenge = challenge,
                             onAccept = { viewModel.respondToChallenge(challenge, true) },
@@ -813,7 +815,7 @@ fun ChallengeCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "${challenge.period.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }} Challenge",
+                    text = "${challenge.period.name.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }} Challenge",
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -821,24 +823,22 @@ fun ChallengeCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             val targetStr = when(challenge.metric) {
-                "DISTANCE" -> PhysicsEngine.formatDistance(challenge.targetValue)
-                "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
-                "CALORIES" -> "${"%.0f".format(challenge.targetValue)} kcal"
-                else -> challenge.targetValue.toString()
+                ChallengeMetric.DISTANCE -> PhysicsEngine.formatDistance(challenge.targetValue)
+                ChallengeMetric.SPEED    -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
+                ChallengeMetric.CALORIES -> "${"%.0f".format(challenge.targetValue)} kcal"
             }
             val progressStr = when(challenge.metric) {
-                "DISTANCE" -> PhysicsEngine.formatDistance(challenge.currentProgress)
-                "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.currentProgress)} km/h"
-                "CALORIES" -> "${"%.0f".format(challenge.currentProgress)} kcal"
-                else -> challenge.currentProgress.toString()
+                ChallengeMetric.DISTANCE -> PhysicsEngine.formatDistance(challenge.currentProgress)
+                ChallengeMetric.SPEED    -> "${PhysicsEngine.formatSpeed(challenge.currentProgress)} km/h"
+                ChallengeMetric.CALORIES -> "${"%.0f".format(challenge.currentProgress)} kcal"
             }
             Text(
-                text = "${challenge.activityType.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }}: $targetStr",
+                text = "${challenge.activityType.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }}: $targetStr",
                 style = MaterialTheme.typography.bodyLarge,
                 color = ElectricGreen
             )
             
-            if (challenge.status == "PENDING") {
+            if (challenge.status == ChallengeStatus.PENDING) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -855,7 +855,7 @@ fun ChallengeCard(
                         Text("Accept", fontWeight = FontWeight.Bold)
                     }
                 }
-            } else if (challenge.status == "ACTIVE" || challenge.status == "ACCEPTED") {
+            } else if (challenge.status == ChallengeStatus.ACTIVE || challenge.status == ChallengeStatus.ACCEPTED) {
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
                     progress = { (challenge.currentProgress / challenge.targetValue).toFloat().coerceIn(0f, 1f) },
