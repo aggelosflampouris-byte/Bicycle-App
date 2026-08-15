@@ -34,7 +34,8 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun AiChatScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
+    showBackButton: Boolean = false,
     triggerAnalysis: Boolean = false,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
@@ -148,8 +149,9 @@ fun AiChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(DeepNavy)
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .then(
+                    if (showBackButton) Modifier.statusBarsPadding().navigationBarsPadding() else Modifier
+                )
                 .imePadding()
         ) {
         var showClearChatDialog by remember { mutableStateOf(false) }
@@ -168,6 +170,7 @@ fun AiChatScreen(
 
             // App bar
             ChatAppBar(
+                showBackButton = showBackButton,
                 onBack = onBack, 
                 onMenuClick = { scope.launch { drawerState.open() } },
                 onClear = { showClearChatDialog = true }
@@ -228,7 +231,8 @@ fun AiChatScreen(
 
 @Composable
 private fun ChatAppBar(
-    onBack: () -> Unit,
+    showBackButton: Boolean,
+    onBack: (() -> Unit)?,
     onMenuClick: () -> Unit,
     onClear: () -> Unit
 ) {
@@ -236,22 +240,31 @@ private fun ChatAppBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(NavyMedium)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onMenuClick) {
-            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextPrimary)
+        if (showBackButton && onBack != null) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+            }
+        } else {
+            IconButton(onClick = onMenuClick) {
+                Icon(Icons.Default.Menu, contentDescription = "Chat History", tint = TextPrimary)
+            }
         }
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
-        }
+        Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = "AI Coach",
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             color = TextPrimary,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f)
         )
+        if (showBackButton) {
+            IconButton(onClick = onMenuClick) {
+                Icon(Icons.Default.History, contentDescription = "Chat History", tint = TextPrimary)
+            }
+        }
         IconButton(onClick = onClear) {
             Icon(Icons.Default.DeleteSweep, contentDescription = "Clear chat", tint = SpeedRed)
         }

@@ -158,6 +158,7 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .statusBarsPadding()
         ) {
             AnimatedContent(
                 targetState = currentTab,
@@ -184,9 +185,7 @@ fun MainScreen(
                         }
                     MainTab.AI_COACH -> {
                         AiChatScreen(
-                            onBack = {
-                                currentTab = MainTab.DASHBOARD
-                            }
+                            showBackButton = false
                         )
                     }
                     MainTab.HISTORY -> {

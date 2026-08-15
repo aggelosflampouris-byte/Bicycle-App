@@ -225,7 +225,7 @@ fun DashboardScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(80.dp)) }
+            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
 
         if (showRoutineConfig) {
@@ -253,9 +253,7 @@ private fun DashboardHeader(
     onSettingsClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
