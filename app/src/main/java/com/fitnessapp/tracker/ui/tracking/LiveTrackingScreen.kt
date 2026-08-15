@@ -57,9 +57,24 @@ fun LiveTrackingScreen(
     val context = LocalContext.current
     val isTracking by remember(viewModel.trackingState) { viewModel.trackingState.map { it.isTracking }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
     val isPaused by remember(viewModel.trackingState) { viewModel.trackingState.map { it.isPaused }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+    val currentLap by remember(viewModel.trackingState) { viewModel.trackingState.map { it.currentLap }.distinctUntilChanged() }.collectAsStateWithLifecycle(1)
     val lastSavedSessionId by remember(viewModel.trackingState) { viewModel.trackingState.map { it.lastSavedSessionId }.distinctUntilChanged() }.collectAsStateWithLifecycle(null)
 
     var showFinishDialog by remember { mutableStateOf(false) }
+    var lastCompletedLapMessage by remember { mutableStateOf<String?>(null) }
+    var lastSeenLap by remember { mutableIntStateOf(1) }
+
+    LaunchedEffect(currentLap) {
+        if (currentLap > lastSeenLap) {
+            val completedLap = currentLap - 1
+            lastCompletedLapMessage = "🏁 Lap $completedLap Completed! Starting Lap $currentLap"
+            lastSeenLap = currentLap
+            delay(3500L)
+            lastCompletedLapMessage = null
+        } else {
+            lastSeenLap = currentLap
+        }
+    }
 
     // Check location permission state
     var hasLocationPermission by remember {
@@ -332,6 +347,43 @@ fun LiveTrackingScreen(
                     onMapReady = { mapViewRef = it }
                 )
 
+                // Lap completion banner overlay
+                AnimatedVisibility(
+                    visible = lastCompletedLapMessage != null,
+                    enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                    exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 12.dp)
+                        .zIndex(20f)
+                ) {
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = VividCyan),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        border = BorderStroke(1.dp, DeepNavy)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Flag,
+                                contentDescription = null,
+                                tint = DeepNavy,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = lastCompletedLapMessage ?: "",
+                                color = DeepNavy,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
+
                 // Auto-pause overlay
                 if (isPaused) {
                     Card(
@@ -368,8 +420,17 @@ fun LiveTrackingScreen(
             // Bottom Action Control Bar
             TrackingControlBar(
                 isPaused = isPaused,
+                currentLap = currentLap,
                 onTogglePause = { viewModel.togglePause(context) },
-                onLapClick = { viewModel.markLap(context) },
+                onLapClick = {
+                    val completedLap = currentLap
+                    viewModel.markLap(context)
+                    Toast.makeText(
+                        context,
+                        "Lap $completedLap completed! Starting Lap ${completedLap + 1}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                },
                 onFinishClick = { showFinishDialog = true }
             )
         }
@@ -399,6 +460,7 @@ fun LiveTrackingScreen(
 @Composable
 private fun TrackingControlBar(
     isPaused: Boolean,
+    currentLap: Int = 1,
     onTogglePause: () -> Unit,
     onLapClick: () -> Unit,
     onFinishClick: () -> Unit
@@ -458,7 +520,7 @@ private fun TrackingControlBar(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "LAP",
+                text = "LAP $currentLap",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.ExtraBold
             )

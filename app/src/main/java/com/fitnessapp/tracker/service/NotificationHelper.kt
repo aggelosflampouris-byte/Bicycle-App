@@ -74,7 +74,8 @@ object NotificationHelper {
         distanceMeters: Double,
         durationSeconds: Long,
         isPaused: Boolean,
-        activeChallenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity? = null
+        activeChallenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity? = null,
+        currentLap: Int = 1
     ): Notification {
         val intent = Intent(
             Intent.ACTION_VIEW,
@@ -155,7 +156,7 @@ object NotificationHelper {
             builder.addAction(android.R.drawable.ic_menu_save, context.getString(R.string.action_finish), finishPendingIntent)
         } else {
             if (!isPaused) {
-                builder.addAction(android.R.drawable.ic_menu_add, context.getString(R.string.action_lap), lapPendingIntent)
+                builder.addAction(android.R.drawable.ic_menu_add, "Lap $currentLap", lapPendingIntent)
             }
             builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, context.getString(R.string.action_finish), finishPendingIntent)
         }

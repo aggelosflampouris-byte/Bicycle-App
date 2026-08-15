@@ -160,9 +160,22 @@ class CyclingTrackingService : Service() {
             ACTION_RESUME -> setPaused(false)
             ACTION_TOGGLE_PAUSE -> setPaused(!_trackingState.value.isPaused)
             ACTION_LAP -> {
+                val nextLap = _trackingState.value.currentLap + 1
                 _trackingState.value = _trackingState.value.copy(
-                    currentLap = _trackingState.value.currentLap + 1
+                    currentLap = nextLap
                 )
+                // Force notification update
+                val notif = NotificationHelper.buildTrackingNotification(
+                    this,
+                    _trackingState.value.speedKmh,
+                    totalDistanceMeters,
+                    elapsedSeconds,
+                    _trackingState.value.isPaused,
+                    _trackingState.value.activeChallenge,
+                    nextLap
+                )
+                val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+                manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
             }
             ACTION_CANCEL_CHALLENGE -> {
                 _trackingState.value = _trackingState.value.copy(activeChallenge = null)
@@ -173,7 +186,8 @@ class CyclingTrackingService : Service() {
                     totalDistanceMeters,
                     elapsedSeconds,
                     _trackingState.value.isPaused,
-                    null
+                    null,
+                    _trackingState.value.currentLap
                 )
                 val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
                 manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
@@ -241,7 +255,7 @@ class CyclingTrackingService : Service() {
             _trackingState.value = _trackingState.value.copy(activeChallenge = challenge)
         }
 
-        val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L, false, null)
+        val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L, false, null, 1)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NotificationHelper.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
@@ -264,7 +278,8 @@ class CyclingTrackingService : Service() {
                     totalDistanceMeters,
                     elapsedSeconds,
                     _trackingState.value.isPaused,
-                    _trackingState.value.activeChallenge
+                    _trackingState.value.activeChallenge,
+                    _trackingState.value.currentLap
                 )
                 val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
                 manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
