@@ -29,6 +29,7 @@ data class DashboardUiState(
     val totalCalories: Double = 0.0,
     val routineProgress: RoutineProgress? = null,
     val latestChallenge: ChallengeEntity? = null,
+    val completedChallenges: List<ChallengeEntity> = emptyList(),
     val trainingPlan: TrainingPlanEntity? = null,
     val showNewChallengeDialog: Boolean = false,
     val isLoading: Boolean = true,
@@ -115,7 +116,13 @@ class DashboardViewModel @Inject constructor(
     
     fun saveRoutine(interval: String, metric: String, targetValue: Double, autoImprove: Boolean) {
         viewModelScope.launch {
-            routineRepository.saveRoutine(_activityType.value, interval, metric, targetValue, autoImprove)
+            routineRepository.saveRoutine(
+                activityType = _activityType.value,
+                interval = interval,
+                metric = metric,
+                targetValue = targetValue,
+                autoImprove = autoImprove
+            )
         }
     }
     
@@ -134,6 +141,7 @@ class DashboardViewModel @Inject constructor(
 
     private data class ChallengeState(
         val latestChallenge: ChallengeEntity?,
+        val completedChallenges: List<ChallengeEntity>,
         val showNewChallengeDialog: Boolean
     )
 
@@ -159,13 +167,15 @@ class DashboardViewModel @Inject constructor(
             }
             val challengeStateFlow = combine(
                 challengeDao.getLatestChallengeFlow(),
+                challengeDao.getCompletedChallengesFlow(),
                 _dismissedChallengeId
-            ) { latestChallenge, dismissedId ->
+            ) { latestChallenge, completedChallenges, dismissedId ->
                 val showDialog = latestChallenge != null &&
                     latestChallenge.status == "PENDING" &&
                     latestChallenge.id != dismissedId
                 ChallengeState(
                     latestChallenge = latestChallenge,
+                    completedChallenges = completedChallenges,
                     showNewChallengeDialog = showDialog
                 )
             }
@@ -185,6 +195,7 @@ class DashboardViewModel @Inject constructor(
                     totalCalories = sessionStats.totalCalories,
                     routineProgress = routineProgress,
                     latestChallenge = challengeState.latestChallenge,
+                    completedChallenges = challengeState.completedChallenges,
                     trainingPlan = plan,
                     showNewChallengeDialog = challengeState.showNewChallengeDialog,
                     isLoading = false,

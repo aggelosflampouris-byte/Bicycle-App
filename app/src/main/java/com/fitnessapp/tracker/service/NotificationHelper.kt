@@ -257,4 +257,49 @@ object NotificationHelper {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.notify(REMINDER_NOTIFICATION_ID, notification)
     }
+
+    const val CHALLENGE_COMPLETED_NOTIFICATION_ID = 3005
+
+    fun showChallengeCompletedNotification(
+        context: Context,
+        challenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity
+    ) {
+        createNotificationChannel(context)
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = "ACTION_VIEW_CHALLENGES"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 3, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val targetStr = when (challenge.metric) {
+            "DISTANCE" -> PhysicsEngine.formatDistance(challenge.targetValue)
+            "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
+            "CALORIES" -> "${"%.0f".format(challenge.targetValue)} kcal"
+            else -> challenge.targetValue.toString()
+        }
+
+        val periodStr = challenge.period.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+        val activityStr = challenge.activityType.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+
+        val title = "🏆 Challenge Completed!"
+        val message = "Congratulations! You crushed your $periodStr $activityStr challenge: $targetStr!"
+
+        val notification = NotificationCompat.Builder(context, CHALLENGE_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .build()
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.notify(CHALLENGE_COMPLETED_NOTIFICATION_ID, notification)
+    }
 }

@@ -21,6 +21,12 @@ interface ChallengeDao {
     @Query("SELECT * FROM challenges WHERE status IN ('ACCEPTED', 'ACTIVE') ORDER BY id DESC LIMIT 1")
     suspend fun getActiveChallenge(): ChallengeEntity?
 
+    @Query("SELECT * FROM challenges WHERE status = 'COMPLETED' ORDER BY completedAt DESC, id DESC")
+    fun getCompletedChallengesFlow(): Flow<List<ChallengeEntity>>
+
+    @Query("SELECT * FROM challenges WHERE status = 'COMPLETED' ORDER BY completedAt DESC, id DESC")
+    suspend fun getCompletedChallenges(): List<ChallengeEntity>
+
     @Query("DELETE FROM challenges")
     suspend fun deleteAll()
 

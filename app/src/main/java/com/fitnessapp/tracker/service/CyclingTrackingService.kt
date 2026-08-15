@@ -506,6 +506,7 @@ class CyclingTrackingService : Service() {
                             completedAt = System.currentTimeMillis()
                         )
                         challengeDao.updateChallenge(updatedChallenge)
+                        NotificationHelper.showChallengeCompletedNotification(this@CyclingTrackingService, updatedChallenge)
                     } else {
                         val updatedChallenge = activeChallenge.copy(
                             currentProgress = newProgress

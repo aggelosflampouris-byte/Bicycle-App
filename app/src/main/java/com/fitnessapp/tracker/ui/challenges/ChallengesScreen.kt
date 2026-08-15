@@ -39,9 +39,7 @@ fun ChallengesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val challenge = uiState.latestChallenge
-
-    // Get all sessions that are marked as challenge completions
-    val completedChallenges = uiState.sessions.filter { it.isChallengeCompletion }.sortedByDescending { it.startTime }
+    val completedChallenges = uiState.completedChallenges
 
     Column(
         modifier = Modifier
@@ -158,20 +156,68 @@ fun ChallengesScreen(
                 }
             }
 
-            if (completedChallenges.isNotEmpty()) {
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = "Completed Challenges History",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        fontWeight = FontWeight.SemiBold
                     )
+                    if (completedChallenges.isNotEmpty()) {
+                        Text(
+                            text = "${completedChallenges.size} Won",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFFFFD700),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
+            }
 
-                items(completedChallenges, key = { it.id }) { session ->
-                    CompletedChallengeCard(session = session)
+            if (completedChallenges.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = NavyCard.copy(alpha = 0.6f)),
+                        border = BorderStroke(1.dp, GlassBorder)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.EmojiEvents,
+                                contentDescription = null,
+                                tint = TextSecondary.copy(alpha = 0.5f),
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No completed challenges yet",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Accept a challenge and crush it during your workouts to earn trophies!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(completedChallenges, key = { it.id }) { challengeItem ->
+                    CompletedChallengeCard(challenge = challengeItem)
                 }
             }
         }
@@ -295,15 +341,31 @@ fun ChallengeCard(
 }
 
 @Composable
-fun CompletedChallengeCard(session: WorkoutSessionEntity) {
+fun CompletedChallengeCard(challenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity) {
     val dateFormat = remember { SimpleDateFormat("MMM d, yyyy • HH:mm", Locale.getDefault()) }
-    val date = dateFormat.format(Date(session.startTime))
+    val date = dateFormat.format(Date(challenge.completedAt ?: challenge.createdAt))
+
+    val targetStr = when (challenge.metric) {
+        "DISTANCE" -> PhysicsEngine.formatDistance(challenge.targetValue)
+        "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.targetValue)} km/h"
+        "CALORIES" -> "${"%.0f".format(challenge.targetValue)} kcal"
+        else -> challenge.targetValue.toString()
+    }
+    val progressStr = when (challenge.metric) {
+        "DISTANCE" -> PhysicsEngine.formatDistance(challenge.currentProgress)
+        "SPEED" -> "${PhysicsEngine.formatSpeed(challenge.currentProgress)} km/h"
+        "CALORIES" -> "${"%.0f".format(challenge.currentProgress)} kcal"
+        else -> challenge.currentProgress.toString()
+    }
+
+    val periodStr = challenge.period.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    val activityStr = challenge.activityType.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
-        border = BorderStroke(1.dp, GlassBorder)
+        border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -313,26 +375,53 @@ fun CompletedChallengeCard(session: WorkoutSessionEntity) {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Color(0xFFFFD700).copy(alpha = 0.2f)),
+                    .background(Color(0xFFFFD700).copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
                     contentDescription = null,
                     tint = Color(0xFFFFD700),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$periodStr $activityStr",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Surface(
+                        color = Color(0xFFFFD700).copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(0.5.dp, Color(0xFFFFD700))
+                    ) {
+                        Text(
+                            text = "COMPLETED",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFFFD700),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = PhysicsEngine.formatDistance(session.totalDistanceMeters),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold
+                    text = "Goal: $targetStr • Reached: $progressStr",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ElectricGreen,
+                    fontWeight = FontWeight.SemiBold
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "$date  •  ${PhysicsEngine.formatDuration(session.durationSeconds)}",
+                    text = "Completed: $date",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
