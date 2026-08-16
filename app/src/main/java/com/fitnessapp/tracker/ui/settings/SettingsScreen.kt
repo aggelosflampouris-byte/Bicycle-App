@@ -243,6 +243,38 @@ fun SettingsScreen(
                         )
                     )
                 }
+
+                HorizontalDivider(color = GlassBorder, thickness = 0.5.dp)
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Lock Portrait Mode",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Prevent the app from rotating when you turn your phone.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                    Switch(
+                        checked = settingsState.lockPortraitModeEnabled,
+                        onCheckedChange = { settingsViewModel.setLockPortraitModeEnabled(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = DeepNavy,
+                            checkedTrackColor = ElectricGreen,
+                            uncheckedThumbColor = TextSecondary,
+                            uncheckedTrackColor = NavyDarker
+                        )
+                    )
+                }
             }
 
             // ── Data Management ────────────────────────────────────────────────────────

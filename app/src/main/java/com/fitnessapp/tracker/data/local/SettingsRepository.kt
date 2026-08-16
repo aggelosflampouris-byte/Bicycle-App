@@ -25,6 +25,7 @@ class SettingsRepository @Inject constructor(
         private val ACTIVITY_TYPE_KEY = stringPreferencesKey("activity_type")
         private val CHALLENGES_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("challenges_enabled")
         private val VOICE_COACHING_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("voice_coaching_enabled")
+        private val LOCK_PORTRAIT_MODE_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("lock_portrait_mode")
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -45,6 +46,10 @@ class SettingsRepository @Inject constructor(
 
     val isVoiceCoachingEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[VOICE_COACHING_ENABLED_KEY] ?: true
+    }
+
+    val isLockPortraitModeEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[LOCK_PORTRAIT_MODE_KEY] ?: true
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -68,6 +73,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setVoiceCoachingEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[VOICE_COACHING_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setLockPortraitModeEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[LOCK_PORTRAIT_MODE_KEY] = enabled
         }
     }
 }

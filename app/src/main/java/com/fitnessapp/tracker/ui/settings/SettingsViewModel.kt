@@ -15,6 +15,7 @@ data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val challengesEnabled: Boolean = true,
     val voiceCoachingEnabled: Boolean = true,
+    val lockPortraitModeEnabled: Boolean = true,
     val isBackupRunning: Boolean = false,
     val backupMessage: String? = null
 )
@@ -33,12 +34,14 @@ class SettingsViewModel @Inject constructor(
             combine(
                 settingsRepository.themeMode,
                 settingsRepository.challengesEnabled,
-                settingsRepository.isVoiceCoachingEnabled
-            ) { theme, challengesEnabled, voiceCoachingEnabled ->
+                settingsRepository.isVoiceCoachingEnabled,
+                settingsRepository.isLockPortraitModeEnabled
+            ) { theme, challengesEnabled, voiceCoachingEnabled, lockPortraitModeEnabled ->
                 SettingsUiState(
                     themeMode = theme,
                     challengesEnabled = challengesEnabled,
-                    voiceCoachingEnabled = voiceCoachingEnabled
+                    voiceCoachingEnabled = voiceCoachingEnabled,
+                    lockPortraitModeEnabled = lockPortraitModeEnabled
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -60,6 +63,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setVoiceCoachingEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setVoiceCoachingEnabled(enabled) }
+    }
+
+    fun setLockPortraitModeEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setLockPortraitModeEnabled(enabled) }
     }
 
     fun exportData(uri: Uri, password: String) {

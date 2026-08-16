@@ -1,6 +1,7 @@
 package com.fitnessapp.tracker
 
 import android.Manifest
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -155,6 +156,16 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val activityType by settingsRepository.activityType.collectAsStateWithLifecycle("CYCLING")
+                
+                val lockPortraitModeEnabled by settingsRepository.isLockPortraitModeEnabled.collectAsStateWithLifecycle(true)
+
+                LaunchedEffect(lockPortraitModeEnabled) {
+                    requestedOrientation = if (lockPortraitModeEnabled) {
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    }
+                }
 
                 SmartCyclingTrackerTheme(darkTheme = isDark) {
                     CompositionLocalProvider(LocalActivityTheme provides activityType) {
