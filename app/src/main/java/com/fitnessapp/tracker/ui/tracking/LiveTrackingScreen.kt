@@ -39,6 +39,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog
+import com.fitnessapp.tracker.util.TtsManager
+import com.fitnessapp.tracker.util.VoiceInteractionManager
+import com.fitnessapp.tracker.util.VoiceState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -62,6 +65,49 @@ fun LiveTrackingScreen(
     val isPaused by remember(viewModel.trackingState) { viewModel.trackingState.map { it.isPaused }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
     val currentLap by remember(viewModel.trackingState) { viewModel.trackingState.map { it.currentLap }.distinctUntilChanged() }.collectAsStateWithLifecycle(1)
     val lastSavedSessionId by remember(viewModel.trackingState) { viewModel.trackingState.map { it.lastSavedSessionId }.distinctUntilChanged() }.collectAsStateWithLifecycle(null)
+    val coachLanguage by viewModel.coachLanguage.collectAsStateWithLifecycle()
+    val isVoiceCoachingEnabled by viewModel.isVoiceCoachingEnabled.collectAsStateWithLifecycle()
+    val inFlightState by viewModel.inFlightState.collectAsStateWithLifecycle()
+
+    val voiceManager = remember { VoiceInteractionManager(context) }
+    val voiceState by voiceManager.voiceState.collectAsStateWithLifecycle()
+    val ttsManager = remember { TtsManager(context) }
+
+    LaunchedEffect(coachLanguage) {
+        ttsManager.setCoachLanguage(coachLanguage)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            voiceManager.stopListening()
+            ttsManager.shutdown()
+        }
+    }
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            voiceManager.startListening(coachLanguage)
+        }
+    }
+
+    LaunchedEffect(voiceState) {
+        when (val state = voiceState) {
+            is VoiceState.Success -> {
+                viewModel.askInFlightCoach(state.recognizedText)
+                voiceManager.resetState()
+            }
+            else -> {}
+        }
+    }
+
+    LaunchedEffect(inFlightState.response) {
+        val reply = inFlightState.response
+        if (!reply.isNullOrBlank() && isVoiceCoachingEnabled) {
+            ttsManager.speak(reply, flushQueue = true)
+        }
+    }
 
     var showFinishDialog by remember { mutableStateOf(false) }
     var showDiscardConfirmDialog by remember { mutableStateOf(false) }
@@ -238,7 +284,98 @@ fun LiveTrackingScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.size(40.dp))
+                // Hands-free in-flight AI voice coach button
+                val isListening = voiceState is VoiceState.Listening || voiceState is VoiceState.Recognizing
+                IconButton(
+                    onClick = {
+                        if (isListening) {
+                            voiceManager.stopListening()
+                        } else {
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                voiceManager.startListening(coachLanguage)
+                            } else {
+                                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (isListening) SpeedRed.copy(alpha = 0.3f) else NavyCard)
+                ) {
+                    Icon(
+                        imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
+                        contentDescription = "Ask AI Coach",
+                        tint = if (isListening) SpeedRed else ElectricGreen,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // In-flight AI response or listening banner
+            if (voiceState is VoiceState.Listening || voiceState is VoiceState.Recognizing || inFlightState.isLoading || inFlightState.response != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    colors = CardDefaults.cardColors(containerColor = NavyCard.copy(alpha = 0.95f)),
+                    border = BorderStroke(1.dp, if (voiceState is VoiceState.Listening) SpeedRed else ElectricGreen),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(ElectricGreen.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (inFlightState.isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = ElectricGreen,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.SmartToy, contentDescription = null, tint = ElectricGreen, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = when {
+                                    voiceState is VoiceState.Listening -> "🎙️ Listening... (Ask anything about your pace/route)"
+                                    voiceState is VoiceState.Recognizing -> "🧠 Processing speech..."
+                                    inFlightState.isLoading -> "🤖 AI Coach Analyzing Live Telemetry..."
+                                    else -> inFlightState.query ?: "AI Coach Briefing"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (voiceState is VoiceState.Listening) SpeedRed else TextSecondary
+                            )
+                            if (!inFlightState.response.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = inFlightState.response!!,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                            }
+                        }
+                        if (inFlightState.response != null) {
+                            IconButton(
+                                onClick = { viewModel.dismissInFlightResponse() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
             }
 
             // Permission Warning Banner if GPS not allowed

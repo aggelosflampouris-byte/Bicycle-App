@@ -211,6 +211,18 @@ fun DashboardScreen(
                 }
             }
 
+            // Recovery Readiness Card
+            item {
+                AnimatedVisibility(
+                    visible = !uiState.isLoading && uiState.recoveryAdvice != null,
+                    enter = fadeIn() + slideInVertically()
+                ) {
+                    uiState.recoveryAdvice?.let { recovery ->
+                        RecoveryReadinessCard(recovery = recovery)
+                    }
+                }
+            }
+
             // Stats cards
             item {
                 AnimatedVisibility(
@@ -1239,4 +1251,137 @@ private fun TrophiesAndRecordsCard(
         }
     }
 }
+
+@Composable
+private fun RecoveryReadinessCard(
+    recovery: com.fitnessapp.tracker.engine.RecoveryAdvice
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val statusColor = Color(android.graphics.Color.parseColor(recovery.status.colorHex))
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { isExpanded = !isExpanded },
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.8f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(statusColor.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BatteryChargingFull,
+                            contentDescription = null,
+                            tint = statusColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Recovery Readiness",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = recovery.status.title,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = statusColor,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "${recovery.recoveryPercentage}%",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = statusColor
+                    )
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = TextSecondary
+                    )
+                }
+            }
+
+            // Progress bar
+            LinearProgressIndicator(
+                progress = { recovery.recoveryPercentage / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = statusColor,
+                trackColor = NavyDarker
+            )
+
+            // Quick summary line
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = if (recovery.remainingRecoveryHours > 0) "${recovery.remainingRecoveryHours}h until full recovery" else "Fully restored",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+                Text(
+                    text = "Sleep target: %.1fh".format(recovery.recommendedSleepHours),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+            }
+
+            // Expanded details
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    HorizontalDivider(color = GlassBorder)
+                    Text(
+                        text = recovery.status.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        lineHeight = 18.sp
+                    )
+                    recovery.actionableTips.take(2).forEach { tip ->
+                        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("•", color = statusColor, fontWeight = FontWeight.Bold)
+                            Text(text = tip, style = MaterialTheme.typography.bodySmall, color = TextPrimary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 

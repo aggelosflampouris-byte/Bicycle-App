@@ -116,6 +116,16 @@ fun AppFeaturesGuideDialog(onDismiss: () -> Unit) {
                         description = "Set Daily, Weekly, or Monthly distance or calorie goals with 5% Auto-Improve progression. Complete AI-generated daily workout challenges to build lasting streaks."
                     )
                     FeatureGuideItem(
+                        icon = "🎙️",
+                        title = "Hands-Free Voice AI Coach",
+                        description = "Talk to your AI Coach during live workouts and in chat. Uses speech-to-text recognition and delivers immediate audio answers via text-to-speech in English, Greek, German, French, or Russian."
+                    )
+                    FeatureGuideItem(
+                        icon = "🔋",
+                        title = "Smart Recovery & Sleep Advisor",
+                        description = "Calculates EPOC/TSS training stress and 7-day cumulative fatigue to give accurate recovery countdowns, sleep targets, and hydration recommendations on the Dashboard and Post-Workout Summary."
+                    )
+                    FeatureGuideItem(
                         icon = "🔒",
                         title = "Hardware-Backed Privacy",
                         description = "100% of your GPS location traces are encrypted on-device using Android KeyStore AES-256-GCM hardware protection. Cloud synchronization scrubs location data for complete privacy."

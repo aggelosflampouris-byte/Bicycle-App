@@ -18,6 +18,8 @@ import javax.inject.Inject
 
 import com.fitnessapp.tracker.engine.PersonalRecordAchievement
 import com.fitnessapp.tracker.engine.PersonalRecordEngine
+import com.fitnessapp.tracker.engine.RecoveryAdvice
+import com.fitnessapp.tracker.engine.RecoveryEngine
 import com.fitnessapp.tracker.service.RoutePoint
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -29,7 +31,8 @@ data class SummaryUiState(
     val error: String? = null,
     val isGeneratingDebrief: Boolean = false,
     val tacticalDebrief: String? = null,
-    val newAchievements: List<PersonalRecordAchievement> = emptyList()
+    val newAchievements: List<PersonalRecordAchievement> = emptyList(),
+    val recoveryAdvice: RecoveryAdvice? = null
 )
 
 @HiltViewModel
@@ -40,6 +43,7 @@ class SummaryViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val routeCryptoManager: com.fitnessapp.tracker.util.RouteCryptoManager,
     private val personalRecordEngine: PersonalRecordEngine,
+    private val recoveryEngine: RecoveryEngine,
     private val gson: Gson,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -79,12 +83,25 @@ class SummaryViewModel @Inject constructor(
                 personalRecordEngine.evaluateAndSaveRecords(session, routePoints)
             } else emptyList()
 
+            val recentSessions = if (session != null) {
+                sessionDao.getRecentSessionsByType(session.activityType, 15)
+            } else emptyList()
+
+            val recoveryAdvice = if (session != null) {
+                recoveryEngine.computeRecoveryAdvice(
+                    targetSession = session,
+                    recentSessions = recentSessions,
+                    user = user
+                )
+            } else null
+
             _uiState.value = SummaryUiState(
                 session = session,
                 user = user,
                 isLoading = false,
                 error = if (session == null) "No session found" else null,
-                newAchievements = prAchievements
+                newAchievements = prAchievements,
+                recoveryAdvice = recoveryAdvice
             )
         }
     }
@@ -96,11 +113,13 @@ class SummaryViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isGeneratingDebrief = true)
         viewModelScope.launch {
             val persona = settingsRepository.coachPersona.first()
+            val language = settingsRepository.coachLanguage.first()
             val debrief = geminiRepository.generateTacticalDebrief(
                 user = _uiState.value.user,
                 session = currentSession,
                 lapSummaries = lapSummaries,
-                persona = persona
+                persona = persona,
+                language = language
             )
             _uiState.value = _uiState.value.copy(
                 isGeneratingDebrief = false,

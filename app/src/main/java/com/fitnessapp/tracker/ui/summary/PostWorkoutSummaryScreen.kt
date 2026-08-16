@@ -130,6 +130,7 @@ fun PostWorkoutSummaryScreen(
                         isGeneratingDebrief = uiState.isGeneratingDebrief,
                         tacticalDebrief = uiState.tacticalDebrief,
                         newAchievements = uiState.newAchievements,
+                        recoveryAdvice = uiState.recoveryAdvice,
                         onGenerateDebrief = { viewModel.generateTacticalDebrief(null) },
                         onAskPersonalCoach = onAskPersonalCoach,
                         onBack = onBack
@@ -154,6 +155,7 @@ private fun SummaryContent(
     isGeneratingDebrief: Boolean,
     tacticalDebrief: String?,
     newAchievements: List<com.fitnessapp.tracker.engine.PersonalRecordAchievement>,
+    recoveryAdvice: com.fitnessapp.tracker.engine.RecoveryAdvice?,
     onGenerateDebrief: () -> Unit,
     onAskPersonalCoach: () -> Unit,
     onBack: () -> Unit
@@ -604,6 +606,11 @@ private fun SummaryContent(
                 }
             }
 
+            // ── Smart Recovery & Sleep Advisor Card ──────────────────────────
+            recoveryAdvice?.let { recovery ->
+                SmartRecoveryAdvisorCard(recovery = recovery)
+            }
+
             // Ask AI Coach button
             Button(
                 onClick = onAskPersonalCoach,
@@ -985,3 +992,143 @@ private fun SummaryMapView(
 }
 
 private val CircleShape = RoundedCornerShape(50)
+
+@Composable
+private fun SmartRecoveryAdvisorCard(
+    recovery: com.fitnessapp.tracker.engine.RecoveryAdvice
+) {
+    val statusColor = Color(android.graphics.Color.parseColor(recovery.status.colorHex))
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, statusColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.BatteryChargingFull,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = "Smart Recovery Advisor",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = statusColor.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = "${recovery.recoveryHoursTotal}h Total",
+                        color = statusColor,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // Recovery Status Badge & Description
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = DeepNavy.copy(alpha = 0.6f),
+                border = BorderStroke(1.dp, GlassBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = recovery.status.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = recovery.status.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+
+            // Sleep and Hydration Quick Metric Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = DeepNavy.copy(alpha = 0.7f),
+                    border = BorderStroke(1.dp, GlassBorder),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Bedtime, contentDescription = null, tint = VividCyan, modifier = Modifier.size(18.dp))
+                        Column {
+                            Text("Sleep Target", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            Text("%.1f hrs".format(recovery.recommendedSleepHours), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        }
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = DeepNavy.copy(alpha = 0.7f),
+                    border = BorderStroke(1.dp, GlassBorder),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.WaterDrop, contentDescription = null, tint = VividCyan, modifier = Modifier.size(18.dp))
+                        Column {
+                            Text("Hydration", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            Text("%.1f L".format(recovery.hydrationTargetLiters), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        }
+                    }
+                }
+            }
+
+            // Actionable tips
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                recovery.actionableTips.forEach { tip ->
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("•", color = statusColor, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = tip,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

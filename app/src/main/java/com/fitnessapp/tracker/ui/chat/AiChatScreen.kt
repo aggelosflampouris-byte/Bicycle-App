@@ -29,7 +29,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import com.fitnessapp.tracker.theme.*
+import com.fitnessapp.tracker.util.TtsManager
+import com.fitnessapp.tracker.util.VoiceInteractionManager
+import com.fitnessapp.tracker.util.VoiceState
 import kotlinx.coroutines.launch
 
 @Composable
@@ -43,12 +52,52 @@ fun AiChatScreen(
     val listState = rememberLazyListState()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
 
-    // Auto-scroll to bottom when new messages arrive
+    val voiceManager = remember { VoiceInteractionManager(context) }
+    val voiceState by voiceManager.voiceState.collectAsStateWithLifecycle()
+    val ttsManager = remember { TtsManager(context) }
+
+    LaunchedEffect(uiState.coachLanguage) {
+        ttsManager.setCoachLanguage(uiState.coachLanguage)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            voiceManager.stopListening()
+            ttsManager.shutdown()
+        }
+    }
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            voiceManager.startListening(uiState.coachLanguage)
+        }
+    }
+
+    LaunchedEffect(voiceState) {
+        when (val state = voiceState) {
+            is VoiceState.Success -> {
+                inputText = state.recognizedText
+                viewModel.sendMessage(state.recognizedText)
+                inputText = ""
+                voiceManager.resetState()
+            }
+            else -> {}
+        }
+    }
+
+    // Auto-scroll to bottom when new messages arrive and speak if enabled
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
+            val lastMsg = uiState.messages.last()
+            if (lastMsg.role == "model" && uiState.voiceCoachingEnabled && !uiState.isLoading) {
+                ttsManager.speak(lastMsg.text, flushQueue = true)
+            }
         }
     }
 
@@ -267,18 +316,32 @@ fun AiChatScreen(
             )
         }
 
-        // Input bar
+        // Bottom input bar
         ChatInputBar(
             inputText = inputText,
             onInputChange = { inputText = it },
             isLoading = uiState.isLoading,
+            isListening = voiceState is VoiceState.Listening || voiceState is VoiceState.Recognizing,
             onSend = {
                 if (inputText.isNotBlank()) {
-                    viewModel.sendMessage(inputText.trim())
+                    viewModel.sendMessage(inputText)
                     inputText = ""
                 }
             },
-            onShareHistory = { viewModel.openSessionPicker() }
+            onMicClick = {
+                if (voiceState is VoiceState.Listening || voiceState is VoiceState.Recognizing) {
+                    voiceManager.stopListening()
+                } else {
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        voiceManager.startListening(uiState.coachLanguage)
+                    } else {
+                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+            },
+            onShareHistory = {
+                viewModel.openSessionPicker()
+            }
         )
         
         if (uiState.showSessionPicker) {
@@ -585,7 +648,9 @@ private fun ChatInputBar(
     inputText: String,
     onInputChange: (String) -> Unit,
     isLoading: Boolean,
+    isListening: Boolean,
     onSend: () -> Unit,
+    onMicClick: () -> Unit,
     onShareHistory: () -> Unit
 ) {
     Row(
@@ -612,12 +677,12 @@ private fun ChatInputBar(
             onValueChange = onInputChange,
             modifier = Modifier.weight(1f),
             placeholder = {
-                Text("Ask AI Coach...", color = TextDisabled)
+                Text(if (isListening) "Listening to your voice..." else "Ask AI Coach...", color = if (isListening) ElectricGreen else TextDisabled)
             },
             shape = RoundedCornerShape(24.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ElectricGreen,
-                unfocusedBorderColor = GlassBorder,
+                focusedBorderColor = if (isListening) SpeedRed else ElectricGreen,
+                unfocusedBorderColor = if (isListening) SpeedRed else GlassBorder,
                 focusedTextColor = TextPrimary,
                 unfocusedTextColor = TextPrimary,
                 cursorColor = ElectricGreen,
@@ -627,9 +692,27 @@ private fun ChatInputBar(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { onSend() }),
             singleLine = true,
-            enabled = !isLoading
+            enabled = !isLoading && !isListening
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // Mic Button
+        IconButton(
+            onClick = onMicClick,
+            enabled = !isLoading,
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(if (isListening) SpeedRed.copy(alpha = 0.25f) else NavyCard)
+        ) {
+            Icon(
+                if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
+                contentDescription = "Voice Input",
+                tint = if (isListening) SpeedRed else ElectricGreen
+            )
+        }
+
+        Spacer(modifier = Modifier.width(4.dp))
         IconButton(
             onClick = onSend,
             enabled = inputText.isNotBlank() && !isLoading,

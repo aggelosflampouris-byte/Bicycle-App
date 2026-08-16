@@ -33,8 +33,9 @@ data class DashboardUiState(
     val completedChallenges: List<ChallengeEntity> = emptyList(),
     val personalRecords: List<com.fitnessapp.tracker.data.local.entity.PersonalRecordEntity> = emptyList(),
     val trainingPlan: TrainingPlanEntity? = null,
+    val recoveryAdvice: com.fitnessapp.tracker.engine.RecoveryAdvice? = null,
     val showNewChallengeDialog: Boolean = false,
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val isGeneratingPlan: Boolean = false
 )
 
@@ -49,7 +50,8 @@ class DashboardViewModel @Inject constructor(
     private val geminiRepository: GeminiRepository,
     private val settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository,
     private val routineRepository: RoutineRepository,
-    private val challengeGenerator: com.fitnessapp.tracker.engine.ChallengeGenerator
+    private val challengeGenerator: com.fitnessapp.tracker.engine.ChallengeGenerator,
+    private val recoveryEngine: com.fitnessapp.tracker.engine.RecoveryEngine
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -198,6 +200,14 @@ class DashboardViewModel @Inject constructor(
                 personalRecordsFlow
             ) { user, sessionStats, routineProgress, coachingState, records ->
                 val (challengeState, plan) = coachingState
+                val recovery = if (sessionStats.sessions.isNotEmpty()) {
+                    recoveryEngine.computeRecoveryAdvice(
+                        targetSession = sessionStats.sessions.first(),
+                        recentSessions = sessionStats.sessions,
+                        user = user
+                    )
+                } else null
+
                 DashboardUiState(
                     user = user,
                     sessions = sessionStats.sessions,
@@ -210,6 +220,7 @@ class DashboardViewModel @Inject constructor(
                     completedChallenges = challengeState.completedChallenges,
                     personalRecords = records,
                     trainingPlan = plan,
+                    recoveryAdvice = recovery,
                     showNewChallengeDialog = challengeState.showNewChallengeDialog,
                     isLoading = false,
                     isGeneratingPlan = _uiState.value.isGeneratingPlan

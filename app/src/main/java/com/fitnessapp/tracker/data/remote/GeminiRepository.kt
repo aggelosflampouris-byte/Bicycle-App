@@ -286,7 +286,8 @@ class GeminiRepository @Inject constructor(
         user: UserEntity,
         session: WorkoutSessionEntity,
         lapSummaries: List<LapSummary>?,
-        persona: CoachPersona = CoachPersona.SUPPORTIVE
+        persona: CoachPersona = CoachPersona.SUPPORTIVE,
+        language: com.fitnessapp.tracker.data.local.CoachLanguage = com.fitnessapp.tracker.data.local.CoachLanguage.AUTO
     ): String? {
         val apiKey = resolveApiKey() ?: return null
 
@@ -314,7 +315,7 @@ class GeminiRepository @Inject constructor(
         val request = HfChatRequest(
             model = HfApiService.MODEL,
             messages = listOf(
-                HfMessage("system", buildSystemPrompt(user, session, session.activityType, persona)),
+                HfMessage("system", buildSystemPrompt(user, session, session.activityType, persona, language)),
                 HfMessage("user", prompt)
             ),
             maxTokens = 750,
