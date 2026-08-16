@@ -8,6 +8,7 @@ import com.fitnessapp.tracker.data.local.dao.ChatMessageDao
 import com.fitnessapp.tracker.data.local.dao.ChatSessionDao
 import com.fitnessapp.tracker.data.local.dao.RoutineDao
 import com.fitnessapp.tracker.data.local.dao.ChallengeDao
+import com.fitnessapp.tracker.data.local.dao.PersonalRecordDao
 import com.fitnessapp.tracker.data.local.dao.TrainingPlanDao
 import com.fitnessapp.tracker.data.local.dao.UserDao
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
@@ -40,7 +41,7 @@ object AppModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10)
+        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10, AppDatabase.MIGRATION_10_11)
         .build()
 
     @Provides
@@ -70,6 +71,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTrainingPlanDao(db: AppDatabase): TrainingPlanDao = db.trainingPlanDao()
+
+    @Provides
+    @Singleton
+    fun providePersonalRecordDao(db: AppDatabase): PersonalRecordDao = db.personalRecordDao()
 
     @Provides
     @Singleton

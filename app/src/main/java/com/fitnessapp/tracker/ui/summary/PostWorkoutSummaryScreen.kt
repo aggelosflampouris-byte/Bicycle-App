@@ -129,6 +129,7 @@ fun PostWorkoutSummaryScreen(
                         context = context,
                         isGeneratingDebrief = uiState.isGeneratingDebrief,
                         tacticalDebrief = uiState.tacticalDebrief,
+                        newAchievements = uiState.newAchievements,
                         onGenerateDebrief = { viewModel.generateTacticalDebrief(null) },
                         onAskPersonalCoach = onAskPersonalCoach,
                         onBack = onBack
@@ -152,6 +153,7 @@ private fun SummaryContent(
     context: Context,
     isGeneratingDebrief: Boolean,
     tacticalDebrief: String?,
+    newAchievements: List<com.fitnessapp.tracker.engine.PersonalRecordAchievement>,
     onGenerateDebrief: () -> Unit,
     onAskPersonalCoach: () -> Unit,
     onBack: () -> Unit
@@ -316,6 +318,68 @@ private fun SummaryContent(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ── Personal Records Banner ──────────────────────────────────────────
+            if (newAchievements.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = NavyCard),
+                    border = BorderStroke(1.5.dp, Color(0xFFFFD700))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.EmojiEvents,
+                                contentDescription = null,
+                                tint = Color(0xFFFFD700),
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "🏆 All-Time Personal Records Broken!",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFD700)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            newAchievements.forEach { achievement ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFFFFD700).copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.35f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(achievement.recordType.icon, fontSize = 20.sp)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = achievement.recordType.displayName,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextPrimary
+                                            )
+                                        }
+                                        Text(
+                                            text = achievement.formattedValue,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color(0xFFFFD700)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if (session.isChallengeCompletion) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),

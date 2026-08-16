@@ -17,6 +17,8 @@ import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.data.local.entity.RoutineEntity
 import com.fitnessapp.tracker.data.local.entity.ChallengeEntity
 import com.fitnessapp.tracker.data.local.entity.TrainingPlanEntity
+import com.fitnessapp.tracker.data.local.entity.PersonalRecordEntity
+import com.fitnessapp.tracker.data.local.dao.PersonalRecordDao
 
 @Database(
     entities = [
@@ -26,12 +28,13 @@ import com.fitnessapp.tracker.data.local.entity.TrainingPlanEntity
         ChatSessionEntity::class,
         RoutineEntity::class,
         ChallengeEntity::class,
-        TrainingPlanEntity::class
+        TrainingPlanEntity::class,
+        PersonalRecordEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
-@TypeConverters(ChallengeTypeConverters::class, RoutineTypeConverters::class)
+@TypeConverters(ChallengeTypeConverters::class, RoutineTypeConverters::class, PersonalRecordTypeConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
@@ -40,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun routineDao(): RoutineDao
     abstract fun challengeDao(): ChallengeDao
     abstract fun trainingPlanDao(): TrainingPlanDao
+    abstract fun personalRecordDao(): PersonalRecordDao
 
     companion object {
         const val DATABASE_NAME = "cycling_tracker.db"
@@ -154,6 +158,14 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
             override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
                 // No DDL changes — TypeConverters handle Kotlin ↔ String mapping transparently.
+            }
+        }
+
+        val MIGRATION_10_11 = object : androidx.room.migration.Migration(10, 11) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `personal_records` (`recordType` TEXT NOT NULL, `activityType` TEXT NOT NULL, `value` REAL NOT NULL, `sessionId` INTEGER NOT NULL, `achievedAt` INTEGER NOT NULL, PRIMARY KEY(`recordType`, `activityType`))"
+                )
             }
         }
     }

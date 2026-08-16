@@ -16,13 +16,20 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.fitnessapp.tracker.engine.PersonalRecordAchievement
+import com.fitnessapp.tracker.engine.PersonalRecordEngine
+import com.fitnessapp.tracker.service.RoutePoint
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+
 data class SummaryUiState(
     val session: WorkoutSessionEntity? = null,
     val user: UserEntity = UserEntity(),
     val isLoading: Boolean = true,
     val error: String? = null,
     val isGeneratingDebrief: Boolean = false,
-    val tacticalDebrief: String? = null
+    val tacticalDebrief: String? = null,
+    val newAchievements: List<PersonalRecordAchievement> = emptyList()
 )
 
 @HiltViewModel
@@ -32,6 +39,8 @@ class SummaryViewModel @Inject constructor(
     private val geminiRepository: GeminiRepository,
     private val settingsRepository: SettingsRepository,
     private val routeCryptoManager: com.fitnessapp.tracker.util.RouteCryptoManager,
+    private val personalRecordEngine: PersonalRecordEngine,
+    private val gson: Gson,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -56,11 +65,26 @@ class SummaryViewModel @Inject constructor(
             val session = rawSession?.let {
                 it.copy(routePointsJson = routeCryptoManager.decryptRoute(it.routePointsJson))
             }
+
+            val routePoints: List<RoutePoint> = try {
+                if (!session?.routePointsJson.isNullOrBlank() && session?.routePointsJson != "[]") {
+                    val listType = object : TypeToken<List<RoutePoint>>() {}.type
+                    gson.fromJson(session?.routePointsJson, listType) ?: emptyList()
+                } else emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            val prAchievements = if (session != null) {
+                personalRecordEngine.evaluateAndSaveRecords(session, routePoints)
+            } else emptyList()
+
             _uiState.value = SummaryUiState(
                 session = session,
                 user = user,
                 isLoading = false,
-                error = if (session == null) "No session found" else null
+                error = if (session == null) "No session found" else null,
+                newAchievements = prAchievements
             )
         }
     }

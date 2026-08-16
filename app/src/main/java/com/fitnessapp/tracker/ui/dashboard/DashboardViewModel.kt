@@ -31,6 +31,7 @@ data class DashboardUiState(
     val routineProgress: RoutineProgress? = null,
     val latestChallenge: ChallengeEntity? = null,
     val completedChallenges: List<ChallengeEntity> = emptyList(),
+    val personalRecords: List<com.fitnessapp.tracker.data.local.entity.PersonalRecordEntity> = emptyList(),
     val trainingPlan: TrainingPlanEntity? = null,
     val showNewChallengeDialog: Boolean = false,
     val isLoading: Boolean = true,
@@ -43,6 +44,7 @@ class DashboardViewModel @Inject constructor(
     private val userDao: UserDao,
     private val sessionDao: WorkoutSessionDao,
     private val challengeDao: ChallengeDao,
+    private val personalRecordDao: com.fitnessapp.tracker.data.local.dao.PersonalRecordDao,
     private val trainingPlanDao: TrainingPlanDao,
     private val geminiRepository: GeminiRepository,
     private val settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository,
@@ -179,13 +181,23 @@ class DashboardViewModel @Inject constructor(
                     showNewChallengeDialog = showDialog
                 )
             }
+            val coachingStateFlow = combine(
+                challengeStateFlow,
+                trainingPlanDao.getPlanFlow()
+            ) { challengeState, plan ->
+                Pair(challengeState, plan)
+            }
+            val personalRecordsFlow = _activityType.flatMapLatest { type ->
+                personalRecordDao.getRecordsForActivityFlow(type)
+            }
             combine(
                 userDao.getUserFlow().map { it ?: UserEntity() },
                 sessionStatsFlow,
                 routineProgressFlow,
-                challengeStateFlow,
-                trainingPlanDao.getPlanFlow()
-            ) { user, sessionStats, routineProgress, challengeState, plan ->
+                coachingStateFlow,
+                personalRecordsFlow
+            ) { user, sessionStats, routineProgress, coachingState, records ->
+                val (challengeState, plan) = coachingState
                 DashboardUiState(
                     user = user,
                     sessions = sessionStats.sessions,
@@ -196,6 +208,7 @@ class DashboardViewModel @Inject constructor(
                     routineProgress = routineProgress,
                     latestChallenge = challengeState.latestChallenge,
                     completedChallenges = challengeState.completedChallenges,
+                    personalRecords = records,
                     trainingPlan = plan,
                     showNewChallengeDialog = challengeState.showNewChallengeDialog,
                     isLoading = false,
