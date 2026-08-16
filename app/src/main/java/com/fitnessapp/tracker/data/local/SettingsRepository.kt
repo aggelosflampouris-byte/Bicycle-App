@@ -22,6 +22,15 @@ enum class CoachPersona(val title: String, val subtitle: String) {
     DATA_SCIENTIST("Sports Scientist", "Analytical, metrics-driven, focusing on efficiency & power")
 }
 
+enum class CoachLanguage(val title: String, val promptInstruction: String) {
+    AUTO("System Default 🌐", "Respond in the user's primary locale language (or match the user's prompt)."),
+    ENGLISH("English 🇬🇧", "Respond strictly and fluently in English."),
+    GREEK("Ελληνικά 🇬🇷", "Respond strictly and fluently in Greek (Ελληνικά). Use natural Greek athletic terminology."),
+    GERMAN("Deutsch 🇩🇪", "Respond strictly and fluently in German (Deutsch). Use natural German athletic terminology."),
+    FRENCH("Français 🇫🇷", "Respond strictly and fluently in French (Français). Use natural French athletic terminology."),
+    RUSSIAN("Русский 🇷🇺", "Respond strictly and fluently in Russian (Русский). Use natural Russian athletic terminology.")
+}
+
 @Singleton
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context
@@ -33,11 +42,23 @@ class SettingsRepository @Inject constructor(
         private val VOICE_COACHING_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("voice_coaching_enabled")
         private val LOCK_PORTRAIT_MODE_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("lock_portrait_mode")
         private val COACH_PERSONA_KEY = stringPreferencesKey("coach_persona")
+        private val COACH_LANGUAGE_KEY = stringPreferencesKey("coach_language")
         private val LAST_SEEN_VERSION_CODE_KEY = androidx.datastore.preferences.core.intPreferencesKey("last_seen_version_code")
     }
 
     val lastSeenVersionCode: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         prefs[LAST_SEEN_VERSION_CODE_KEY] ?: 0
+    }
+
+    val coachLanguage: Flow<CoachLanguage> = context.settingsDataStore.data.map { prefs ->
+        when (prefs[COACH_LANGUAGE_KEY]) {
+            "ENGLISH" -> CoachLanguage.ENGLISH
+            "GREEK" -> CoachLanguage.GREEK
+            "GERMAN" -> CoachLanguage.GERMAN
+            "FRENCH" -> CoachLanguage.FRENCH
+            "RUSSIAN" -> CoachLanguage.RUSSIAN
+            else -> CoachLanguage.AUTO
+        }
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -105,6 +126,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setCoachPersona(persona: CoachPersona) {
         context.settingsDataStore.edit { prefs ->
             prefs[COACH_PERSONA_KEY] = persona.name
+        }
+    }
+
+    suspend fun setCoachLanguage(language: CoachLanguage) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[COACH_LANGUAGE_KEY] = language.name
         }
     }
 

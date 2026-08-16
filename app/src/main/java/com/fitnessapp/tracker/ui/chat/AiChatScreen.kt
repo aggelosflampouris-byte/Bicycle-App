@@ -155,6 +155,7 @@ fun AiChatScreen(
                 .imePadding()
         ) {
         var showClearChatDialog by remember { mutableStateOf(false) }
+        var showCoachSettings by remember { mutableStateOf(false) }
 
         if (showClearChatDialog) {
             com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog(
@@ -168,11 +169,24 @@ fun AiChatScreen(
             )
         }
 
+        if (showCoachSettings) {
+            AiCoachSettingsBottomSheet(
+                persona = uiState.coachPersona,
+                language = uiState.coachLanguage,
+                voiceCoachingEnabled = uiState.voiceCoachingEnabled,
+                onPersonaSelected = { viewModel.setCoachPersona(it) },
+                onLanguageSelected = { viewModel.setCoachLanguage(it) },
+                onVoiceToggle = { viewModel.setVoiceCoachingEnabled(it) },
+                onDismiss = { showCoachSettings = false }
+            )
+        }
+
             // App bar
             ChatAppBar(
                 showBackButton = showBackButton,
                 onBack = onBack, 
                 onMenuClick = { scope.launch { drawerState.open() } },
+                onSettingsClick = { showCoachSettings = true },
                 onClear = { showClearChatDialog = true }
             )
 
@@ -360,6 +374,7 @@ private fun ChatAppBar(
     showBackButton: Boolean,
     onBack: (() -> Unit)?,
     onMenuClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onClear: () -> Unit
 ) {
     Row(
@@ -390,6 +405,9 @@ private fun ChatAppBar(
             IconButton(onClick = onMenuClick) {
                 Icon(Icons.Default.History, contentDescription = "Chat History", tint = TextPrimary)
             }
+        }
+        IconButton(onClick = onSettingsClick) {
+            Icon(Icons.Default.Settings, contentDescription = "AI Coach Settings", tint = TextPrimary)
         }
         IconButton(onClick = onClear) {
             Icon(Icons.Default.DeleteSweep, contentDescription = "Clear chat", tint = SpeedRed)
@@ -740,3 +758,157 @@ private fun SessionPickerBottomSheet(
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun AiCoachSettingsBottomSheet(
+    persona: com.fitnessapp.tracker.data.local.CoachPersona,
+    language: com.fitnessapp.tracker.data.local.CoachLanguage,
+    voiceCoachingEnabled: Boolean,
+    onPersonaSelected: (com.fitnessapp.tracker.data.local.CoachPersona) -> Unit,
+    onLanguageSelected: (com.fitnessapp.tracker.data.local.CoachLanguage) -> Unit,
+    onVoiceToggle: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = DeepNavy,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = GlassBorder) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // Title
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(ElectricGreen.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = ElectricGreen, modifier = Modifier.size(20.dp))
+                }
+                Column {
+                    Text("AI Coach Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text("Customize your coach's language, tone, and voice", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                }
+            }
+
+            HorizontalDivider(color = GlassBorder)
+
+            // ── Language Settings ──────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Language, contentDescription = null, tint = VividCyan, modifier = Modifier.size(20.dp))
+                    Text("Coach Language", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
+                Text("Select the language your AI coach will speak and reply in:", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+
+                val languages = listOf(
+                    com.fitnessapp.tracker.data.local.CoachLanguage.ENGLISH,
+                    com.fitnessapp.tracker.data.local.CoachLanguage.GREEK,
+                    com.fitnessapp.tracker.data.local.CoachLanguage.GERMAN,
+                    com.fitnessapp.tracker.data.local.CoachLanguage.FRENCH,
+                    com.fitnessapp.tracker.data.local.CoachLanguage.RUSSIAN,
+                    com.fitnessapp.tracker.data.local.CoachLanguage.AUTO
+                )
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    languages.forEach { lang ->
+                        FilterChip(
+                            selected = language == lang,
+                            onClick = { onLanguageSelected(lang) },
+                            label = { Text(lang.title, fontWeight = if (language == lang) FontWeight.Bold else FontWeight.Normal) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = ElectricGreen.copy(alpha = 0.2f),
+                                selectedLabelColor = ElectricGreen,
+                                labelColor = TextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = language == lang,
+                                borderColor = if (language == lang) ElectricGreen else GlassBorder
+                            )
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(color = GlassBorder)
+
+            // ── Coaching Persona ──────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Psychology, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(20.dp))
+                    Text("Coaching Persona", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
+                Text("Select the coaching style that best matches your goals:", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+
+                com.fitnessapp.tracker.data.local.CoachPersona.entries.forEach { p ->
+                    val isSelected = persona == p
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPersonaSelected(p) },
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isSelected) ElectricGreen.copy(alpha = 0.12f) else NavyCard,
+                        border = BorderStroke(1.dp, if (isSelected) ElectricGreen else GlassBorder)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onPersonaSelected(p) },
+                                colors = RadioButtonDefaults.colors(selectedColor = ElectricGreen)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(p.title, fontWeight = FontWeight.Bold, color = if (isSelected) ElectricGreen else TextPrimary)
+                                Text(p.subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(color = GlassBorder)
+
+            // ── Voice Coaching ──────────────────────────────────────────────
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Default.RecordVoiceOver, contentDescription = null, tint = ElectricGreen, modifier = Modifier.size(22.dp))
+                    Column {
+                        Text("Voice Coaching (TTS)", fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Text("Audible pacing announcements & advice", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    }
+                }
+                Switch(
+                    checked = voiceCoachingEnabled,
+                    onCheckedChange = onVoiceToggle,
+                    colors = SwitchDefaults.colors(checkedThumbColor = DeepNavy, checkedTrackColor = ElectricGreen)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+

@@ -33,7 +33,10 @@ data class ChatUiState(
     val activeSessionId: Long? = null,
     val sessions: List<ChatSessionEntity> = emptyList(),
     val showSessionPicker: Boolean = false,
-    val availableSessions: List<WorkoutSessionEntity> = emptyList()
+    val availableSessions: List<WorkoutSessionEntity> = emptyList(),
+    val coachPersona: com.fitnessapp.tracker.data.local.CoachPersona = com.fitnessapp.tracker.data.local.CoachPersona.SUPPORTIVE,
+    val coachLanguage: com.fitnessapp.tracker.data.local.CoachLanguage = com.fitnessapp.tracker.data.local.CoachLanguage.AUTO,
+    val voiceCoachingEnabled: Boolean = true
 )
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -73,6 +76,22 @@ class ChatViewModel @Inject constructor(
                     if (_uiState.value.activeSessionId == null && _uiState.value.messages.isEmpty()) {
                         createNewChatSession()
                     }
+                }
+            }
+
+            launch {
+                combine(
+                    settingsRepository.coachPersona,
+                    settingsRepository.coachLanguage,
+                    settingsRepository.isVoiceCoachingEnabled
+                ) { persona, language, voiceEnabled ->
+                    Triple(persona, language, voiceEnabled)
+                }.collect { (persona, language, voiceEnabled) ->
+                    _uiState.update { it.copy(
+                        coachPersona = persona,
+                        coachLanguage = language,
+                        voiceCoachingEnabled = voiceEnabled
+                    ) }
                 }
             }
         }
@@ -172,8 +191,9 @@ class ChatViewModel @Inject constructor(
                 error = null
             ) }
 
-            val persona = settingsRepository.coachPersona.first()
-            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession, currentActivityType, persona)
+            val persona = _uiState.value.coachPersona
+            val language = _uiState.value.coachLanguage
+            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession, currentActivityType, persona, language)
 
             try {
                 var responseText = ""
@@ -299,5 +319,17 @@ class ChatViewModel @Inject constructor(
 
             sendMessage(sb.toString().trim())
         }
+    }
+
+    fun setCoachPersona(persona: com.fitnessapp.tracker.data.local.CoachPersona) {
+        viewModelScope.launch { settingsRepository.setCoachPersona(persona) }
+    }
+
+    fun setCoachLanguage(language: com.fitnessapp.tracker.data.local.CoachLanguage) {
+        viewModelScope.launch { settingsRepository.setCoachLanguage(language) }
+    }
+
+    fun setVoiceCoachingEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setVoiceCoachingEnabled(enabled) }
     }
 }

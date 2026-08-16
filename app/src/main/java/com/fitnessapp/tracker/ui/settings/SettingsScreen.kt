@@ -43,6 +43,7 @@ import com.fitnessapp.tracker.ui.onboarding.OnboardingViewModel
 import com.fitnessapp.tracker.updater.UpdaterViewModel
 import com.fitnessapp.tracker.ui.components.AppFeaturesGuideDialog
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     settingsViewModel: SettingsViewModel = hiltViewModel(),
@@ -282,14 +283,63 @@ fun SettingsScreen(
                 }
             }
 
-            // ── AI Coach Persona ──────────────────────────────────────────────────
+            // ── AI Coach Settings ──────────────────────────────────────────────────
             SettingsSectionCard(
                 icon = Icons.Default.SmartToy,
-                title = "AI Coach Persona",
-                subtitle = "Choose how your Qwen AI Coach communicates with you"
+                title = "AI Coach & Language",
+                subtitle = "Choose language, coaching tone, and behavior"
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CoachPersona.values().forEach { persona ->
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        "Coach Language",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+
+                    val languages = listOf(
+                        com.fitnessapp.tracker.data.local.CoachLanguage.ENGLISH,
+                        com.fitnessapp.tracker.data.local.CoachLanguage.GREEK,
+                        com.fitnessapp.tracker.data.local.CoachLanguage.GERMAN,
+                        com.fitnessapp.tracker.data.local.CoachLanguage.FRENCH,
+                        com.fitnessapp.tracker.data.local.CoachLanguage.RUSSIAN,
+                        com.fitnessapp.tracker.data.local.CoachLanguage.AUTO
+                    )
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        languages.forEach { lang ->
+                            FilterChip(
+                                selected = settingsState.coachLanguage == lang,
+                                onClick = { settingsViewModel.setCoachLanguage(lang) },
+                                label = { Text(lang.title, fontWeight = if (settingsState.coachLanguage == lang) FontWeight.Bold else FontWeight.Normal) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = ElectricGreen.copy(alpha = 0.2f),
+                                    selectedLabelColor = ElectricGreen,
+                                    labelColor = TextSecondary
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = settingsState.coachLanguage == lang,
+                                    borderColor = if (settingsState.coachLanguage == lang) ElectricGreen else GlassBorder
+                                )
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = GlassBorder)
+
+                    Text(
+                        "Coaching Persona",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+
+                    CoachPersona.entries.forEach { persona ->
                         CoachPersonaRow(
                             persona = persona,
                             isSelected = settingsState.coachPersona == persona,

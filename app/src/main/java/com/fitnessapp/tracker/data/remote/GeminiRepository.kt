@@ -38,13 +38,14 @@ class GeminiRepository @Inject constructor(
     }
 
     /**
-     * Builds the AI Coach RAG system prompt with user, session data, persona, and locale.
+     * Builds the AI Coach RAG system prompt with user, session data, persona, and language.
      */
     fun buildSystemPrompt(
         user: UserEntity,
         session: WorkoutSessionEntity?,
         activityType: String = "CYCLING",
-        persona: CoachPersona = CoachPersona.SUPPORTIVE
+        persona: CoachPersona = CoachPersona.SUPPORTIVE,
+        language: com.fitnessapp.tracker.data.local.CoachLanguage = com.fitnessapp.tracker.data.local.CoachLanguage.AUTO
     ): String {
         val distance = session?.let { "%.1f".format(it.totalDistanceMeters / 1000.0) } ?: "N/A"
         val speed = session?.let { "%.1f".format(it.avgSpeedKmh) } ?: "N/A"
@@ -75,7 +76,14 @@ class GeminiRepository @Inject constructor(
             """.trimIndent()
         }
 
-        val languageName = Locale.getDefault().displayLanguage
+        val languageInstruction = when (language) {
+            com.fitnessapp.tracker.data.local.CoachLanguage.ENGLISH -> "Respond strictly and fluently in English."
+            com.fitnessapp.tracker.data.local.CoachLanguage.GREEK -> "Respond strictly and fluently in Greek (Ελληνικά). Use natural Greek athletic terminology."
+            com.fitnessapp.tracker.data.local.CoachLanguage.GERMAN -> "Respond strictly and fluently in German (Deutsch). Use natural German athletic terminology."
+            com.fitnessapp.tracker.data.local.CoachLanguage.FRENCH -> "Respond strictly and fluently in French (Français). Use natural French athletic terminology."
+            com.fitnessapp.tracker.data.local.CoachLanguage.RUSSIAN -> "Respond strictly and fluently in Russian (Русский). Use natural Russian athletic terminology."
+            com.fitnessapp.tracker.data.local.CoachLanguage.AUTO -> "Respond naturally in ${Locale.getDefault().displayLanguage} (or match the user's input language)."
+        }
 
         return """
             Act as an elite personal coach for $activityName.
@@ -85,7 +93,7 @@ class GeminiRepository @Inject constructor(
             [LATEST SESSION] Distance: ${distance}km, Avg Speed: ${speed}km/h, Output: ${wattsPerKg} W/kg, Energy: ${calories} kcal.
             
             [LANGUAGE & LOCALIZATION]
-            - Respond naturally in $languageName (or match the user's input language).
+            - $languageInstruction
             - Use proper localized athletic terms.
 
             GUARDRAILS (STRICT):

@@ -11,11 +11,13 @@ import javax.inject.Inject
 import android.net.Uri
 import com.fitnessapp.tracker.util.DataBackupManager
 
+import com.fitnessapp.tracker.data.local.CoachLanguage
 import com.fitnessapp.tracker.data.local.CoachPersona
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val coachPersona: CoachPersona = CoachPersona.SUPPORTIVE,
+    val coachLanguage: CoachLanguage = CoachLanguage.AUTO,
     val challengesEnabled: Boolean = true,
     val voiceCoachingEnabled: Boolean = true,
     val lockPortraitModeEnabled: Boolean = true,
@@ -34,18 +36,26 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val coachingPrefsFlow = combine(
+                settingsRepository.coachPersona,
+                settingsRepository.coachLanguage,
+                settingsRepository.isVoiceCoachingEnabled
+            ) { persona, language, voiceEnabled ->
+                Triple(persona, language, voiceEnabled)
+            }
+
             combine(
                 settingsRepository.themeMode,
-                settingsRepository.coachPersona,
                 settingsRepository.challengesEnabled,
-                settingsRepository.isVoiceCoachingEnabled,
-                settingsRepository.isLockPortraitModeEnabled
-            ) { theme, persona, challengesEnabled, voiceCoachingEnabled, lockPortraitModeEnabled ->
+                settingsRepository.isLockPortraitModeEnabled,
+                coachingPrefsFlow
+            ) { theme, challengesEnabled, lockPortraitModeEnabled, (persona, language, voiceEnabled) ->
                 SettingsUiState(
                     themeMode = theme,
                     coachPersona = persona,
+                    coachLanguage = language,
                     challengesEnabled = challengesEnabled,
-                    voiceCoachingEnabled = voiceCoachingEnabled,
+                    voiceCoachingEnabled = voiceEnabled,
                     lockPortraitModeEnabled = lockPortraitModeEnabled
                 )
             }.collect { state ->
@@ -76,6 +86,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setCoachPersona(persona: CoachPersona) {
         viewModelScope.launch { settingsRepository.setCoachPersona(persona) }
+    }
+
+    fun setCoachLanguage(language: CoachLanguage) {
+        viewModelScope.launch { settingsRepository.setCoachLanguage(language) }
     }
 
     fun exportData(uri: Uri, password: String) {
