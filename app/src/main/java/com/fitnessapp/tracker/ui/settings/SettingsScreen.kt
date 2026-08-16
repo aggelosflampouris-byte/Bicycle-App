@@ -36,6 +36,7 @@ import com.google.zxing.qrcode.QRCodeWriter
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitnessapp.tracker.BuildConfig
+import com.fitnessapp.tracker.data.local.CoachPersona
 import com.fitnessapp.tracker.data.local.ThemeMode
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.onboarding.OnboardingViewModel
@@ -274,6 +275,23 @@ fun SettingsScreen(
                             uncheckedTrackColor = NavyDarker
                         )
                     )
+                }
+            }
+
+            // ── AI Coach Persona ──────────────────────────────────────────────────
+            SettingsSectionCard(
+                icon = Icons.Default.SmartToy,
+                title = "AI Coach Persona",
+                subtitle = "Choose how your Qwen AI Coach communicates with you"
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CoachPersona.values().forEach { persona ->
+                        CoachPersonaRow(
+                            persona = persona,
+                            isSelected = settingsState.coachPersona == persona,
+                            onClick = { settingsViewModel.setCoachPersona(persona) }
+                        )
+                    }
                 }
             }
 
@@ -587,6 +605,70 @@ private fun ThemeModeRow(mode: ThemeMode, isSelected: Boolean, onClick: () -> Un
             }
             if (isSelected) {
                 Icon(Icons.Default.CheckCircle, null, tint = ElectricGreen, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CoachPersonaRow(persona: CoachPersona, isSelected: Boolean, onClick: () -> Unit) {
+    val icon = when (persona) {
+        CoachPersona.SUPPORTIVE -> Icons.Default.Favorite
+        CoachPersona.DRILL_SERGEANT -> Icons.Default.MilitaryTech
+        CoachPersona.DATA_SCIENTIST -> Icons.Default.Psychology
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) VividCyan.copy(alpha = 0.12f) else Color.Transparent
+        ),
+        border = BorderStroke(
+            width = if (isSelected) 1.5.dp else 0.5.dp,
+            color = if (isSelected) VividCyan else GlassBorder
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) VividCyan.copy(alpha = 0.2f) else NavyDarker),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = if (isSelected) VividCyan else TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        persona.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected) VividCyan else TextPrimary
+                    )
+                    Text(
+                        persona.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+            if (isSelected) {
+                Icon(Icons.Default.CheckCircle, null, tint = VividCyan, modifier = Modifier.size(20.dp))
             }
         }
     }

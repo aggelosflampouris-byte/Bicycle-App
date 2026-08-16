@@ -127,6 +127,9 @@ fun PostWorkoutSummaryScreen(
                     SummaryContent(
                         session = uiState.session!!,
                         context = context,
+                        isGeneratingDebrief = uiState.isGeneratingDebrief,
+                        tacticalDebrief = uiState.tacticalDebrief,
+                        onGenerateDebrief = { viewModel.generateTacticalDebrief(null) },
                         onAskPersonalCoach = onAskPersonalCoach,
                         onBack = onBack
                     )
@@ -147,6 +150,9 @@ fun PostWorkoutSummaryScreen(
 private fun SummaryContent(
     session: WorkoutSessionEntity,
     context: Context,
+    isGeneratingDebrief: Boolean,
+    tacticalDebrief: String?,
+    onGenerateDebrief: () -> Unit,
     onAskPersonalCoach: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -461,6 +467,79 @@ private fun SummaryContent(
                 }
             }
 
+            // ── AI Tactical Debrief Card ─────────────────────────────────────
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = NavyCard),
+                border = BorderStroke(1.dp, if (tacticalDebrief != null) VividCyan else GlassBorder)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.SmartToy,
+                                contentDescription = null,
+                                tint = VividCyan,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Tactical AI Debrief",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        }
+
+                        if (tacticalDebrief == null && !isGeneratingDebrief) {
+                            Button(
+                                onClick = onGenerateDebrief,
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = VividCyan.copy(alpha = 0.15f),
+                                    contentColor = VividCyan
+                                )
+                            ) {
+                                Text("Analyze", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    if (isGeneratingDebrief) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = VividCyan,
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = "Qwen is analyzing pace splits and elevation...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                    } else if (tacticalDebrief != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(color = GlassBorder, thickness = 0.5.dp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = tacticalDebrief,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextPrimary,
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
+            }
+
             // Ask AI Coach button
             Button(
                 onClick = onAskPersonalCoach,
@@ -481,7 +560,7 @@ private fun SummaryContent(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Ask AI Coach AI",
+                    text = "Ask AI Coach",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp

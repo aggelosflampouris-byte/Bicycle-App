@@ -204,6 +204,55 @@ fun AiChatScreen(
             }
         }
 
+        var showPreRideDialog by remember { mutableStateOf(false) }
+
+        if (showPreRideDialog) {
+            PreRideBriefingDialog(
+                onDismiss = { showPreRideDialog = false },
+                onSubmit = { dist, weather, temp, windSpeed, windDir ->
+                    showPreRideDialog = false
+                    viewModel.triggerPreRideBriefing(dist, weather, temp, windSpeed, windDir)
+                }
+            )
+        }
+
+        // Quick Action Chips
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SuggestionChip(
+                onClick = { viewModel.triggerFatigueAnalysis() },
+                label = { Text("📈 Fatigue & Recovery Audit", style = MaterialTheme.typography.labelSmall) },
+                colors = SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = NavyCard,
+                    labelColor = VividCyan
+                ),
+                border = BorderStroke(0.5.dp, VividCyan.copy(alpha = 0.5f))
+            )
+            SuggestionChip(
+                onClick = { showPreRideDialog = true },
+                label = { Text("🌦️ Pre-Ride & Nutrition Plan", style = MaterialTheme.typography.labelSmall) },
+                colors = SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = NavyCard,
+                    labelColor = ElectricGreen
+                ),
+                border = BorderStroke(0.5.dp, ElectricGreen.copy(alpha = 0.5f))
+            )
+            SuggestionChip(
+                onClick = { viewModel.sendMessage("💡 Give me 3 key technique and pacing tips for my next workout.") },
+                label = { Text("💡 Pacing & Cadence Tips", style = MaterialTheme.typography.labelSmall) },
+                colors = SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = NavyCard,
+                    labelColor = TextPrimary
+                ),
+                border = BorderStroke(0.5.dp, GlassBorder)
+            )
+        }
+
         // Input bar
         ChatInputBar(
             inputText = inputText,
@@ -227,6 +276,83 @@ fun AiChatScreen(
         }
     }
     }
+}
+
+@Composable
+private fun PreRideBriefingDialog(
+    onDismiss: () -> Unit,
+    onSubmit: (distanceKm: Double, weather: String, tempC: Double, windSpeed: Double, windDir: String) -> Unit
+) {
+    var distanceStr by remember { mutableStateOf("30") }
+    var weatherStr by remember { mutableStateOf("Sunny / Clear") }
+    var tempStr by remember { mutableStateOf("22") }
+    var windSpeedStr by remember { mutableStateOf("15") }
+    var windDirStr by remember { mutableStateOf("North") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Cloud, contentDescription = null, tint = ElectricGreen)
+                Text(
+                    text = "Pre-Ride Strategy Planner",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Enter your planned session details to get custom pacing, wind tactics, and hydration targets:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+                OutlinedTextField(
+                    value = distanceStr,
+                    onValueChange = { distanceStr = it },
+                    label = { Text("Planned Distance (km)") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = ElectricGreen)
+                )
+                OutlinedTextField(
+                    value = tempStr,
+                    onValueChange = { tempStr = it },
+                    label = { Text("Temperature (°C)") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = ElectricGreen)
+                )
+                OutlinedTextField(
+                    value = windSpeedStr,
+                    onValueChange = { windSpeedStr = it },
+                    label = { Text("Wind Speed (km/h)") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = ElectricGreen)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val dist = distanceStr.toDoubleOrNull() ?: 25.0
+                    val temp = tempStr.toDoubleOrNull() ?: 20.0
+                    val wind = windSpeedStr.toDoubleOrNull() ?: 10.0
+                    onSubmit(dist, weatherStr, temp, wind, windDirStr)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = ElectricGreen, contentColor = DeepNavy)
+            ) {
+                Text("Generate Strategy", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = TextSecondary)
+            }
+        },
+        containerColor = NavyCard,
+        shape = RoundedCornerShape(20.dp)
+    )
 }
 
 @Composable

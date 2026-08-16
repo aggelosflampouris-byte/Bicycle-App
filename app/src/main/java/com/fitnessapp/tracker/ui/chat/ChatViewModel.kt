@@ -172,7 +172,8 @@ class ChatViewModel @Inject constructor(
                 error = null
             ) }
 
-            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession, currentActivityType)
+            val persona = settingsRepository.coachPersona.first()
+            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession, currentActivityType, persona)
 
             try {
                 var responseText = ""
@@ -212,6 +213,32 @@ class ChatViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    fun triggerFatigueAnalysis() {
+        if (_uiState.value.isLoading) return
+        viewModelScope.launch {
+            val sessions = sessionDao.getRecentSessionsByType(currentActivityType, 30)
+            val persona = settingsRepository.coachPersona.first()
+            
+            // Insert user query
+            val queryText = "📈 Please analyze my multi-week fatigue level, recovery status, and milestone progression."
+            sendMessage(queryText)
+        }
+    }
+
+    fun triggerPreRideBriefing(
+        targetDistanceKm: Double,
+        weatherCondition: String,
+        tempC: Double,
+        windSpeedKmh: Double,
+        windDirection: String
+    ) {
+        if (_uiState.value.isLoading) return
+        viewModelScope.launch {
+            val prompt = "🌦️ Pre-Ride Briefing Request: Target distance is ${"%.1f".format(targetDistanceKm)} km. Weather is $weatherCondition, ${"%.0f".format(tempC)}°C, wind ${"%.1f".format(windSpeedKmh)} km/h from $windDirection. Give me a pacing and nutrition/hydration strategy."
+            sendMessage(prompt)
         }
     }
 

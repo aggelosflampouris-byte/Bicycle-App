@@ -175,10 +175,22 @@ fun DashboardScreen(
                     visible = !uiState.isLoading,
                     enter = fadeIn() + slideInVertically()
                 ) {
+                    var showGoalDialog by remember { mutableStateOf(false) }
+
+                    if (showGoalDialog) {
+                        TrainingPlanGoalDialog(
+                            onDismiss = { showGoalDialog = false },
+                            onSelectGoal = { goal ->
+                                showGoalDialog = false
+                                viewModel.generateTrainingPlan(goal)
+                            }
+                        )
+                    }
+
                     WeeklyTrainingPlanCard(
                         trainingPlan = uiState.trainingPlan,
                         isGenerating = uiState.isGeneratingPlan,
-                        onGeneratePlan = { viewModel.generateTrainingPlan() },
+                        onGeneratePlan = { showGoalDialog = true },
                         onTogglePlanCompleted = { day -> viewModel.toggleDailyPlanCompleted(day) }
                     )
                 }
@@ -1011,9 +1023,84 @@ fun WeeklyTrainingPlanCard(
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(
+                            onClick = onGeneratePlan,
+                            enabled = !isGenerating,
+                            modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(1.dp, VividCyan)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = VividCyan, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Regenerate with New Goal", color = VividCyan, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun TrainingPlanGoalDialog(
+    onDismiss: () -> Unit,
+    onSelectGoal: (String) -> Unit
+) {
+    val goals = listOf(
+        "Balanced Endurance Building",
+        "Speed & HIIT Interval Power",
+        "Recovery & Low-Heart-Rate Base",
+        "Gran Fondo / 100km Century Prep",
+        "Fat Loss & Calorie Burn Focus"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Select Training Goal",
+                style = MaterialTheme.typography.titleLarge,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Qwen will generate an adaptive 7-day schedule based on your goal and recent workouts:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                goals.forEach { goal ->
+                    Button(
+                        onClick = { onSelectGoal(goal) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NavyDarker,
+                            contentColor = TextPrimary
+                        ),
+                        border = BorderStroke(1.dp, GlassBorder)
+                    ) {
+                        Text(
+                            text = goal,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = TextSecondary)
+            }
+        },
+        containerColor = NavyCard,
+        shape = RoundedCornerShape(20.dp)
+    )
 }

@@ -11,8 +11,11 @@ import javax.inject.Inject
 import android.net.Uri
 import com.fitnessapp.tracker.util.DataBackupManager
 
+import com.fitnessapp.tracker.data.local.CoachPersona
+
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
+    val coachPersona: CoachPersona = CoachPersona.SUPPORTIVE,
     val challengesEnabled: Boolean = true,
     val voiceCoachingEnabled: Boolean = true,
     val lockPortraitModeEnabled: Boolean = true,
@@ -33,12 +36,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 settingsRepository.themeMode,
+                settingsRepository.coachPersona,
                 settingsRepository.challengesEnabled,
                 settingsRepository.isVoiceCoachingEnabled,
                 settingsRepository.isLockPortraitModeEnabled
-            ) { theme, challengesEnabled, voiceCoachingEnabled, lockPortraitModeEnabled ->
+            ) { theme, persona, challengesEnabled, voiceCoachingEnabled, lockPortraitModeEnabled ->
                 SettingsUiState(
                     themeMode = theme,
+                    coachPersona = persona,
                     challengesEnabled = challengesEnabled,
                     voiceCoachingEnabled = voiceCoachingEnabled,
                     lockPortraitModeEnabled = lockPortraitModeEnabled
@@ -67,6 +72,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setLockPortraitModeEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setLockPortraitModeEnabled(enabled) }
+    }
+
+    fun setCoachPersona(persona: CoachPersona) {
+        viewModelScope.launch { settingsRepository.setCoachPersona(persona) }
     }
 
     fun exportData(uri: Uri, password: String) {

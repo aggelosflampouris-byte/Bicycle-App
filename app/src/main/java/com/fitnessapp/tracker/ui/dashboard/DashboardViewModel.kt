@@ -242,17 +242,18 @@ class DashboardViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showNewChallengeDialog = false)
     }
 
-    fun generateTrainingPlan() {
+    fun generateTrainingPlan(goal: String = "Balanced Endurance") {
         if (_uiState.value.isGeneratingPlan) return
         _uiState.value = _uiState.value.copy(isGeneratingPlan = true)
         
         viewModelScope.launch {
             val user = userDao.getUser() ?: UserEntity()
+            val persona = settingsRepository.coachPersona.first()
             // Provide the last 7 days of sessions for context
             val oneWeekAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
             val recentSessions = sessionDao.getAllSessionsFlow().first().filter { it.startTime >= oneWeekAgo }
             
-            val dailyPlans = geminiRepository.generateWeeklyPlan(user, recentSessions)
+            val dailyPlans = geminiRepository.generateWeeklyPlan(user, recentSessions, goal, persona)
             if (dailyPlans != null) {
                 val json = com.google.gson.Gson().toJson(dailyPlans)
                 val entity = TrainingPlanEntity(
