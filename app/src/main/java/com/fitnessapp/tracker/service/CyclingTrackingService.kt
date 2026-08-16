@@ -170,33 +170,11 @@ class CyclingTrackingService : Service() {
                 _trackingState.value = _trackingState.value.copy(
                     currentLap = nextLap
                 )
-                // Force notification update
-                val notif = NotificationHelper.buildTrackingNotification(
-                    this,
-                    _trackingState.value.speedKmh,
-                    totalDistanceMeters,
-                    elapsedSeconds,
-                    _trackingState.value.isPaused,
-                    _trackingState.value.activeChallenge,
-                    nextLap
-                )
-                val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
-                manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
+                updateNotification()
             }
             ACTION_CANCEL_CHALLENGE -> {
                 _trackingState.value = _trackingState.value.copy(activeChallenge = null)
-                // Force notification update
-                val notif = NotificationHelper.buildTrackingNotification(
-                    this,
-                    _trackingState.value.speedKmh,
-                    totalDistanceMeters,
-                    elapsedSeconds,
-                    _trackingState.value.isPaused,
-                    null,
-                    _trackingState.value.currentLap
-                )
-                val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
-                manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
+                updateNotification()
             }
         }
         return START_STICKY
@@ -208,6 +186,7 @@ class CyclingTrackingService : Service() {
             isPaused = paused,
             speedKmh = if (paused) 0.0 else _trackingState.value.speedKmh
         )
+        updateNotification()
         if (!paused) {
             stationaryCounter = 0
             acquireWakeLock()
@@ -267,7 +246,7 @@ class CyclingTrackingService : Service() {
             startForeground(NotificationHelper.NOTIFICATION_ID, notification)
         }
 
-        // Start 1-second timer for elapsed time + auto-pause
+        // Start 1-second timer for elapsed time
         timerJob = serviceScope.launch {
             while (isActive) {
                 delay(1000L)
@@ -276,18 +255,10 @@ class CyclingTrackingService : Service() {
                     // ONLY update the elapsedSecondsFlow to prevent heavy TrackingState recompositions
                     _elapsedSecondsFlow.value = elapsedSeconds
                 }
-                // Update notification
-                val notif = NotificationHelper.buildTrackingNotification(
-                    this@CyclingTrackingService,
-                    _trackingState.value.speedKmh,
-                    totalDistanceMeters,
-                    elapsedSeconds,
-                    _trackingState.value.isPaused,
-                    _trackingState.value.activeChallenge,
-                    _trackingState.value.currentLap
-                )
-                val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
-                manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
+                // Throttle notification updates to every 3 seconds to reduce IPC overhead & battery drain
+                if (elapsedSeconds % 3 == 0L || _trackingState.value.isPaused) {
+                    updateNotification()
+                }
             }
         }
 
@@ -450,12 +421,30 @@ class CyclingTrackingService : Service() {
         }
     }
 
+    private fun updateNotification() {
+        try {
+            val notif = NotificationHelper.buildTrackingNotification(
+                this@CyclingTrackingService,
+                _trackingState.value.speedKmh,
+                totalDistanceMeters,
+                elapsedSeconds,
+                _trackingState.value.isPaused,
+                _trackingState.value.activeChallenge,
+                _trackingState.value.currentLap
+            )
+            val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            manager.notify(NotificationHelper.NOTIFICATION_ID, notif)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating tracking notification: ${e.message}")
+        }
+    }
+
     private fun stopTracking(save: Boolean = true) {
         timerJob?.cancel()
         try {
             fusedLocationClient.removeLocationUpdates(locationCallback)
         } catch (e: Exception) {
-            Log.e(TAG, "Error removing location updates: ${e.message}")
+            Log.e(TAG, "Error removing location updates on stop: ${e.message}")
         }
 
         if (!save) {
@@ -579,6 +568,11 @@ class CyclingTrackingService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
+        try {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing location updates in onDestroy: ${e.message}")
+        }
         ttsManager.shutdown()
         releaseWakeLock()
         wakeLock = null

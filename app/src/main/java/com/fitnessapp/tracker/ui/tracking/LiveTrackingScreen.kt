@@ -782,6 +782,9 @@ private fun OsmMapView(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            mapRef?.onPause()
+            mapRef?.onDetach()
+            mapRef = null
         }
     }
 
