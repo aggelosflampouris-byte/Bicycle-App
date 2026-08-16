@@ -67,10 +67,6 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
-        <!-- Routine Reminder Receiver -->
-        <receiver android:name=".service.RoutineReminderReceiver"
-            android:exported="false" />
-
         <!-- Challenge Action Receiver -->
         <receiver android:name=".service.ChallengeActionReceiver"
             android:exported="false" />

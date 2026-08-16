@@ -7,13 +7,34 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WorkoutSessionDao {
 
-    @Query("SELECT * FROM workout_sessions ORDER BY startTime DESC")
+    @Query("""
+        SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
+               elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
+               '' as routePointsJson, activityType, isChallengeCompletion
+        FROM workout_sessions
+        ORDER BY startTime DESC
+    """)
     fun getAllSessionsFlow(): Flow<List<WorkoutSessionEntity>>
 
-    @Query("SELECT * FROM workout_sessions ORDER BY startTime DESC LIMIT :limit")
+    @Query("""
+        SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
+               elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
+               '' as routePointsJson, activityType, isChallengeCompletion
+        FROM workout_sessions
+        ORDER BY startTime DESC
+        LIMIT :limit
+    """)
     suspend fun getRecentSessions(limit: Int = 5): List<WorkoutSessionEntity>
 
-    @Query("SELECT * FROM workout_sessions WHERE activityType = :activityType ORDER BY startTime DESC LIMIT :limit")
+    @Query("""
+        SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
+               elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
+               '' as routePointsJson, activityType, isChallengeCompletion
+        FROM workout_sessions
+        WHERE activityType = :activityType
+        ORDER BY startTime DESC
+        LIMIT :limit
+    """)
     suspend fun getRecentSessionsByType(activityType: String, limit: Int = 10): List<WorkoutSessionEntity>
 
     @Query("SELECT * FROM workout_sessions WHERE id = :id")
