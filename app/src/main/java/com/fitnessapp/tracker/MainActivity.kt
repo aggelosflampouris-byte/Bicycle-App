@@ -114,66 +114,69 @@ class MainActivity : ComponentActivity() {
         
         handleIntent(intent)
 
-        // Determine start destination based on whether user has been set up, workout is active, or challenge is active
+        // Check if there is a pending challenge and show notification
         lifecycleScope.launch {
-            val user = userDao.getUserFlow().firstOrNull()
-            val isTracking = com.fitnessapp.tracker.service.CyclingTrackingService.trackingState.value.isTracking
-            val activeChallenge = challengeDao.getActiveChallenge()
-            val isRecommendedWorkout = intent?.action == IntentActions.RECOMMENDED_WORKOUT
-            val recommendedActivity = intent?.getStringExtra("RECOMMENDED_ACTIVITY")
-            
-            startDestination = when {
-                user == null -> Screen.Onboarding.route
-                !authRepository.isUserLoggedIn -> Screen.Auth.route
-                isTracking -> Screen.LiveTracking.route
-                isRecommendedWorkout && !recommendedActivity.isNullOrBlank() -> {
-                    settingsRepository.setActivityType(recommendedActivity)
-                    Screen.Main.route
-                }
-                activeChallenge != null &&
-                (activeChallenge.status == ChallengeStatus.ACCEPTED ||
-                 activeChallenge.status == ChallengeStatus.ACTIVE) -> {
-                    settingsRepository.setActivityType(activeChallenge.activityType)
-                    Screen.Main.route
-                }
-                else -> Screen.ActivitySelection.route
-            }
-
-            // Check if there is a pending challenge and show notification
             val latestChallenge = challengeDao.getLatestChallenge()
             if (latestChallenge != null && latestChallenge.status == ChallengeStatus.PENDING) {
                 com.fitnessapp.tracker.service.NotificationHelper.showNewChallengeNotification(this@MainActivity, latestChallenge.id, latestChallenge)
             }
+        }
 
-            setContent {
-                // Collect theme preference reactively
-                val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(ThemeMode.DARK)
-                val isSystemDark = isSystemInDarkTheme()
-                val isDark = when (themeMode) {
-                    ThemeMode.DARK -> true
-                    ThemeMode.LIGHT -> false
-                    ThemeMode.SYSTEM -> isSystemDark
-                }
+        setContent {
+            // Determine start destination reactively on startup
+            val initialDestination by produceState<String?>(initialValue = null) {
+                val user = userDao.getUserFlow().firstOrNull()
+                val isTracking = com.fitnessapp.tracker.service.CyclingTrackingService.trackingState.value.isTracking
+                val activeChallenge = challengeDao.getActiveChallenge()
+                val isRecommendedWorkout = intent?.action == IntentActions.RECOMMENDED_WORKOUT
+                val recommendedActivity = intent?.getStringExtra("RECOMMENDED_ACTIVITY")
 
-                val activityType by settingsRepository.activityType.collectAsStateWithLifecycle("CYCLING")
-                
-                val lockPortraitModeEnabled by settingsRepository.isLockPortraitModeEnabled.collectAsStateWithLifecycle(true)
-
-                LaunchedEffect(lockPortraitModeEnabled) {
-                    requestedOrientation = if (lockPortraitModeEnabled) {
-                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    } else {
-                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                value = when {
+                    user == null -> Screen.Onboarding.route
+                    !authRepository.isUserLoggedIn -> Screen.Auth.route
+                    isTracking -> Screen.LiveTracking.route
+                    isRecommendedWorkout && !recommendedActivity.isNullOrBlank() -> {
+                        settingsRepository.setActivityType(recommendedActivity)
+                        Screen.Main.route
                     }
+                    activeChallenge != null &&
+                    (activeChallenge.status == ChallengeStatus.ACCEPTED ||
+                     activeChallenge.status == ChallengeStatus.ACTIVE) -> {
+                        settingsRepository.setActivityType(activeChallenge.activityType)
+                        Screen.Main.route
+                    }
+                    else -> Screen.ActivitySelection.route
                 }
+            }
 
-                SmartCyclingTrackerTheme(darkTheme = isDark) {
-                    CompositionLocalProvider(LocalActivityTheme provides activityType) {
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colorScheme.background
-                        ) {
-                            CyclingNavGraph(startDestination = startDestination)
+            // Collect theme preference reactively
+            val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(ThemeMode.DARK)
+            val isSystemDark = isSystemInDarkTheme()
+            val isDark = when (themeMode) {
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+                ThemeMode.SYSTEM -> isSystemDark
+            }
+
+            val activityType by settingsRepository.activityType.collectAsStateWithLifecycle("CYCLING")
+            val lockPortraitModeEnabled by settingsRepository.isLockPortraitModeEnabled.collectAsStateWithLifecycle(true)
+
+            LaunchedEffect(lockPortraitModeEnabled) {
+                requestedOrientation = if (lockPortraitModeEnabled) {
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+            }
+
+            SmartCyclingTrackerTheme(darkTheme = isDark) {
+                CompositionLocalProvider(LocalActivityTheme provides activityType) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        initialDestination?.let { destination ->
+                            CyclingNavGraph(startDestination = destination)
                         }
                     }
                 }

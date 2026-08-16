@@ -114,7 +114,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
     
-    fun saveRoutine(interval: String, metric: String, targetValue: Double, autoImprove: Boolean) {
+    fun saveRoutine(interval: com.fitnessapp.tracker.data.local.entity.RoutineInterval, metric: com.fitnessapp.tracker.data.local.entity.RoutineMetric, targetValue: Double, autoImprove: Boolean) {
         viewModelScope.launch {
             routineRepository.saveRoutine(
                 activityType = _activityType.value,

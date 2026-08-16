@@ -3,6 +3,8 @@ package com.fitnessapp.tracker.data.local
 import com.fitnessapp.tracker.data.local.dao.RoutineDao
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
 import com.fitnessapp.tracker.data.local.entity.RoutineEntity
+import com.fitnessapp.tracker.data.local.entity.RoutineInterval
+import com.fitnessapp.tracker.data.local.entity.RoutineMetric
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -43,9 +45,8 @@ class RoutineRepository @Inject constructor(
                     activityType = activeRoutine.activityType
                 ).map { summary ->
                     val currentValue = when (activeRoutine.metric) {
-                        "CALORIES" -> summary?.totalCals ?: 0.0
-                        "DISTANCE" -> (summary?.totalDist ?: 0.0) / 1000.0 // meters to km
-                        else -> 0.0
+                        RoutineMetric.CALORIES -> summary?.totalCals ?: 0.0
+                        RoutineMetric.DISTANCE -> (summary?.totalDist ?: 0.0) / 1000.0 // meters to km
                     }
                     RoutineProgress(
                         routine = activeRoutine,
@@ -59,8 +60,8 @@ class RoutineRepository @Inject constructor(
 
     suspend fun saveRoutine(
         activityType: String,
-        interval: String,
-        metric: String,
+        interval: RoutineInterval,
+        metric: RoutineMetric,
         targetValue: Double,
         autoImprove: Boolean
     ) {
@@ -100,9 +101,8 @@ class RoutineRepository @Inject constructor(
         )
         
         val achievedValue = when (routine.metric) {
-            "CALORIES" -> summary?.totalCals ?: 0.0
-            "DISTANCE" -> (summary?.totalDist ?: 0.0) / 1000.0 // meters to km
-            else -> 0.0
+            RoutineMetric.CALORIES -> summary?.totalCals ?: 0.0
+            RoutineMetric.DISTANCE -> (summary?.totalDist ?: 0.0) / 1000.0 // meters to km
         }
         
         var newTarget = routine.targetValue
@@ -120,13 +120,12 @@ class RoutineRepository @Inject constructor(
         return updatedRoutine
     }
 
-
     suspend fun getAllRoutines(): List<RoutineEntity> {
         return routineDao.getAllRoutines()
     }
 
     companion object {
-        fun calculatePeriod(interval: String, timeMillis: Long): Pair<Long, Long> {
+        fun calculatePeriod(interval: RoutineInterval, timeMillis: Long): Pair<Long, Long> {
             val cal = Calendar.getInstance()
             cal.timeInMillis = timeMillis
             cal.set(Calendar.HOUR_OF_DAY, 0)
@@ -134,26 +133,28 @@ class RoutineRepository @Inject constructor(
             cal.set(Calendar.SECOND, 0)
             cal.set(Calendar.MILLISECOND, 0)
             
-            val start = cal.timeInMillis
-            
-            when (interval) {
-                "DAILY" -> {
+            return when (interval) {
+                RoutineInterval.DAILY -> {
+                    val start = cal.timeInMillis
                     cal.add(Calendar.DAY_OF_YEAR, 1)
+                    Pair(start, cal.timeInMillis - 1)
                 }
-                "WEEKLY" -> {
+                RoutineInterval.WEEKLY -> {
                     cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                    if (cal.timeInMillis > timeMillis) {
+                        cal.add(Calendar.WEEK_OF_YEAR, -1)
+                    }
                     val weekStart = cal.timeInMillis
                     cal.add(Calendar.WEEK_OF_YEAR, 1)
-                    return Pair(weekStart, cal.timeInMillis - 1)
+                    Pair(weekStart, cal.timeInMillis - 1)
                 }
-                "MONTHLY" -> {
+                RoutineInterval.MONTHLY -> {
                     cal.set(Calendar.DAY_OF_MONTH, 1)
                     val monthStart = cal.timeInMillis
                     cal.add(Calendar.MONTH, 1)
-                    return Pair(monthStart, cal.timeInMillis - 1)
+                    Pair(monthStart, cal.timeInMillis - 1)
                 }
             }
-            return Pair(start, cal.timeInMillis - 1)
         }
     }
 }

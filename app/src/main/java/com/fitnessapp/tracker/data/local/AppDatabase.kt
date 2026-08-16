@@ -31,7 +31,7 @@ import com.fitnessapp.tracker.data.local.entity.TrainingPlanEntity
     version = 10,
     exportSchema = false
 )
-@TypeConverters(ChallengeTypeConverters::class)
+@TypeConverters(ChallengeTypeConverters::class, RoutineTypeConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun workoutSessionDao(): WorkoutSessionDao

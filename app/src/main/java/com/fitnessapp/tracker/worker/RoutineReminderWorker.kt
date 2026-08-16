@@ -42,8 +42,8 @@ class RoutineReminderWorker @AssistedInject constructor(
                     // If less than 24 hours left, notify the user
                     if (timeLeftMillis > 0 && timeLeftMillis <= TimeUnit.HOURS.toMillis(24)) {
                         val remaining = String.format(java.util.Locale.US, "%.1f", progress.routine.targetValue - progress.currentValue)
-                        val unit = if (progress.routine.metric == "DISTANCE") "km" else "kcals"
-                        val interval = progress.routine.interval.lowercase()
+                        val unit = if (progress.routine.metric == com.fitnessapp.tracker.data.local.entity.RoutineMetric.DISTANCE) "km" else "kcals"
+                        val interval = progress.routine.interval.name.lowercase()
                         val activityName = progress.routine.activityType.lowercase()
                         
                         showNotification(

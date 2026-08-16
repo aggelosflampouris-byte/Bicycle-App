@@ -39,6 +39,8 @@ import com.google.gson.reflect.TypeToken
 import com.fitnessapp.tracker.service.CyclingTrackingService
 import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
 import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
+import com.fitnessapp.tracker.data.local.entity.RoutineInterval
+import com.fitnessapp.tracker.data.local.entity.RoutineMetric
 import android.widget.Toast
 
 @Composable
@@ -583,11 +585,11 @@ private fun MiniStat(label: String, value: String) {
 private fun RoutineConfigBottomSheet(
     currentProgress: com.fitnessapp.tracker.data.local.RoutineProgress?,
     onDismiss: () -> Unit,
-    onSave: (interval: String, metric: String, target: Double, autoImprove: Boolean) -> Unit,
+    onSave: (interval: RoutineInterval, metric: RoutineMetric, target: Double, autoImprove: Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
-    var interval by remember { mutableStateOf(currentProgress?.routine?.interval ?: "WEEKLY") }
-    var metric by remember { mutableStateOf(currentProgress?.routine?.metric ?: "DISTANCE") }
+    var interval by remember { mutableStateOf(currentProgress?.routine?.interval ?: RoutineInterval.WEEKLY) }
+    var metric by remember { mutableStateOf(currentProgress?.routine?.metric ?: RoutineMetric.DISTANCE) }
     var target by remember { mutableStateOf(currentProgress?.routine?.targetValue?.toString() ?: "50.0") }
     var autoImprove by remember { mutableStateOf(currentProgress?.routine?.autoImprove ?: true) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -619,11 +621,11 @@ private fun RoutineConfigBottomSheet(
 
             // Interval selector
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("DAILY", "WEEKLY", "MONTHLY").forEach { opt ->
+                RoutineInterval.entries.forEach { opt ->
                     FilterChip(
                         selected = interval == opt,
                         onClick = { interval = opt },
-                        label = { Text(opt.lowercase().replaceFirstChar { it.uppercase() }) },
+                        label = { Text(opt.name.lowercase().replaceFirstChar { it.uppercase() }) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = ElectricGreen.copy(alpha = 0.2f),
                             selectedLabelColor = ElectricGreen,
@@ -635,11 +637,11 @@ private fun RoutineConfigBottomSheet(
 
             // Metric selector
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("DISTANCE", "CALORIES").forEach { opt ->
+                RoutineMetric.entries.forEach { opt ->
                     FilterChip(
                         selected = metric == opt,
                         onClick = { metric = opt },
-                        label = { Text(if (opt == "DISTANCE") "Distance (km)" else "Calories") },
+                        label = { Text(if (opt == RoutineMetric.DISTANCE) "Distance (km)" else "Calories") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = ElectricGreen.copy(alpha = 0.2f),
                             selectedLabelColor = ElectricGreen,
@@ -736,7 +738,7 @@ private fun RoutineProgressCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.TrackChanges, null, tint = ElectricGreen, modifier = Modifier.size(20.dp))
                     Text(
-                        text = if (progress == null) "Set a Workout Goal" else "${progress.routine.interval} Goal",
+                        text = if (progress == null) "Set a Workout Goal" else "${progress.routine.interval.name.lowercase().replaceFirstChar { it.uppercase() }} Goal",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
@@ -748,7 +750,7 @@ private fun RoutineProgressCard(
             if (progress != null) {
                 Spacer(modifier = Modifier.height(12.dp))
                 val percentage = (progress.currentValue / progress.routine.targetValue).coerceIn(0.0, 1.0)
-                val unit = if (progress.routine.metric == "DISTANCE") "km" else "kcal"
+                val unit = if (progress.routine.metric == RoutineMetric.DISTANCE) "km" else "kcal"
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
