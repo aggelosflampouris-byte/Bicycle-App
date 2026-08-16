@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitnessapp.tracker.data.local.dao.UserDao
 import com.fitnessapp.tracker.data.local.entity.UserEntity
+import com.fitnessapp.tracker.data.remote.FirestoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +24,8 @@ data class OnboardingUiState(
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val firestoreRepository: FirestoreRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
@@ -69,11 +71,13 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             // upsert atomically handles both first-time insert and subsequent updates
             val currentUser = userDao.getUser()
-            if (currentUser != null) {
-                userDao.upsertUser(user.copy(id = currentUser.id))
+            val finalUser = if (currentUser != null) {
+                user.copy(id = currentUser.id)
             } else {
-                userDao.upsertUser(user)
+                user
             }
+            userDao.upsertUser(finalUser)
+            firestoreRepository.syncUserProfile(finalUser)
             _uiState.value = _uiState.value.copy(isSaved = true, hasProfile = true)
             onComplete()
         }
@@ -83,7 +87,9 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             val existing = userDao.getUser()
             if (existing == null) {
-                userDao.upsertUser(UserEntity()) // Insert with all defaults
+                val defaultUser = UserEntity()
+                userDao.upsertUser(defaultUser) // Insert with all defaults
+                firestoreRepository.syncUserProfile(defaultUser)
             }
             onComplete()
         }

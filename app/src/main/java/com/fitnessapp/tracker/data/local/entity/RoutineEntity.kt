@@ -5,11 +5,11 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "workout_routines")
 data class RoutineEntity(
-    @PrimaryKey val activityType: String, // "CYCLING", "WALKING", "JOGGING"
-    val interval: String, // "DAILY", "WEEKLY", "MONTHLY"
-    val metric: String, // "CALORIES", "DISTANCE"
-    val targetValue: Double,
-    val autoImprove: Boolean,
+    @PrimaryKey val activityType: String = "CYCLING", // "CYCLING", "WALKING", "JOGGING"
+    val interval: String = "WEEKLY", // "DAILY", "WEEKLY", "MONTHLY"
+    val metric: String = "DISTANCE", // "CALORIES", "DISTANCE"
+    val targetValue: Double = 0.0,
+    val autoImprove: Boolean = false,
     val autoImprovePercentage: Double = 0.05, // e.g. 5%
     val currentPeriodStart: Long = 0L,
     val currentPeriodEnd: Long = 0L,

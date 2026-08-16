@@ -19,12 +19,12 @@ enum class ChallengePeriod {
 data class ChallengeEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val activityType: String,          // CYCLING, WALKING, JOGGING
-    val metric: ChallengeMetric,
-    val targetValue: Double,
+    val activityType: String = "CYCLING",          // CYCLING, WALKING, JOGGING
+    val metric: ChallengeMetric = ChallengeMetric.DISTANCE,
+    val targetValue: Double = 0.0,
     val currentProgress: Double = 0.0,
-    val period: ChallengePeriod,
-    val status: ChallengeStatus,
+    val period: ChallengePeriod = ChallengePeriod.DAY,
+    val status: ChallengeStatus = ChallengeStatus.PENDING,
     val createdAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null
 )

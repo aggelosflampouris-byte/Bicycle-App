@@ -3,6 +3,7 @@ package com.fitnessapp.tracker.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitnessapp.tracker.data.remote.AuthRepository
+import com.fitnessapp.tracker.data.remote.FirestoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +13,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val firestoreRepository: FirestoreRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -86,6 +88,9 @@ class AuthViewModel @Inject constructor(
             }
 
             result.onSuccess {
+                if (state.isLogin) {
+                    firestoreRepository.pullAndRestoreUserData()
+                }
                 _uiState.value = _uiState.value.copy(isLoading = false, error = null)
                 if (state.isLogin) onLoginSuccess() else onSignUpSuccess()
             }.onFailure {
