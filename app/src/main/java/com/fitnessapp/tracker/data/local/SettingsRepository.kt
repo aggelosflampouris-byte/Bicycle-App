@@ -33,6 +33,11 @@ class SettingsRepository @Inject constructor(
         private val VOICE_COACHING_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("voice_coaching_enabled")
         private val LOCK_PORTRAIT_MODE_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("lock_portrait_mode")
         private val COACH_PERSONA_KEY = stringPreferencesKey("coach_persona")
+        private val LAST_SEEN_VERSION_CODE_KEY = androidx.datastore.preferences.core.intPreferencesKey("last_seen_version_code")
+    }
+
+    val lastSeenVersionCode: Flow<Int> = context.settingsDataStore.data.map { prefs ->
+        prefs[LAST_SEEN_VERSION_CODE_KEY] ?: 0
     }
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
@@ -100,6 +105,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setCoachPersona(persona: CoachPersona) {
         context.settingsDataStore.edit { prefs ->
             prefs[COACH_PERSONA_KEY] = persona.name
+        }
+    }
+
+    suspend fun setLastSeenVersionCode(versionCode: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[LAST_SEEN_VERSION_CODE_KEY] = versionCode
         }
     }
 }

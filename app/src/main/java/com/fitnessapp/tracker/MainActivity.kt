@@ -32,6 +32,7 @@ import android.app.NotificationManager
 import com.fitnessapp.tracker.data.local.dao.ChallengeDao
 import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
 import com.fitnessapp.tracker.service.IntentActions
+import com.fitnessapp.tracker.ui.components.AppFeaturesGuideDialog
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -160,6 +161,20 @@ class MainActivity : ComponentActivity() {
 
             val activityType by settingsRepository.activityType.collectAsStateWithLifecycle("CYCLING")
             val lockPortraitModeEnabled by settingsRepository.isLockPortraitModeEnabled.collectAsStateWithLifecycle(true)
+            val lastSeenVersion by settingsRepository.lastSeenVersionCode.collectAsStateWithLifecycle(initialValue = BuildConfig.VERSION_CODE)
+            val coroutineScope = rememberCoroutineScope()
+            var showFeaturesGuide by remember { mutableStateOf(false) }
+
+            // Trigger pop-up guide when launched for the first time after an update
+            LaunchedEffect(initialDestination, lastSeenVersion) {
+                if (initialDestination != null &&
+                    initialDestination != Screen.Onboarding.route &&
+                    initialDestination != Screen.Auth.route &&
+                    lastSeenVersion < BuildConfig.VERSION_CODE
+                ) {
+                    showFeaturesGuide = true
+                }
+            }
 
             LaunchedEffect(lockPortraitModeEnabled) {
                 requestedOrientation = if (lockPortraitModeEnabled) {
@@ -175,6 +190,17 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
+                        if (showFeaturesGuide) {
+                            AppFeaturesGuideDialog(
+                                onDismiss = {
+                                    showFeaturesGuide = false
+                                    coroutineScope.launch {
+                                        settingsRepository.setLastSeenVersionCode(BuildConfig.VERSION_CODE)
+                                    }
+                                }
+                            )
+                        }
+
                         initialDestination?.let { destination ->
                             CyclingNavGraph(startDestination = destination)
                         }
