@@ -17,6 +17,7 @@ import com.fitnessapp.tracker.ui.dashboard.DashboardScreen
 import com.fitnessapp.tracker.ui.main.ActivitySelectionScreen
 import com.fitnessapp.tracker.ui.main.MainScreen
 import com.fitnessapp.tracker.ui.onboarding.OnboardingScreen
+import com.fitnessapp.tracker.ui.settings.SettingsScreen
 import com.fitnessapp.tracker.ui.settings.SettingsViewModel
 import com.fitnessapp.tracker.ui.summary.PostWorkoutSummaryScreen
 import com.fitnessapp.tracker.ui.tracking.LiveTrackingScreen
@@ -26,6 +27,7 @@ sealed class Screen(val route: String) {
     object Onboarding : Screen("onboarding")
     object ActivitySelection : Screen("activity_selection")
     object Main : Screen("main")
+    object Settings : Screen("settings")
     object LiveTracking : Screen("tracking")
     object PostWorkoutSummary : Screen("summary/{sessionId}") {
         fun createRoute(sessionId: Long) = "summary/$sessionId"
@@ -121,8 +123,18 @@ fun CyclingNavGraph(
                     navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
                 },
                 onOpenSettings = {
-                    navController.navigate(Screen.Onboarding.route)
+                    navController.navigate(Screen.Settings.route)
                 },
+                onLogout = {
+                    navController.navigate(Screen.Auth.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(route = Screen.Settings.route) {
+            SettingsScreen(
                 onLogout = {
                     navController.navigate(Screen.Auth.route) {
                         popUpTo(0) { inclusive = true }
