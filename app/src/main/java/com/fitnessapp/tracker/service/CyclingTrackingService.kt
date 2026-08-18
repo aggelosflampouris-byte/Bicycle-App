@@ -48,7 +48,9 @@ data class TrackingState(
     val crashState: com.fitnessapp.tracker.safety.CrashState = com.fitnessapp.tracker.safety.CrashState.Idle,
     val activeGpxRoute: com.fitnessapp.tracker.navigation.GpxRoute? = null,
     val liveClimb: com.fitnessapp.tracker.navigation.LiveClimbInfo? = null,
-    val offRouteStatus: com.fitnessapp.tracker.navigation.OffRouteStatus? = null
+    val offRouteStatus: com.fitnessapp.tracker.navigation.OffRouteStatus? = null,
+    val ghostPacerState: com.fitnessapp.tracker.gamification.GhostPacerState = com.fitnessapp.tracker.gamification.GhostPacerState(),
+    val liveSegmentStatus: com.fitnessapp.tracker.gamification.LiveSegmentStatus = com.fitnessapp.tracker.gamification.LiveSegmentStatus()
 )
 
 /**
@@ -64,6 +66,7 @@ class CyclingTrackingService : Service() {
 
     @Inject lateinit var workoutSessionDao: WorkoutSessionDao
     @Inject lateinit var challengeDao: com.fitnessapp.tracker.data.local.dao.ChallengeDao
+    @Inject lateinit var segmentDao: com.fitnessapp.tracker.data.local.dao.SegmentDao
     @Inject lateinit var settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository
     @Inject lateinit var gson: Gson
     @Inject lateinit var firestoreRepository: com.fitnessapp.tracker.data.remote.FirestoreRepository
@@ -129,11 +132,21 @@ class CyclingTrackingService : Service() {
         private var instance: CyclingTrackingService? = null
 
         fun setGpxRoute(route: com.fitnessapp.tracker.navigation.GpxRoute?) {
+            if (route != null) {
+                instance?.ghostPacerEngine?.loadFromGpx(route, targetAvgSpeedKmh = 25.0)
+            } else {
+                instance?.ghostPacerEngine?.clear()
+            }
             _trackingState.value = _trackingState.value.copy(
                 activeGpxRoute = route,
                 liveClimb = null,
-                offRouteStatus = null
+                offRouteStatus = null,
+                ghostPacerState = com.fitnessapp.tracker.gamification.GhostPacerState()
             )
+        }
+
+        fun setGhostSession(points: List<RoutePoint>) {
+            instance?.ghostPacerEngine?.loadFromSessionRoute(points)
         }
 
         fun cancelCrashSos() {
@@ -164,6 +177,9 @@ class CyclingTrackingService : Service() {
     }
 
     private lateinit var crashDetectionEngine: com.fitnessapp.tracker.safety.CrashDetectionEngine
+    private val ghostPacerEngine = com.fitnessapp.tracker.gamification.GhostPacerEngine()
+    private val segmentEngine = com.fitnessapp.tracker.gamification.SegmentEngine()
+    private var availableSegments = listOf<com.fitnessapp.tracker.data.local.entity.SegmentEntity>()
     private var isCrashDetectionEnabled = true
     private var lastOffRouteAlertTime = 0L
 
@@ -174,6 +190,10 @@ class CyclingTrackingService : Service() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         ttsManager = com.fitnessapp.tracker.util.TtsManager(this)
         crashDetectionEngine = com.fitnessapp.tracker.safety.CrashDetectionEngine(this, serviceScope)
+        
+        serviceScope.launch {
+            availableSegments = segmentDao.getAllSegmentsList()
+        }
         
         serviceScope.launch {
             settingsRepository.isVoiceCoachingEnabled.collect { enabled ->
@@ -486,6 +506,19 @@ class CyclingTrackingService : Service() {
             liveClimbInfo = com.fitnessapp.tracker.navigation.ClimbEngine.evaluateLiveClimb(route.climbs, totalDistanceMeters)
         }
 
+        // Ghost Pacer Evaluation
+        var ghostState = _trackingState.value.ghostPacerState
+        if (ghostPacerEngine.hasGhost) {
+            ghostState = ghostPacerEngine.evaluate(totalDistanceMeters, elapsedSeconds)
+        }
+
+        // Live Segments Evaluation
+        val segStatus = segmentEngine.evaluateLive(lat, lng, speedMps, elapsedSeconds, totalDistanceMeters, availableSegments)
+        if (segStatus.completedEffort != null && isVoiceCoachingEnabled) {
+            val sec = segStatus.completedEffort.elapsedSeconds
+            ttsManager.speak("Segment completed in $sec seconds!")
+        }
+
         // ── Update UI State ──────────────────────────────────────────────────
         _trackingState.value = _trackingState.value.copy(
             speedKmh = speedKmh,
@@ -496,7 +529,9 @@ class CyclingTrackingService : Service() {
             currentLng = lng,
             elevationGainMeters = elevationGainMeters,
             liveClimb = liveClimbInfo,
-            offRouteStatus = offRoute
+            offRouteStatus = offRoute,
+            ghostPacerState = ghostState,
+            liveSegmentStatus = segStatus
         )
 
         // Check for 1km milestone announcement
@@ -601,6 +636,11 @@ class CyclingTrackingService : Service() {
                 )
                 savedId = workoutSessionDao.insertSession(session)
                 
+                // Evaluate segment efforts for this completed session
+                if (savedId > 0 && availableSegments.isNotEmpty()) {
+                    segmentEngine.evaluateSession(savedId, routePoints.toList(), availableSegments, segmentDao)
+                }
+
                 // Schedule 2-day inactivity reminder
                 val reminderRequest = androidx.work.OneTimeWorkRequestBuilder<com.fitnessapp.tracker.worker.WorkoutReminderWorker>()
                     .setInitialDelay(2, java.util.concurrent.TimeUnit.DAYS)

@@ -148,6 +148,12 @@ fun AppFeaturesGuideDialog(onDismiss: () -> Unit) {
                     )
 
                     FeatureGuideItem(
+                        icon = "👻",
+                        title = "Ghost Rider Virtual Pacer & Segments",
+                        description = "Race against your personal best attempt on any course with live ahead/behind time delta (+/- seconds), and track leaderboards on local road segments."
+                    )
+
+                    FeatureGuideItem(
                         icon = "🔄",
                         title = "Seamless In-App Updater",
                         description = "Stay up to date with new features and improvements with direct GitHub Release updates and real-time download progress."

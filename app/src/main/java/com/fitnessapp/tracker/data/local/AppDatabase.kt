@@ -19,6 +19,9 @@ import com.fitnessapp.tracker.data.local.entity.ChallengeEntity
 import com.fitnessapp.tracker.data.local.entity.TrainingPlanEntity
 import com.fitnessapp.tracker.data.local.entity.PersonalRecordEntity
 import com.fitnessapp.tracker.data.local.dao.PersonalRecordDao
+import com.fitnessapp.tracker.data.local.entity.SegmentEntity
+import com.fitnessapp.tracker.data.local.entity.SegmentEffortEntity
+import com.fitnessapp.tracker.data.local.dao.SegmentDao
 
 @Database(
     entities = [
@@ -29,9 +32,11 @@ import com.fitnessapp.tracker.data.local.dao.PersonalRecordDao
         RoutineEntity::class,
         ChallengeEntity::class,
         TrainingPlanEntity::class,
-        PersonalRecordEntity::class
+        PersonalRecordEntity::class,
+        SegmentEntity::class,
+        SegmentEffortEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(ChallengeTypeConverters::class, RoutineTypeConverters::class, PersonalRecordTypeConverters::class)
@@ -44,6 +49,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun challengeDao(): ChallengeDao
     abstract fun trainingPlanDao(): TrainingPlanDao
     abstract fun personalRecordDao(): PersonalRecordDao
+    abstract fun segmentDao(): SegmentDao
 
     companion object {
         const val DATABASE_NAME = "cycling_tracker.db"
@@ -165,6 +171,23 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
                 database.execSQL(
                     "CREATE TABLE IF NOT EXISTS `personal_records` (`recordType` TEXT NOT NULL, `activityType` TEXT NOT NULL, `value` REAL NOT NULL, `sessionId` INTEGER NOT NULL, `achievedAt` INTEGER NOT NULL, PRIMARY KEY(`recordType`, `activityType`))"
+                )
+            }
+        }
+
+        val MIGRATION_11_12 = object : androidx.room.migration.Migration(11, 12) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `segments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `startLat` REAL NOT NULL, `startLng` REAL NOT NULL, `endLat` REAL NOT NULL, `endLng` REAL NOT NULL, `distanceMeters` REAL NOT NULL, `elevationGainMeters` REAL NOT NULL, `avgGradientPct` REAL NOT NULL, `activityType` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)"
+                )
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `segment_efforts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `segmentId` INTEGER NOT NULL, `sessionId` INTEGER NOT NULL, `elapsedSeconds` INTEGER NOT NULL, `avgSpeedKmh` REAL NOT NULL, `maxSpeedKmh` REAL NOT NULL, `avgWatts` REAL NOT NULL, `dateMs` INTEGER NOT NULL, `isPr` INTEGER NOT NULL, FOREIGN KEY(`segmentId`) REFERENCES `segments`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_segment_efforts_segmentId` ON `segment_efforts` (`segmentId`)"
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_segment_efforts_sessionId` ON `segment_efforts` (`sessionId`)"
                 )
             }
         }

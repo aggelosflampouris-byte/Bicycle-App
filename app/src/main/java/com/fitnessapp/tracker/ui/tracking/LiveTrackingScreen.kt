@@ -261,6 +261,30 @@ fun LiveTrackingScreen(
         }
     }
 
+    // Ghost Rider Marker on Map
+    var ghostMarkerRef by remember { mutableStateOf<org.osmdroid.views.overlay.Marker?>(null) }
+    LaunchedEffect(trackingState.ghostPacerState, mapViewRef) {
+        val ghost = trackingState.ghostPacerState
+        mapViewRef?.let { map ->
+            if (ghost.isActive && ghost.ghostLat != 0.0) {
+                val marker = ghostMarkerRef ?: org.osmdroid.views.overlay.Marker(map).apply {
+                    title = "👻 Ghost Rider (${ghost.ghostSpeedKmh.toInt()} km/h)"
+                    setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
+                    map.overlays.add(this)
+                    ghostMarkerRef = this
+                }
+                marker.position = GeoPoint(ghost.ghostLat, ghost.ghostLng)
+                map.invalidate()
+            } else {
+                ghostMarkerRef?.let {
+                    map.overlays.remove(it)
+                    ghostMarkerRef = null
+                    map.invalidate()
+                }
+            }
+        }
+    }
+
     // Navigate to summary once session is saved
     LaunchedEffect(lastSavedSessionId) {
         lastSavedSessionId?.let { id ->
@@ -555,6 +579,16 @@ fun LiveTrackingScreen(
             val liveClimb = trackingState.liveClimb
             if (liveClimb != null) {
                 com.fitnessapp.tracker.ui.components.ClimbProHUDCard(liveClimb = liveClimb)
+            }
+
+            // Ghost Rider Virtual Pacer HUD Card
+            if (trackingState.ghostPacerState.isActive) {
+                com.fitnessapp.tracker.ui.components.GhostPacerHUDCard(ghostState = trackingState.ghostPacerState)
+            }
+
+            // Live Segment Sprint HUD Card
+            if (trackingState.liveSegmentStatus.activeSegment != null) {
+                com.fitnessapp.tracker.ui.components.SegmentSprintHUDCard(status = trackingState.liveSegmentStatus)
             }
 
             // Live Challenge Real-time Completion HUD

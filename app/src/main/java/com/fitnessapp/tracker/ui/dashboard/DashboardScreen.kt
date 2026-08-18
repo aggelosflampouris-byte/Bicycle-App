@@ -57,6 +57,18 @@ fun DashboardScreen(
     val activityType = LocalActivityTheme.current
     var showRoutineConfig by remember { mutableStateOf(false) }
     var sessionToDelete by remember { mutableStateOf<Long?>(null) }
+    var showSegmentsScreen by remember { mutableStateOf(false) }
+
+    if (showSegmentsScreen) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showSegmentsScreen = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            com.fitnessapp.tracker.ui.segments.SegmentsScreen(
+                onBack = { showSegmentsScreen = false }
+            )
+        }
+    }
 
     if (sessionToDelete != null) {
         com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog(
@@ -219,6 +231,43 @@ fun DashboardScreen(
                 ) {
                     uiState.recoveryAdvice?.let { recovery ->
                         RecoveryReadinessCard(recovery = recovery)
+                    }
+                }
+            }
+
+            // Road Segments & Ghost Pacing Banner
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showSegmentsScreen = true },
+                    colors = CardDefaults.cardColors(containerColor = NavyCard),
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, VividCyan.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(VividCyan.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("🏁", fontSize = 20.sp)
+                            }
+                            Column {
+                                Text("Road Segments & Ghost Pacer", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Text("Local sprint leaderboards & virtual pacer", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            }
+                        }
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = VividCyan)
                     }
                 }
             }
