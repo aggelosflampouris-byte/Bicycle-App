@@ -32,6 +32,10 @@
     <!-- Audio Recording for Voice AI Coach -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Emergency SOS Crash Beacon -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />

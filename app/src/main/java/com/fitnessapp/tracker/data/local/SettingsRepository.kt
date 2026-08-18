@@ -44,10 +44,25 @@ class SettingsRepository @Inject constructor(
         private val COACH_PERSONA_KEY = stringPreferencesKey("coach_persona")
         private val COACH_LANGUAGE_KEY = stringPreferencesKey("coach_language")
         private val LAST_SEEN_VERSION_CODE_KEY = androidx.datastore.preferences.core.intPreferencesKey("last_seen_version_code")
+        private val CRASH_DETECTION_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("crash_detection_enabled")
+        private val EMERGENCY_CONTACT_NAME_KEY = stringPreferencesKey("emergency_contact_name")
+        private val EMERGENCY_CONTACT_PHONE_KEY = stringPreferencesKey("emergency_contact_phone")
     }
 
     val lastSeenVersionCode: Flow<Int> = context.settingsDataStore.data.map { prefs ->
         prefs[LAST_SEEN_VERSION_CODE_KEY] ?: 0
+    }
+
+    val isCrashDetectionEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[CRASH_DETECTION_ENABLED_KEY] ?: true
+    }
+
+    val emergencyContactName: Flow<String> = context.settingsDataStore.data.map { prefs ->
+        prefs[EMERGENCY_CONTACT_NAME_KEY] ?: ""
+    }
+
+    val emergencyContactPhone: Flow<String> = context.settingsDataStore.data.map { prefs ->
+        prefs[EMERGENCY_CONTACT_PHONE_KEY] ?: ""
     }
 
     val coachLanguage: Flow<CoachLanguage> = context.settingsDataStore.data.map { prefs ->
@@ -138,6 +153,19 @@ class SettingsRepository @Inject constructor(
     suspend fun setLastSeenVersionCode(versionCode: Int) {
         context.settingsDataStore.edit { prefs ->
             prefs[LAST_SEEN_VERSION_CODE_KEY] = versionCode
+        }
+    }
+
+    suspend fun setCrashDetectionEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[CRASH_DETECTION_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setEmergencyContact(name: String, phone: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[EMERGENCY_CONTACT_NAME_KEY] = name.trim()
+            prefs[EMERGENCY_CONTACT_PHONE_KEY] = phone.trim()
         }
     }
 }

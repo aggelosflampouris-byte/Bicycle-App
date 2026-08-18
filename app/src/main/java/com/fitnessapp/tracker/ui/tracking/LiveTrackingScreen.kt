@@ -86,12 +86,21 @@ fun LiveTrackingScreen(
         }
     }
 
+    val emergencyContactName by viewModel.emergencyContactName.collectAsStateWithLifecycle()
+    val emergencyContactPhone by viewModel.emergencyContactPhone.collectAsStateWithLifecycle()
+
     val audioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
             voiceManager.startListening(coachLanguage)
         }
+    }
+
+    val gpxPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { viewModel.loadGpxRoute(context, it) }
     }
 
     LaunchedEffect(voiceState) {
@@ -230,6 +239,28 @@ fun LiveTrackingScreen(
         }
     }
 
+    // Draw imported GPX route on map
+    var gpxPolylineRef by remember { mutableStateOf<Polyline?>(null) }
+    LaunchedEffect(trackingState.activeGpxRoute, mapViewRef) {
+        val route = trackingState.activeGpxRoute
+        mapViewRef?.let { map ->
+            gpxPolylineRef?.let { map.overlays.remove(it) }
+            if (route != null && route.points.isNotEmpty()) {
+                val poly = Polyline().apply {
+                    outlinePaint.color = android.graphics.Color.parseColor("#00E5FF")
+                    outlinePaint.strokeWidth = 12f
+                    outlinePaint.isAntiAlias = true
+                    for (pt in route.points) {
+                        addPoint(GeoPoint(pt.lat, pt.lng))
+                    }
+                }
+                gpxPolylineRef = poly
+                map.overlays.add(0, poly)
+                map.invalidate()
+            }
+        }
+    }
+
     // Navigate to summary once session is saved
     LaunchedEffect(lastSavedSessionId) {
         lastSavedSessionId?.let { id ->
@@ -286,31 +317,55 @@ fun LiveTrackingScreen(
                     )
                 }
 
-                // Hands-free in-flight AI voice coach button
-                val isListening = voiceState is VoiceState.Listening || voiceState is VoiceState.Recognizing
-                IconButton(
-                    onClick = {
-                        if (isListening) {
-                            voiceManager.stopListening()
-                        } else {
-                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                                voiceManager.startListening(coachLanguage)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // GPX Route Import / Toggle button
+                    IconButton(
+                        onClick = {
+                            if (trackingState.activeGpxRoute != null) {
+                                viewModel.clearGpxRoute()
                             } else {
-                                audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                gpxPickerLauncher.launch("*/*")
                             }
-                        }
-                    },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(if (isListening) SpeedRed.copy(alpha = 0.3f) else NavyCard)
-                ) {
-                    Icon(
-                        imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
-                        contentDescription = "Ask AI Coach",
-                        tint = if (isListening) SpeedRed else ElectricGreen,
-                        modifier = Modifier.size(20.dp)
-                    )
+                        },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (trackingState.activeGpxRoute != null) VividCyan.copy(alpha = 0.25f) else NavyCard)
+                    ) {
+                        Icon(
+                            imageVector = if (trackingState.activeGpxRoute != null) Icons.Default.AltRoute else Icons.Default.FileUpload,
+                            contentDescription = "Import GPX Route",
+                            tint = if (trackingState.activeGpxRoute != null) VividCyan else TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Hands-free in-flight AI voice coach button
+                    val isListening = voiceState is VoiceState.Listening || voiceState is VoiceState.Recognizing
+                    IconButton(
+                        onClick = {
+                            if (isListening) {
+                                voiceManager.stopListening()
+                            } else {
+                                if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                    voiceManager.startListening(coachLanguage)
+                                } else {
+                                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (isListening) SpeedRed.copy(alpha = 0.3f) else NavyCard)
+                    ) {
+                        Icon(
+                            imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
+                            contentDescription = "Ask AI Coach",
+                            tint = if (isListening) SpeedRed else ElectricGreen,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
@@ -469,6 +524,39 @@ fun LiveTrackingScreen(
                 }
             }
 
+            // Off-Route Warning Alert Banner
+            val offRouteStatus = trackingState.offRouteStatus
+            if (offRouteStatus?.isOffRoute == true) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = WarningAmber.copy(alpha = 0.25f)),
+                    border = BorderStroke(1.dp, WarningAmber),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Navigation, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(20.dp))
+                        Text(
+                            text = "⚠️ Off Route by ${offRouteStatus.distanceToRouteMeters.toInt()}m! Follow the cyan track line.",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = WarningAmber
+                        )
+                    }
+                }
+            }
+
+            // ClimbPro Live Ascent HUD Card
+            val liveClimb = trackingState.liveClimb
+            if (liveClimb != null) {
+                com.fitnessapp.tracker.ui.components.ClimbProHUDCard(liveClimb = liveClimb)
+            }
+
             // Live Challenge Real-time Completion HUD
             val activeChallenge = trackingState.activeChallenge
             if (activeChallenge != null && activeChallenge.activityType == activityType) {
@@ -590,6 +678,14 @@ fun LiveTrackingScreen(
                 onFinishClick = { showFinishDialog = true }
             )
         }
+
+        // Emergency SOS Crash Dialog
+        com.fitnessapp.tracker.ui.components.EmergencySosDialog(
+            crashState = trackingState.crashState,
+            emergencyContactName = emergencyContactName,
+            emergencyContactPhone = emergencyContactPhone,
+            onCancel = { viewModel.cancelSos() }
+        )
 
         // Finish Workout Confirmation Dialog
         if (showFinishDialog) {

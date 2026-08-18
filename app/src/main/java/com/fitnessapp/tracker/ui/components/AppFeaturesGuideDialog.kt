@@ -136,6 +136,18 @@ fun AppFeaturesGuideDialog(onDismiss: () -> Unit) {
                         description = "Export full password-encrypted offline .backup files to safeguard your fitness history. Export GPX files after any workout to import into Strava, Garmin, or Komoot."
                     )
                     FeatureGuideItem(
+                        icon = "🚨",
+                        title = "Rider Safety & Crash SOS Beacon",
+                        description = "Hardware accelerometer & gyroscope impact detection triggers an escalating 30s countdown and dispatches emergency SMS with your live GPS location to your emergency contact."
+                    )
+
+                    FeatureGuideItem(
+                        icon = "🗺️",
+                        title = "GPX Navigation & ClimbPro Elevation HUD",
+                        description = "Import .gpx trails to follow on the live map, receive off-route voice warnings (>50m), and preview upcoming categorized climbs with live gradient % and summit distance."
+                    )
+
+                    FeatureGuideItem(
                         icon = "🔄",
                         title = "Seamless In-App Updater",
                         description = "Stay up to date with new features and improvements with direct GitHub Release updates and real-time download progress."

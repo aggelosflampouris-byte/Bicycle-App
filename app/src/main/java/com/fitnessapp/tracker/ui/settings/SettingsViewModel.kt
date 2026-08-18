@@ -21,6 +21,9 @@ data class SettingsUiState(
     val challengesEnabled: Boolean = true,
     val voiceCoachingEnabled: Boolean = true,
     val lockPortraitModeEnabled: Boolean = true,
+    val isCrashDetectionEnabled: Boolean = true,
+    val emergencyContactName: String = "",
+    val emergencyContactPhone: String = "",
     val isBackupRunning: Boolean = false,
     val backupMessage: String? = null
 )
@@ -44,24 +47,44 @@ class SettingsViewModel @Inject constructor(
                 Triple(persona, language, voiceEnabled)
             }
 
+            val safetyPrefsFlow = combine(
+                settingsRepository.isCrashDetectionEnabled,
+                settingsRepository.emergencyContactName,
+                settingsRepository.emergencyContactPhone
+            ) { crashEnabled, contactName, contactPhone ->
+                Triple(crashEnabled, contactName, contactPhone)
+            }
+
             combine(
                 settingsRepository.themeMode,
                 settingsRepository.challengesEnabled,
                 settingsRepository.isLockPortraitModeEnabled,
-                coachingPrefsFlow
-            ) { theme, challengesEnabled, lockPortraitModeEnabled, (persona, language, voiceEnabled) ->
+                coachingPrefsFlow,
+                safetyPrefsFlow
+            ) { theme, challengesEnabled, lockPortraitModeEnabled, (persona, language, voiceEnabled), (crashEnabled, contactName, contactPhone) ->
                 SettingsUiState(
                     themeMode = theme,
                     coachPersona = persona,
                     coachLanguage = language,
                     challengesEnabled = challengesEnabled,
                     voiceCoachingEnabled = voiceEnabled,
-                    lockPortraitModeEnabled = lockPortraitModeEnabled
+                    lockPortraitModeEnabled = lockPortraitModeEnabled,
+                    isCrashDetectionEnabled = crashEnabled,
+                    emergencyContactName = contactName,
+                    emergencyContactPhone = contactPhone
                 )
             }.collect { state ->
                 _uiState.value = state
             }
         }
+    }
+
+    fun setCrashDetectionEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setCrashDetectionEnabled(enabled) }
+    }
+
+    fun setEmergencyContact(name: String, phone: String) {
+        viewModelScope.launch { settingsRepository.setEmergencyContact(name, phone) }
     }
 
     fun setTheme(mode: ThemeMode) {

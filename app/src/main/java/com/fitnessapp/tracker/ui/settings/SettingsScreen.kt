@@ -349,6 +349,98 @@ fun SettingsScreen(
                 }
             }
 
+            // ── Rider Safety & Crash SOS ────────────────────────────────────────────────
+            var contactNameInput by remember(settingsState.emergencyContactName) { mutableStateOf(settingsState.emergencyContactName) }
+            var contactPhoneInput by remember(settingsState.emergencyContactPhone) { mutableStateOf(settingsState.emergencyContactPhone) }
+            var isContactSaved by remember { mutableStateOf(false) }
+
+            SettingsSectionCard(
+                icon = Icons.Default.HealthAndSafety,
+                title = "Rider Safety & Emergency SOS",
+                subtitle = "Hardware crash impact detection & SOS distress beacon"
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Crash Impact Detection", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text("Monitors accelerometer for sudden deceleration & immobility", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        }
+                        Switch(
+                            checked = settingsState.isCrashDetectionEnabled,
+                            onCheckedChange = { settingsViewModel.setCrashDetectionEnabled(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = DeepNavy,
+                                checkedTrackColor = ElectricGreen,
+                                uncheckedThumbColor = TextSecondary,
+                                uncheckedTrackColor = NavyDarker
+                            )
+                        )
+                    }
+
+                    HorizontalDivider(color = GlassBorder)
+
+                    Text(
+                        "Emergency SOS Contact",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+
+                    OutlinedTextField(
+                        value = contactNameInput,
+                        onValueChange = { contactNameInput = it; isContactSaved = false },
+                        label = { Text("Contact Name") },
+                        placeholder = { Text("e.g. Maria (Partner)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ElectricGreen,
+                            unfocusedBorderColor = GlassBorder,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = contactPhoneInput,
+                        onValueChange = { contactPhoneInput = it; isContactSaved = false },
+                        label = { Text("Emergency Phone Number (SMS)") },
+                        placeholder = { Text("e.g. +30 690 000 0000") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ElectricGreen,
+                            unfocusedBorderColor = GlassBorder,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+
+                    Button(
+                        onClick = {
+                            settingsViewModel.setEmergencyContact(contactNameInput, contactPhoneInput)
+                            isContactSaved = true
+                        },
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isContactSaved) ElectricGreen.copy(alpha = 0.3f) else ElectricGreen,
+                            contentColor = if (isContactSaved) ElectricGreen else DeepNavy
+                        )
+                    ) {
+                        Icon(if (isContactSaved) Icons.Default.Check else Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isContactSaved) "Saved Contact!" else "Save Emergency Contact", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
             // ── Data Management ────────────────────────────────────────────────────────
             SettingsSectionCard(
                 icon = Icons.Default.Storage,

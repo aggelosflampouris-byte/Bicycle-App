@@ -44,7 +44,11 @@ data class TrackingState(
     val currentLap: Int = 1,
     val activeChallenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity? = null,
     val elevationGainMeters: Double = 0.0,
-    val activityType: String = "CYCLING"
+    val activityType: String = "CYCLING",
+    val crashState: com.fitnessapp.tracker.safety.CrashState = com.fitnessapp.tracker.safety.CrashState.Idle,
+    val activeGpxRoute: com.fitnessapp.tracker.navigation.GpxRoute? = null,
+    val liveClimb: com.fitnessapp.tracker.navigation.LiveClimbInfo? = null,
+    val offRouteStatus: com.fitnessapp.tracker.navigation.OffRouteStatus? = null
 )
 
 /**
@@ -122,6 +126,27 @@ class CyclingTrackingService : Service() {
         private val _elapsedSecondsFlow = MutableStateFlow(0L)
         val elapsedSecondsFlow: StateFlow<Long> = _elapsedSecondsFlow
 
+        private var instance: CyclingTrackingService? = null
+
+        fun setGpxRoute(route: com.fitnessapp.tracker.navigation.GpxRoute?) {
+            _trackingState.value = _trackingState.value.copy(
+                activeGpxRoute = route,
+                liveClimb = null,
+                offRouteStatus = null
+            )
+        }
+
+        fun cancelCrashSos() {
+            instance?.crashDetectionEngine?.cancelSos()
+            _trackingState.value = _trackingState.value.copy(
+                crashState = com.fitnessapp.tracker.safety.CrashState.Idle
+            )
+        }
+
+        fun triggerSimulatedCrash() {
+            instance?.crashDetectionEngine?.triggerCountdown()
+        }
+
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_PAUSE = "ACTION_PAUSE"
@@ -130,6 +155,7 @@ class CyclingTrackingService : Service() {
         const val ACTION_DISCARD = "ACTION_DISCARD"
         const val ACTION_LAP = "ACTION_LAP"
         const val ACTION_CANCEL_CHALLENGE = "ACTION_CANCEL_CHALLENGE"
+        const val ACTION_CANCEL_SOS = "ACTION_CANCEL_SOS"
 
         const val EXTRA_WEIGHT = "extra_weight"
         const val EXTRA_GENDER = "EXTRA_GENDER"
@@ -137,15 +163,47 @@ class CyclingTrackingService : Service() {
         const val EXTRA_ACTIVITY_TYPE = "EXTRA_ACTIVITY_TYPE"
     }
 
+    private lateinit var crashDetectionEngine: com.fitnessapp.tracker.safety.CrashDetectionEngine
+    private var isCrashDetectionEnabled = true
+    private var lastOffRouteAlertTime = 0L
+
     override fun onCreate() {
         super.onCreate()
+        instance = this
         NotificationHelper.createNotificationChannel(this)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         ttsManager = com.fitnessapp.tracker.util.TtsManager(this)
+        crashDetectionEngine = com.fitnessapp.tracker.safety.CrashDetectionEngine(this, serviceScope)
         
         serviceScope.launch {
             settingsRepository.isVoiceCoachingEnabled.collect { enabled ->
                 isVoiceCoachingEnabled = enabled
+            }
+        }
+
+        serviceScope.launch {
+            settingsRepository.isCrashDetectionEnabled.collect { enabled ->
+                isCrashDetectionEnabled = enabled
+                if (enabled && _trackingState.value.isTracking) {
+                    crashDetectionEngine.startMonitoring()
+                } else {
+                    crashDetectionEngine.stopMonitoring()
+                }
+            }
+        }
+
+        serviceScope.launch {
+            kotlinx.coroutines.flow.combine(
+                settingsRepository.emergencyContactName,
+                settingsRepository.emergencyContactPhone
+            ) { name, phone -> Pair(name, phone) }.collect { (name, phone) ->
+                crashDetectionEngine.updateEmergencyContact(name, phone)
+            }
+        }
+
+        serviceScope.launch {
+            crashDetectionEngine.crashState.collect { cState ->
+                _trackingState.value = _trackingState.value.copy(crashState = cState)
             }
         }
         
@@ -176,6 +234,9 @@ class CyclingTrackingService : Service() {
             ACTION_CANCEL_CHALLENGE -> {
                 _trackingState.value = _trackingState.value.copy(activeChallenge = null)
                 updateNotification()
+            }
+            ACTION_CANCEL_SOS -> {
+                crashDetectionEngine.cancelSos()
             }
         }
         return START_STICKY
@@ -231,9 +292,12 @@ class CyclingTrackingService : Service() {
         routePoints.clear()
         _routePointsFlow.value = emptyList()
 
-        _trackingState.value = TrackingState(isTracking = true, activityType = activityType)
+        _trackingState.value = TrackingState(isTracking = true, activityType = activityType, activeGpxRoute = _trackingState.value.activeGpxRoute)
 
         acquireWakeLock()
+        if (isCrashDetectionEnabled) {
+            crashDetectionEngine.startMonitoring()
+        }
         
         serviceScope.launch {
             val challenge = challengeDao.getActiveChallenge()
@@ -400,6 +464,28 @@ class CyclingTrackingService : Service() {
 
         val speedKmh = if (_trackingState.value.isPaused) 0.0 else PhysicsEngine.metersPerSecondToKmh(speedMps)
 
+        // Crash Detection Telemetry
+        crashDetectionEngine.updateTelemetry(speedKmh, lat, lng)
+
+        // GPX Navigation & ClimbPro Evaluation
+        val route = _trackingState.value.activeGpxRoute
+        var liveClimbInfo: com.fitnessapp.tracker.navigation.LiveClimbInfo? = null
+        var offRoute: com.fitnessapp.tracker.navigation.OffRouteStatus? = null
+
+        if (route != null && route.points.isNotEmpty()) {
+            offRoute = com.fitnessapp.tracker.navigation.OffRouteDetector.checkOffRoute(lat, lng, route.points)
+            if (offRoute.isOffRoute && isVoiceCoachingEnabled) {
+                offRoute.alertMessage?.let { msg ->
+                    if (elapsedSeconds - lastOffRouteAlertTime >= 25L) {
+                        ttsManager.speak(msg)
+                        lastOffRouteAlertTime = elapsedSeconds
+                    }
+                }
+            }
+
+            liveClimbInfo = com.fitnessapp.tracker.navigation.ClimbEngine.evaluateLiveClimb(route.climbs, totalDistanceMeters)
+        }
+
         // ── Update UI State ──────────────────────────────────────────────────
         _trackingState.value = _trackingState.value.copy(
             speedKmh = speedKmh,
@@ -408,7 +494,9 @@ class CyclingTrackingService : Service() {
             calories = calories,
             currentLat = lat,
             currentLng = lng,
-            elevationGainMeters = elevationGainMeters
+            elevationGainMeters = elevationGainMeters,
+            liveClimb = liveClimbInfo,
+            offRouteStatus = offRoute
         )
 
         // Check for 1km milestone announcement
@@ -568,6 +656,8 @@ class CyclingTrackingService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        instance = null
+        crashDetectionEngine.stopMonitoring()
         serviceScope.cancel()
         try {
             fusedLocationClient.removeLocationUpdates(locationCallback)

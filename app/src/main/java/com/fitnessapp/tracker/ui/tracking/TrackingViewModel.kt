@@ -161,6 +161,40 @@ class TrackingViewModel @Inject constructor(
         context.startService(intent)
     }
 
+    val isCrashDetectionEnabled: StateFlow<Boolean> = settingsRepository.isCrashDetectionEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val emergencyContactName: StateFlow<String> = settingsRepository.emergencyContactName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val emergencyContactPhone: StateFlow<String> = settingsRepository.emergencyContactPhone
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    fun loadGpxRoute(context: Context, uri: android.net.Uri) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val route = com.fitnessapp.tracker.navigation.GpxParser.parse(inputStream)
+                    CyclingTrackingService.setGpxRoute(route)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TrackingViewModel", "Error loading GPX file", e)
+            }
+        }
+    }
+
+    fun clearGpxRoute() {
+        CyclingTrackingService.setGpxRoute(null)
+    }
+
+    fun cancelSos() {
+        CyclingTrackingService.cancelCrashSos()
+    }
+
+    fun triggerSimulatedCrash() {
+        CyclingTrackingService.triggerSimulatedCrash()
+    }
+
     fun clearLastSavedSessionId() {
         CyclingTrackingService.clearLastSavedSessionId()
     }
