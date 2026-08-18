@@ -198,6 +198,9 @@ class CyclingTrackingService : Service() {
         serviceScope.launch {
             settingsRepository.isVoiceCoachingEnabled.collect { enabled ->
                 isVoiceCoachingEnabled = enabled
+                if (!enabled && ::ttsManager.isInitialized) {
+                    ttsManager.stop()
+                }
             }
         }
 

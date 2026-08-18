@@ -195,6 +195,13 @@ class TrackingViewModel @Inject constructor(
         CyclingTrackingService.triggerSimulatedCrash()
     }
 
+    fun toggleVoiceCoaching() {
+        viewModelScope.launch {
+            val current = isVoiceCoachingEnabled.value
+            settingsRepository.setVoiceCoachingEnabled(!current)
+        }
+    }
+
     fun clearLastSavedSessionId() {
         CyclingTrackingService.clearLastSavedSessionId()
     }

@@ -364,6 +364,27 @@ fun LiveTrackingScreen(
                         )
                     }
 
+                    // AI Voice Coach Mute / Unmute Button
+                    IconButton(
+                        onClick = {
+                            if (isVoiceCoachingEnabled) {
+                                ttsManager.stop()
+                            }
+                            viewModel.toggleVoiceCoaching()
+                        },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (!isVoiceCoachingEnabled) SpeedRed.copy(alpha = 0.2f) else NavyCard)
+                    ) {
+                        Icon(
+                            imageVector = if (isVoiceCoachingEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                            contentDescription = if (isVoiceCoachingEnabled) "Mute AI Voice Coach" else "Unmute AI Voice Coach",
+                            tint = if (isVoiceCoachingEnabled) ElectricGreen else SpeedRed,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
                     // Hands-free in-flight AI voice coach button
                     val isListening = voiceState is VoiceState.Listening || voiceState is VoiceState.Recognizing
                     IconButton(
@@ -448,11 +469,32 @@ fun LiveTrackingScreen(
                             }
                         }
                         if (inFlightState.response != null) {
-                            IconButton(
-                                onClick = { viewModel.dismissInFlightResponse() },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                IconButton(
+                                    onClick = {
+                                        if (isVoiceCoachingEnabled) {
+                                            ttsManager.stop()
+                                        }
+                                        viewModel.toggleVoiceCoaching()
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isVoiceCoachingEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                                        contentDescription = if (isVoiceCoachingEnabled) "Mute AI" else "Unmute AI",
+                                        tint = if (isVoiceCoachingEnabled) ElectricGreen else SpeedRed,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        ttsManager.stop()
+                                        viewModel.dismissInFlightResponse()
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                                }
                             }
                         }
                     }
