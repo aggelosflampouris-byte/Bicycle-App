@@ -77,17 +77,29 @@ object PhysicsEngine {
     // ── Power / Watts per kg ─────────────────────────────────────────────────
 
     /**
-     * Estimate functional threshold power per kg.
-     * Simplified estimate: P(W) ≈ MET × 3.5 × weight / 60 × efficiency(0.22)
-     * Then watts/kg = P / weight
+     * Estimate functional mechanical power output per kg (W/kg).
      *
-     * This is a cycling-specific approximation using the "gross efficiency" model.
+     * Physiological formula:
+     * 1 MET = 3.5 mL O2 / kg / min
+     * 1 mL O2 ≈ 20.9 Joules (energy equivalent)
+     * Metabolic Power Rate (W/kg) = (MET × 3.5 × 20.9) / 60.0 ≈ MET × 1.219 W/kg
+     * Mechanical Power (W/kg) = Metabolic Power × Gross Efficiency (~20-22%)
      */
-    fun calculateWattsPerKg(avgSpeedKmh: Double, user: UserEntity): Double {
-        val met = estimateMET(avgSpeedKmh)
-        // Gross mechanical power approximation: P ≈ MET × 3.5 × weight / 60 × 0.22
-        val watts = met * 3.5 * user.weightKg / 60.0 * 0.22 * 1000.0 / user.weightKg
-        return watts.coerceIn(0.0, 10.0)
+    fun calculateWattsPerKg(
+        avgSpeedKmh: Double,
+        user: UserEntity,
+        activityType: String = "CYCLING"
+    ): Double {
+        if (avgSpeedKmh <= 0.0) return 0.0
+        val met = estimateMET(avgSpeedKmh, activityType)
+        val mechanicalEfficiency = when (activityType) {
+            "WALKING" -> 0.18
+            "JOGGING" -> 0.20
+            else -> 0.22 // CYCLING
+        }
+        val metabolicWattsPerKg = (met * 3.5 * 20.9) / 60.0
+        val wattsPerKg = metabolicWattsPerKg * mechanicalEfficiency
+        return wattsPerKg.coerceIn(0.0, 10.0)
     }
 
     // ── Elevation Gain ───────────────────────────────────────────────────────
