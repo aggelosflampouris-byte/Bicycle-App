@@ -146,7 +146,7 @@ class MainActivity : ComponentActivity() {
                         settingsRepository.setActivityType(activeChallenge.activityType)
                         Screen.Main.route
                     }
-                    else -> Screen.ActivitySelection.route
+                    else -> Screen.Main.route
                 }
             }
 
@@ -177,10 +177,13 @@ class MainActivity : ComponentActivity() {
             }
 
             LaunchedEffect(lockPortraitModeEnabled) {
-                requestedOrientation = if (lockPortraitModeEnabled) {
+                val targetOrientation = if (lockPortraitModeEnabled) {
                     ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 } else {
                     ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+                if (requestedOrientation != targetOrientation) {
+                    requestedOrientation = targetOrientation
                 }
             }
 

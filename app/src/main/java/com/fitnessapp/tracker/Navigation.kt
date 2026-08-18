@@ -73,9 +73,9 @@ fun CyclingNavGraph(
     ) {
         composable(Screen.Auth.route) {
             com.fitnessapp.tracker.ui.auth.AuthScreen(
-                // Existing user: skip onboarding, go straight to the app
+                // Existing user: skip onboarding, go straight to the main dashboard
                 onLoginSuccess = {
-                    navController.navigate(Screen.ActivitySelection.route) {
+                    navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.Auth.route) { inclusive = true }
                     }
                 },
@@ -91,7 +91,7 @@ fun CyclingNavGraph(
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
                 onComplete = {
-                    navController.navigate(Screen.ActivitySelection.route) {
+                    navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }
@@ -157,14 +157,14 @@ fun CyclingNavGraph(
                             popUpTo(Screen.LiveTracking.route) { inclusive = true }
                         }
                     } else {
-                        navController.navigate(Screen.ActivitySelection.route) {
+                        navController.navigate(Screen.Main.route) {
                             popUpTo(Screen.LiveTracking.route) { inclusive = true }
                         }
                     }
                 },
                 onBack = {
                     if (!navController.popBackStack()) {
-                        navController.navigate(Screen.ActivitySelection.route) {
+                        navController.navigate(Screen.Main.route) {
                             popUpTo(Screen.LiveTracking.route) { inclusive = true }
                         }
                     }
