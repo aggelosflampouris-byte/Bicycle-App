@@ -37,6 +37,9 @@ interface WorkoutSessionDao {
     """)
     suspend fun getRecentSessionsByType(activityType: String, limit: Int = 10): List<WorkoutSessionEntity>
 
+    @Query("SELECT * FROM workout_sessions ORDER BY startTime DESC")
+    suspend fun getAllSessionsForBackup(): List<WorkoutSessionEntity>
+
     @Query("SELECT * FROM workout_sessions WHERE id = :id")
     suspend fun getSessionById(id: Long): WorkoutSessionEntity?
 

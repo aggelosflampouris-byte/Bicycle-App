@@ -58,7 +58,7 @@ class TrackingViewModel @Inject constructor(
             val state = trackingState.value
             val persona = settingsRepository.coachPersona.first()
             val language = settingsRepository.coachLanguage.first()
-            val activityType = settingsRepository.activityType.first()
+            val activityType = state.activityType
 
             val distanceKm = "%.2f".format(state.distanceMeters / 1000.0)
             val speedKmh = "%.1f".format(state.speedKmh)

@@ -20,6 +20,9 @@ interface PersonalRecordDao {
     @Query("SELECT * FROM personal_records WHERE activityType = :activityType AND recordType = :recordType LIMIT 1")
     suspend fun getRecord(activityType: String, recordType: PersonalRecordType): PersonalRecordEntity?
 
+    @Query("SELECT * FROM personal_records")
+    suspend fun getAllRecords(): List<PersonalRecordEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateRecord(record: PersonalRecordEntity)
 

@@ -10,6 +10,8 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var isInitialized = false
     private var pendingLanguage: Locale = Locale.US
+    private var pendingSpeech: String? = null
+    private var pendingFlush: Boolean = false
 
     init {
         tts = TextToSpeech(context.applicationContext, this)
@@ -19,6 +21,11 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
         if (status == TextToSpeech.SUCCESS) {
             applyLocale(pendingLanguage)
             isInitialized = true
+            pendingSpeech?.let { text ->
+                val mode = if (pendingFlush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+                tts?.speak(text, mode, null, null)
+                pendingSpeech = null
+            }
         } else {
             Log.e("TtsManager", "TTS Initialization failed with status $status")
         }
@@ -26,10 +33,10 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
 
     fun setCoachLanguage(language: CoachLanguage) {
         val locale = when (language) {
-            CoachLanguage.GREEK -> Locale("el", "GR")
+            CoachLanguage.GREEK -> Locale.forLanguageTag("el-GR")
             CoachLanguage.GERMAN -> Locale.GERMAN
             CoachLanguage.FRENCH -> Locale.FRENCH
-            CoachLanguage.RUSSIAN -> Locale("ru", "RU")
+            CoachLanguage.RUSSIAN -> Locale.forLanguageTag("ru-RU")
             CoachLanguage.ENGLISH -> Locale.US
             CoachLanguage.AUTO -> Locale.getDefault()
         }
@@ -52,7 +59,9 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
             val queueMode = if (flushQueue) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
             tts?.speak(text, queueMode, null, null)
         } else {
-            Log.w("TtsManager", "TTS not initialized, cannot speak: $text")
+            pendingSpeech = text
+            pendingFlush = flushQueue
+            Log.d("TtsManager", "TTS initializing, buffered speech: $text")
         }
     }
 

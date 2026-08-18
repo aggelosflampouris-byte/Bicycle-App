@@ -13,25 +13,36 @@ import java.io.OutputStreamWriter
 
 data class BackupData(
     val user: UserEntity?,
-    val sessions: List<WorkoutSessionEntity>,
-    val routines: List<RoutineEntity>,
-    val challenges: List<ChallengeEntity>
+    val sessions: List<WorkoutSessionEntity>?,
+    val routines: List<RoutineEntity>?,
+    val challenges: List<ChallengeEntity>?,
+    val personalRecords: List<PersonalRecordEntity>? = null,
+    val trainingPlan: TrainingPlanEntity? = null
 )
 
 class DataBackupManager(private val context: Context, private val db: AppDatabase) {
 
-    private val gson = GsonBuilder().setPrettyPrinting().create()
+    private val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
     private val cryptoManager = CryptoManager()
 
     suspend fun exportData(uri: Uri, password: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val user = db.userDao().getUser()
-            // Using a simple query for sessions since we don't need Flow here
-            val sessions = db.workoutSessionDao().getRecentSessions(limit = 10000) // Getting most recent 10k for backup
+            // Query complete sessions with full encrypted route points preserved
+            val sessions = db.workoutSessionDao().getAllSessionsForBackup()
             val routines = db.routineDao().getAllRoutines()
             val challenges = db.challengeDao().getAllChallenges()
+            val personalRecords = db.personalRecordDao().getAllRecords()
+            val trainingPlan = db.trainingPlanDao().getPlan()
 
-            val backup = BackupData(user, sessions, routines, challenges)
+            val backup = BackupData(
+                user = user,
+                sessions = sessions,
+                routines = routines,
+                challenges = challenges,
+                personalRecords = personalRecords,
+                trainingPlan = trainingPlan
+            )
             val json = gson.toJson(backup)
             val jsonBytes = json.toByteArray(Charsets.UTF_8)
 
@@ -55,24 +66,25 @@ class DataBackupManager(private val context: Context, private val db: AppDatabas
             val backup = gson.fromJson(json, BackupData::class.java)
 
             db.withTransaction {
-                backup.user?.let { db.userDao().updateUser(it) } // We can't use insert with replace if we have id mapping, actually we can just use insert
-                // Wait, UserDao has updateUser but no insertUser that takes UserEntity directly for suspend?
-                // Actually UserDao has insertUser(user: UserEntity) in our code. Let's just use insertSessions, etc.
                 backup.user?.let { 
                     val current = db.userDao().getUser()
                     if (current == null) db.userDao().insertUser(it) else db.userDao().updateUser(it)
                 }
                 
-                if (backup.sessions.isNotEmpty()) {
+                if (!backup.sessions.isNullOrEmpty()) {
                     db.workoutSessionDao().insertSessions(backup.sessions)
                 }
-                if (backup.routines.isNotEmpty()) {
-                    // Assuming routineDao has insertRoutines or we insert one by one
+                if (!backup.routines.isNullOrEmpty()) {
                     backup.routines.forEach { db.routineDao().saveRoutine(it) }
                 }
-                if (backup.challenges.isNotEmpty()) {
-                    // Assuming challengeDao has insertChallenge
+                if (!backup.challenges.isNullOrEmpty()) {
                     backup.challenges.forEach { db.challengeDao().insertChallenge(it) }
+                }
+                if (!backup.personalRecords.isNullOrEmpty()) {
+                    db.personalRecordDao().insertOrUpdateRecords(backup.personalRecords)
+                }
+                backup.trainingPlan?.let {
+                    db.trainingPlanDao().insertPlan(it)
                 }
             }
             Result.success(Unit)

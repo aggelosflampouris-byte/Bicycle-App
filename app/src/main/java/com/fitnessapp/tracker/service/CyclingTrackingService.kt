@@ -43,7 +43,8 @@ data class TrackingState(
     val lastSavedSessionId: Long? = null,
     val currentLap: Int = 1,
     val activeChallenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity? = null,
-    val elevationGainMeters: Double = 0.0
+    val elevationGainMeters: Double = 0.0,
+    val activityType: String = "CYCLING"
 )
 
 /**
@@ -230,7 +231,7 @@ class CyclingTrackingService : Service() {
         routePoints.clear()
         _routePointsFlow.value = emptyList()
 
-        _trackingState.value = TrackingState(isTracking = true)
+        _trackingState.value = TrackingState(isTracking = true, activityType = activityType)
 
         acquireWakeLock()
         

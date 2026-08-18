@@ -38,7 +38,13 @@ class VoiceInteractionManager(private val context: Context) {
 
         stopListening()
 
-        val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+        val recognizer = try {
+            SpeechRecognizer.createSpeechRecognizer(context)
+        } catch (e: Exception) {
+            Log.e("VoiceInteractionManager", "Error creating speech recognizer", e)
+            _voiceState.value = VoiceState.Error("Failed to initialize voice recognition")
+            return
+        }
         speechRecognizer = recognizer
 
         val bcp47 = when (language) {

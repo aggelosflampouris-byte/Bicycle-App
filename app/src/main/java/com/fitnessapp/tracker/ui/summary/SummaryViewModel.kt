@@ -79,7 +79,7 @@ class SummaryViewModel @Inject constructor(
                 emptyList()
             }
 
-            val prAchievements = if (session != null) {
+            val prAchievements = if (session != null && sessionId <= 0) {
                 personalRecordEngine.evaluateAndSaveRecords(session, routePoints)
             } else emptyList()
 
