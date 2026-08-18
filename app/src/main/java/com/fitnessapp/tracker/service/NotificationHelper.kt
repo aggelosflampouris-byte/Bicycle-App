@@ -136,7 +136,25 @@ object NotificationHelper {
             )
             .setContentText(
                 if (activeChallenge != null) {
-                    "${activeChallenge.metric}: ${activeChallenge.currentProgress} / ${activeChallenge.targetValue}"
+                    when (activeChallenge.metric) {
+                        com.fitnessapp.tracker.data.local.entity.ChallengeMetric.DISTANCE -> {
+                            val liveTotalKm = (activeChallenge.currentProgress + distanceMeters) / 1000.0
+                            val targetKm = activeChallenge.targetValue / 1000.0
+                            val pct = if (targetKm > 0) ((liveTotalKm / targetKm) * 100).toInt().coerceIn(0, 100) else 100
+                            "Distance: %.2f / %.2f km (%d%%)".format(liveTotalKm, targetKm, pct)
+                        }
+                        com.fitnessapp.tracker.data.local.entity.ChallengeMetric.SPEED -> {
+                            val avgSpeed = if (durationSeconds > 0) (distanceMeters / 1000.0) / (durationSeconds / 3600.0) else speedKmh
+                            val target = activeChallenge.targetValue
+                            val pct = if (target > 0) ((avgSpeed / target) * 100).toInt().coerceIn(0, 100) else 100
+                            "Avg Speed: %.1f / %.1f km/h (%d%%)".format(avgSpeed, target, pct)
+                        }
+                        com.fitnessapp.tracker.data.local.entity.ChallengeMetric.CALORIES -> {
+                            val target = activeChallenge.targetValue
+                            val pct = if (target > 0) ((activeChallenge.currentProgress / target) * 100).toInt().coerceIn(0, 100) else 100
+                            "Calories: %.0f / %.0f kcal (%d%%)".format(activeChallenge.currentProgress, target, pct)
+                        }
+                    }
                 } else {
                     context.getString(R.string.notification_stats, PhysicsEngine.formatSpeed(speedKmh), PhysicsEngine.formatDistance(distanceMeters))
                 }

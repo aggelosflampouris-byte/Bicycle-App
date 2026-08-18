@@ -68,6 +68,8 @@ fun LiveTrackingScreen(
     val coachLanguage by viewModel.coachLanguage.collectAsStateWithLifecycle()
     val isVoiceCoachingEnabled by viewModel.isVoiceCoachingEnabled.collectAsStateWithLifecycle()
     val inFlightState by viewModel.inFlightState.collectAsStateWithLifecycle()
+    val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
+    val elapsedSeconds by viewModel.elapsedSeconds.collectAsStateWithLifecycle()
 
     val voiceManager = remember { VoiceInteractionManager(context) }
     val voiceState by voiceManager.voiceState.collectAsStateWithLifecycle()
@@ -465,6 +467,16 @@ fun LiveTrackingScreen(
                         }
                     }
                 }
+            }
+
+            // Live Challenge Real-time Completion HUD
+            val activeChallenge = trackingState.activeChallenge
+            if (activeChallenge != null && activeChallenge.activityType == activityType) {
+                LiveChallengeProgressHUD(
+                    challenge = activeChallenge,
+                    trackingState = trackingState,
+                    elapsedSeconds = elapsedSeconds
+                )
             }
 
             // Top stats panel
@@ -967,4 +979,206 @@ private fun OsmMapView(
             // Map updates handled via LaunchedEffect for route drawing
         }
     )
+}
+
+private data class LiveChallengeProgress(
+    val currentVal: Double,
+    val targetVal: Double,
+    val unit: String,
+    val formattedCurrent: String,
+    val formattedTarget: String,
+    val remainingText: String,
+    val isCompleted: Boolean
+)
+
+@Composable
+private fun LiveChallengeProgressHUD(
+    challenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity,
+    trackingState: com.fitnessapp.tracker.service.TrackingState,
+    elapsedSeconds: Long,
+    modifier: Modifier = Modifier
+) {
+    val metric = challenge.metric
+    val target = challenge.targetValue
+
+    val info = when (metric) {
+        com.fitnessapp.tracker.data.local.entity.ChallengeMetric.DISTANCE -> {
+            val totalMeters = challenge.currentProgress + trackingState.distanceMeters
+            val currentKm = totalMeters / 1000.0
+            val targetKm = target / 1000.0
+            val remainingMeters = (target - totalMeters).coerceAtLeast(0.0)
+            val remainingKm = remainingMeters / 1000.0
+            val done = totalMeters >= target
+            val remText = if (done) "Goal Achieved!" else "${"%.2f".format(remainingKm)} km to go"
+            LiveChallengeProgress(
+                currentVal = totalMeters,
+                targetVal = target,
+                unit = "km",
+                formattedCurrent = "%.2f".format(currentKm),
+                formattedTarget = "%.2f".format(targetKm),
+                remainingText = remText,
+                isCompleted = done
+            )
+        }
+        com.fitnessapp.tracker.data.local.entity.ChallengeMetric.SPEED -> {
+            val avgSpeed = if (elapsedSeconds > 0) (trackingState.distanceMeters / 1000.0) / (elapsedSeconds / 3600.0) else trackingState.speedKmh
+            val done = avgSpeed >= target && elapsedSeconds >= 30
+            val remSpeed = (target - avgSpeed).coerceAtLeast(0.0)
+            val remText = if (done) "Target Speed Maintained!" else "+${"%.1f".format(remSpeed)} km/h needed"
+            LiveChallengeProgress(
+                currentVal = avgSpeed,
+                targetVal = target,
+                unit = "km/h",
+                formattedCurrent = "%.1f".format(avgSpeed),
+                formattedTarget = "%.1f".format(target),
+                remainingText = remText,
+                isCompleted = done
+            )
+        }
+        com.fitnessapp.tracker.data.local.entity.ChallengeMetric.CALORIES -> {
+            val totalCals = challenge.currentProgress + trackingState.calories
+            val done = totalCals >= target
+            val remainingCals = (target - totalCals).coerceAtLeast(0.0)
+            val remText = if (done) "Calorie Goal Crushed!" else "${"%.0f".format(remainingCals)} kcal to go"
+            LiveChallengeProgress(
+                currentVal = totalCals,
+                targetVal = target,
+                unit = "kcal",
+                formattedCurrent = "%.0f".format(totalCals),
+                formattedTarget = "%.0f".format(target),
+                remainingText = remText,
+                isCompleted = done
+            )
+        }
+    }
+
+    val progressFraction = if (info.targetVal > 0) (info.currentVal / info.targetVal).coerceIn(0.0, 1.0).toFloat() else 1.0f
+    val animatedProgress by animateFloatAsState(
+        targetValue = progressFraction,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "challengeProgress"
+    )
+    val percentage = (progressFraction * 100).toInt()
+
+    val borderColor = if (info.isCompleted) Color(0xFFFFD700) else VividCyan.copy(alpha = 0.6f)
+    val containerBg = if (info.isCompleted) NavyCard.copy(alpha = 0.95f) else NavyCard.copy(alpha = 0.90f)
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = containerBg),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(if (info.isCompleted) 1.5.dp else 1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (info.isCompleted) 8.dp else 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(if (info.isCompleted) Color(0xFFFFD700).copy(alpha = 0.2f) else VividCyan.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (info.isCompleted) "🏆" else "🏅",
+                            fontSize = 14.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = if (info.isCompleted) "CHALLENGE COMPLETED!" else "${challenge.period.name} ${challenge.metric.name} CHALLENGE",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (info.isCompleted) Color(0xFFFFD700) else VividCyan,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = info.remainingText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (info.isCompleted) ElectricGreen else TextSecondary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                // Live Percentage Badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (info.isCompleted) Color(0xFFFFD700).copy(alpha = 0.2f) else DeepNavy)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "$percentage%",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Black,
+                        color = if (info.isCompleted) Color(0xFFFFD700) else ElectricGreen
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Animated Gradient Progress Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(CircleShape)
+                    .background(DeepNavy)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(animatedProgress)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = if (info.isCompleted) {
+                                    listOf(Color(0xFFFFD700), Color(0xFFFFA500), ElectricGreen)
+                                } else {
+                                    listOf(VividCyan, ElectricGreen)
+                                }
+                            )
+                        )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Live progress numbers
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Live Progress: ${info.formattedCurrent} / ${info.formattedTarget} ${info.unit}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (info.isCompleted) {
+                    Text(
+                        text = "🎉 Done! Keep Pushing!",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ElectricGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
 }
