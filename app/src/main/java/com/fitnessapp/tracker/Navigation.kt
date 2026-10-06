@@ -16,7 +16,6 @@ import com.fitnessapp.tracker.ui.chat.AiChatScreen
 import com.fitnessapp.tracker.ui.dashboard.DashboardScreen
 import com.fitnessapp.tracker.ui.main.ActivitySelectionScreen
 import com.fitnessapp.tracker.ui.main.MainScreen
-import com.fitnessapp.tracker.ui.onboarding.OnboardingScreen
 import com.fitnessapp.tracker.ui.settings.SettingsScreen
 import com.fitnessapp.tracker.ui.settings.SettingsViewModel
 import com.fitnessapp.tracker.ui.summary.PostWorkoutSummaryScreen
@@ -79,24 +78,14 @@ fun CyclingNavGraph(
                         popUpTo(Screen.Auth.route) { inclusive = true }
                     }
                 },
-                // New user: complete onboarding first
                 onSignUpSuccess = {
-                    navController.navigate(Screen.Onboarding.route) {
+                    navController.navigate(Screen.Main.route) {
                         popUpTo(Screen.Auth.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Screen.Onboarding.route) {
-            OnboardingScreen(
-                onComplete = {
-                    navController.navigate(Screen.Main.route) {
-                        popUpTo(Screen.Onboarding.route) { inclusive = true }
-                    }
-                }
-            )
-        }
 
         composable(Screen.ActivitySelection.route) {
             val settingsViewModel = hiltViewModel<SettingsViewModel>()

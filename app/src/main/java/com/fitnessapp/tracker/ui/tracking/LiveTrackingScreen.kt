@@ -617,22 +617,6 @@ fun LiveTrackingScreen(
                 }
             }
 
-            // ClimbPro Live Ascent HUD Card
-            val liveClimb = trackingState.liveClimb
-            if (liveClimb != null) {
-                com.fitnessapp.tracker.ui.components.ClimbProHUDCard(liveClimb = liveClimb)
-            }
-
-            // Ghost Rider Virtual Pacer HUD Card
-            if (trackingState.ghostPacerState.isActive) {
-                com.fitnessapp.tracker.ui.components.GhostPacerHUDCard(ghostState = trackingState.ghostPacerState)
-            }
-
-            // Live Segment Sprint HUD Card
-            if (trackingState.liveSegmentStatus.activeSegment != null) {
-                com.fitnessapp.tracker.ui.components.SegmentSprintHUDCard(status = trackingState.liveSegmentStatus)
-            }
-
             // Live Challenge Real-time Completion HUD
             val activeChallenge = trackingState.activeChallenge
             if (activeChallenge != null && activeChallenge.activityType == activityType) {

@@ -32,7 +32,6 @@ import android.app.NotificationManager
 import com.fitnessapp.tracker.data.local.dao.ChallengeDao
 import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
 import com.fitnessapp.tracker.service.IntentActions
-import com.fitnessapp.tracker.ui.components.AppFeaturesGuideDialog
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -193,16 +192,6 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        if (showFeaturesGuide) {
-                            AppFeaturesGuideDialog(
-                                onDismiss = {
-                                    showFeaturesGuide = false
-                                    coroutineScope.launch {
-                                        settingsRepository.setLastSeenVersionCode(BuildConfig.VERSION_CODE)
-                                    }
-                                }
-                            )
-                        }
 
                         initialDestination?.let { destination ->
                             CyclingNavGraph(startDestination = destination)
