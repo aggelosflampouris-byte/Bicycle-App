@@ -144,7 +144,7 @@ fun HistoryScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(8.dp),
                     colors = CardDefaults.cardColors(containerColor = NavyCard),
                     border = BorderStroke(1.dp, GlassBorder)
                 ) {

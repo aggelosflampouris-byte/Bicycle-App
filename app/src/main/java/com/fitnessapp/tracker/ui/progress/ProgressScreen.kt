@@ -70,7 +70,7 @@ fun ProgressScreen(
         // Chart Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = NavyCard),
             border = BorderStroke(1.dp, GlassBorder)
         ) {

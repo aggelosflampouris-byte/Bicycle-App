@@ -429,7 +429,7 @@ private fun PreRideBriefingDialog(
             }
         },
         containerColor = NavyCard,
-        shape = RoundedCornerShape(20.dp)
+        shape = RoundedCornerShape(8.dp)
     )
 }
 
@@ -680,7 +680,7 @@ private fun ChatInputBar(
             placeholder = {
                 Text(if (isListening) "Listening to your voice..." else "Ask AI Coach...", color = if (isListening) ElectricGreen else TextDisabled)
             },
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = if (isListening) SpeedRed else ElectricGreen,
                 unfocusedBorderColor = if (isListening) SpeedRed else GlassBorder,

@@ -717,7 +717,7 @@ private fun SettingsSectionCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
         border = BorderStroke(1.dp, GlassBorder)
     ) {
@@ -921,7 +921,7 @@ fun QrCodeDialog(url: String, onDismiss: () -> Unit) {
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = NavyCard),
             border = BorderStroke(1.dp, GlassBorder)
         ) {

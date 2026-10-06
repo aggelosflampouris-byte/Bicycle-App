@@ -49,7 +49,7 @@ fun GhostPacerHUDCard(
         colors = CardDefaults.cardColors(containerColor = NavyCard.copy(alpha = 0.94f)),
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(1.5.dp, deltaColor.copy(alpha = 0.8f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier

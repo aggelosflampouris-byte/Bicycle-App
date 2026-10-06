@@ -28,7 +28,7 @@ fun AppFeaturesGuideDialog(onDismiss: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.85f),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = NavyCard),
             border = BorderStroke(1.dp, GlassBorder)
         ) {

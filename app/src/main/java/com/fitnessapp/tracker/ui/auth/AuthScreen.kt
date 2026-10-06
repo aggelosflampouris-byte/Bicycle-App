@@ -115,7 +115,7 @@ fun AuthScreen(
                                 containerColor = if (isSelected) ElectricGreen else androidx.compose.ui.graphics.Color.Transparent,
                                 contentColor = if (isSelected) DeepNavy else TextSecondary
                             ),
-                            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp)
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                         ) {
                             Text(label, fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal, fontSize = 14.sp)
                         }

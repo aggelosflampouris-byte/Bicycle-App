@@ -506,15 +506,12 @@ private fun StartWorkoutButton(activityType: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = ElectricGreen,
             contentColor = DeepNavy
         ),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 8.dp,
-            pressedElevation = 2.dp
-        )
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
     ) {
         val icon = when (activityType) {
             "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
@@ -969,7 +966,7 @@ fun WeeklyTrainingPlanCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = trainingPlan != null) { expanded = !expanded },
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
         border = BorderStroke(1.dp, GlassBorder)
     ) {
@@ -1155,7 +1152,7 @@ private fun TrainingPlanGoalDialog(
             }
         },
         containerColor = NavyCard,
-        shape = RoundedCornerShape(20.dp)
+        shape = RoundedCornerShape(8.dp)
     )
 }
 

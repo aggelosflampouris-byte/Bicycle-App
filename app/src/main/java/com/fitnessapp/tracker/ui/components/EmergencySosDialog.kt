@@ -65,7 +65,7 @@ fun EmergencySosDialog(
                 colors = CardDefaults.cardColors(containerColor = NavyCard),
                 shape = RoundedCornerShape(28.dp),
                 border = BorderStroke(3.dp, SpeedRed),
-                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
                     modifier = Modifier

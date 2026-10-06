@@ -677,9 +677,9 @@ fun LiveTrackingScreen(
                         exit = fadeOut() + slideOutVertically(targetOffsetY = { -it })
                     ) {
                         Card(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(8.dp),
                             colors = CardDefaults.cardColors(containerColor = VividCyan),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                             border = BorderStroke(1.dp, DeepNavy)
                         ) {
                             Row(
@@ -713,7 +713,7 @@ fun LiveTrackingScreen(
                         colors = CardDefaults.cardColors(
                             containerColor = WarningAmber.copy(alpha = 0.95f)
                         ),
-                        shape = RoundedCornerShape(20.dp)
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
@@ -911,7 +911,7 @@ private fun FinishWorkoutDialog(
     AlertDialog(
         onDismissRequest = onResume,
         containerColor = NavyCard,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(8.dp),
         title = {
             Text(
                 "Finish Workout?",
