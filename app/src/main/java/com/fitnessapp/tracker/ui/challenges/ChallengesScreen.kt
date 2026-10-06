@@ -31,6 +31,7 @@ import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.dashboard.DashboardViewModel
+import com.fitnessapp.tracker.ui.dashboard.DashboardUiEvent
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -136,7 +137,7 @@ fun ChallengesScreen(
                                 }
                             }
                             Button(
-                                onClick = { viewModel.generateNewChallenge() },
+                                onClick = { viewModel.onEvent(DashboardUiEvent.GenerateNewChallenge) },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
@@ -151,9 +152,9 @@ fun ChallengesScreen(
                 } else {
                     ChallengeCard(
                         challenge = challenge,
-                        onAccept = { viewModel.respondToChallenge(challenge, true) },
-                        onDeny = { viewModel.respondToChallenge(challenge, false) },
-                        onCancel = { viewModel.cancelChallenge(challenge) }
+                        onAccept = { viewModel.onEvent(DashboardUiEvent.RespondToChallenge(challenge, true)) },
+                        onDeny = { viewModel.onEvent(DashboardUiEvent.RespondToChallenge(challenge, false)) },
+                        onCancel = { viewModel.onEvent(DashboardUiEvent.CancelChallenge(challenge)) }
                     )
                 }
             }

@@ -34,6 +34,7 @@ import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.chat.AiChatScreen
 import com.fitnessapp.tracker.ui.dashboard.DashboardScreen
 import com.fitnessapp.tracker.ui.dashboard.DashboardViewModel
+import com.fitnessapp.tracker.ui.dashboard.DashboardUiEvent
 import com.fitnessapp.tracker.ui.history.HistoryScreen
 import com.fitnessapp.tracker.ui.settings.SettingsScreen
 import com.fitnessapp.tracker.updater.UpdateDialog
@@ -224,7 +225,7 @@ fun MainScreen(
             val pendingChallenge = dashboardUiState.latestChallenge
             if (dashboardUiState.showNewChallengeDialog && pendingChallenge != null) {
                 AlertDialog(
-                    onDismissRequest = { dashboardViewModel.dismissNewChallengeDialog() },
+                    onDismissRequest = { dashboardViewModel.onEvent(DashboardUiEvent.DismissChallenge) },
                     containerColor = NavyCard,
                     titleContentColor = TextPrimary,
                     textContentColor = TextSecondary,
@@ -260,8 +261,8 @@ fun MainScreen(
                     confirmButton = {
                         Button(
                             onClick = {
-                                dashboardViewModel.respondToChallenge(pendingChallenge, true)
-                                dashboardViewModel.dismissNewChallengeDialog()
+                                dashboardViewModel.onEvent(DashboardUiEvent.RespondToChallenge(pendingChallenge, true))
+                                dashboardViewModel.onEvent(DashboardUiEvent.DismissChallenge)
                                 currentTab = MainTab.CHALLENGES
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -275,8 +276,8 @@ fun MainScreen(
                     dismissButton = {
                         TextButton(
                             onClick = {
-                                dashboardViewModel.respondToChallenge(pendingChallenge, false)
-                                dashboardViewModel.dismissNewChallengeDialog()
+                                dashboardViewModel.onEvent(DashboardUiEvent.RespondToChallenge(pendingChallenge, false))
+                                dashboardViewModel.onEvent(DashboardUiEvent.DismissChallenge)
                             }
                         ) {
                             Text("Deny", color = SpeedRed)

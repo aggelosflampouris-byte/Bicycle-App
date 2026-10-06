@@ -29,6 +29,7 @@ import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.dashboard.DashboardViewModel
+import com.fitnessapp.tracker.ui.dashboard.DashboardUiEvent
 import com.fitnessapp.tracker.ui.progress.ProgressScreen
 import java.text.SimpleDateFormat
 import java.util.*
@@ -128,7 +129,7 @@ fun HistoryScreen(
                     title = "Delete Activity",
                     message = "Are you sure you want to delete this activity?",
                     onConfirm = {
-                        viewModel.deleteSession(sessionToDelete!!)
+                        viewModel.onEvent(DashboardUiEvent.DeleteSession(sessionToDelete!!))
                         sessionToDelete = null
                     },
                     onDismiss = { sessionToDelete = null }
