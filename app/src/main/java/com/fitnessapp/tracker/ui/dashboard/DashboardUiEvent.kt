@@ -9,6 +9,8 @@ sealed class DashboardUiEvent {
     data class DeleteSession(val sessionId: Long) : DashboardUiEvent()
     
     // Challenges
+    object GenerateNewChallenge : DashboardUiEvent()
+    object DismissChallenge : DashboardUiEvent()
     data class RespondToChallenge(val challenge: ChallengeEntity, val accept: Boolean) : DashboardUiEvent()
     data class CancelChallenge(val challenge: ChallengeEntity) : DashboardUiEvent()
     

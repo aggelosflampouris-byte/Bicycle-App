@@ -84,7 +84,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun generateNewChallenge() {
+    private fun generateNewChallenge() {
         viewModelScope.launch {
             val enabled = settingsRepository.challengesEnabled.first()
             if (!enabled) {
@@ -102,6 +102,8 @@ class DashboardViewModel @Inject constructor(
             is DashboardUiEvent.DeleteSession -> deleteSession(event.sessionId)
             is DashboardUiEvent.RespondToChallenge -> respondToChallenge(event.challenge, event.accept)
             is DashboardUiEvent.CancelChallenge -> cancelChallenge(event.challenge)
+            is DashboardUiEvent.GenerateNewChallenge -> generateNewChallenge()
+            is DashboardUiEvent.DismissChallenge -> dismissNewChallengeDialog()
             is DashboardUiEvent.GenerateTrainingPlan -> generateTrainingPlan(event.goalPrompt)
             is DashboardUiEvent.ToggleDailyPlanCompleted -> toggleDailyPlanCompleted(event.day)
             is DashboardUiEvent.SaveRoutine -> saveRoutine(event.interval, event.metric, event.targetValue, event.autoImprove)
@@ -273,7 +275,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun dismissNewChallengeDialog() {
+    private fun dismissNewChallengeDialog() {
         _uiState.value.latestChallenge?.let {
             _dismissedChallengeId.value = it.id
         }
