@@ -208,7 +208,7 @@ fun ComparisonCard(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 color = TextPrimary,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
             

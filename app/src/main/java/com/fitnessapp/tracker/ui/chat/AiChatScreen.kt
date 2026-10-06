@@ -484,11 +484,7 @@ private fun PersonalCoachBanner() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(ElectricGreen.copy(alpha = 0.15f), VividCyan.copy(alpha = 0.1f))
-                )
-            )
+            .background(NavyLight)
             .padding(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -496,11 +492,7 @@ private fun PersonalCoachBanner() {
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(ElectricGreen, ElectricGreenDarker)
-                        )
-                    ),
+                    .background(ElectricGreen),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

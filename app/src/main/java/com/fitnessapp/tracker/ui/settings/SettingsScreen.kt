@@ -188,7 +188,7 @@ fun SettingsScreen(
                         Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         val buttonText = if (onboardingState.hasProfile) "Edit Profile" else "Save Profile"
-                        Text(buttonText, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                        Text(buttonText, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     }
                 }
             }
@@ -660,14 +660,14 @@ private fun SettingsHeader(onInfoClick: () -> Unit) {
                 modifier = Modifier
                     .size(52.dp)
                     .clip(CircleShape)
-                    .background(Brush.radialGradient(listOf(ElectricGreen, ElectricGreenDarker))),
+                    .background(ElectricGreen),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.Settings, null, tint = DeepNavy, modifier = Modifier.size(28.dp))
             }
             Column {
                 Text("Settings", style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                    fontWeight = FontWeight.SemiBold, color = TextPrimary)
                 Text("Personalise your Smart Track experience",
                     style = MaterialTheme.typography.bodySmall, color = TextSecondary)
             }
@@ -861,7 +861,7 @@ fun QrCodeDialog(url: String, onDismiss: () -> Unit) {
                 Text(
                     text = "Scan to Download",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.SemiBold,
                     color = TextPrimary
                 )
                 

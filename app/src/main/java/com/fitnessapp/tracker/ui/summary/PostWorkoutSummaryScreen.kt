@@ -307,7 +307,7 @@ private fun SummaryContent(
                         "WORKOUT COMPLETE!",
                         color = DeepNavy,
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.ExtraBold
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -371,7 +371,7 @@ private fun SummaryContent(
                                         Text(
                                             text = achievement.formattedValue,
                                             style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Black,
+                                            fontWeight = FontWeight.Bold,
                                             color = ChallengeGold
                                         )
                                     }
@@ -428,7 +428,7 @@ private fun SummaryContent(
                 text = PhysicsEngine.formatDistance(session.totalDistanceMeters),
                 style = MaterialTheme.typography.displayMedium,
                 color = TextPrimary,
-                fontWeight = FontWeight.Black
+                fontWeight = FontWeight.Bold
             )
 
             // Stats grid
@@ -766,7 +766,7 @@ private fun LapDetailsTable(
                             text = "${lap.lap}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (isSelected) lap.color else TextPrimary,
-                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.SemiBold
                         )
                     }
 

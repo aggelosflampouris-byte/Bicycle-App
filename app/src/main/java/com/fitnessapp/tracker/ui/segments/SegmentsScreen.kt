@@ -48,7 +48,7 @@ fun SegmentsScreen(
                 title = {
                     Text(
                         "Local Segments & PRs 👑",
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
                 },
@@ -214,7 +214,7 @@ private fun SegmentCard(
                             Text(
                                 text = "%02d:%02d".format(mins, secs),
                                 style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Black,
+                                fontWeight = FontWeight.Bold,
                                 color = WarningAmber
                             )
                         }

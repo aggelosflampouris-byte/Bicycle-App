@@ -681,7 +681,7 @@ fun LiveTrackingScreen(
                                     text = lastCompletedLapMessage ?: "",
                                     color = DeepNavy,
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.ExtraBold
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
@@ -714,7 +714,7 @@ fun LiveTrackingScreen(
                                 text = "WORKOUT PAUSED",
                                 color = DeepNavy,
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.ExtraBold
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
@@ -824,7 +824,7 @@ private fun TrackingControlBar(
             Text(
                 text = if (isPaused) "RESUME" else "PAUSE",
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.SemiBold
             )
         }
 
@@ -850,7 +850,7 @@ private fun TrackingControlBar(
             Text(
                 text = "LAP $currentLap",
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.SemiBold
             )
         }
 
@@ -876,7 +876,7 @@ private fun TrackingControlBar(
             Text(
                 text = "FINISH",
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.SemiBold
             )
         }
     }
@@ -990,7 +990,7 @@ fun TrackingStatsPanel(
                 text = PhysicsEngine.formatSpeed(speedKmh),
                 style = MaterialTheme.typography.displayLarge,
                 color = if (isPaused) TextSecondary else ElectricGreen,
-                fontWeight = FontWeight.Black,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
             Text(
@@ -1256,7 +1256,7 @@ private fun LiveChallengeProgressHUD(
                         Text(
                             text = if (info.isCompleted) "CHALLENGE COMPLETED!" else "${challenge.period.name} ${challenge.metric.name} CHALLENGE",
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontWeight = FontWeight.SemiBold,
                             color = if (info.isCompleted) ChallengeGold else VividCyan,
                             letterSpacing = 0.5.sp
                         )
@@ -1279,7 +1279,7 @@ private fun LiveChallengeProgressHUD(
                     Text(
                         text = "$percentage%",
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.Bold,
                         color = if (info.isCompleted) ChallengeGold else ElectricGreen
                     )
                 }

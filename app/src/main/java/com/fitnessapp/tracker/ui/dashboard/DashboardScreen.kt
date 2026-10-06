@@ -480,7 +480,7 @@ private fun StatCard(
                     text = value,
                     style = MaterialTheme.typography.displaySmall,
                     color = TextPrimary,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.SemiBold,
                     fontSize = 28.sp
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -532,7 +532,7 @@ private fun StartWorkoutButton(activityType: String, onClick: () -> Unit) {
         Text(
             text = actionText,
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.ExtraBold,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 18.sp,
             letterSpacing = 1.sp
         )
@@ -568,11 +568,7 @@ private fun SessionCard(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(bubbleColor.copy(alpha = 0.3f), NavyLight)
-                        )
-                    ),
+                    .background(NavyLight),
                 contentAlignment = Alignment.Center
             ) {
                 val sessionIcon = when (session.activityType) {
@@ -1340,7 +1336,7 @@ private fun RecoveryReadinessCard(
                     Text(
                         text = "${recovery.recoveryPercentage}%",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.SemiBold,
                         color = statusColor
                     )
                     Icon(

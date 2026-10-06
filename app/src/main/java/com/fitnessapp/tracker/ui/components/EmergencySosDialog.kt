@@ -93,7 +93,7 @@ fun EmergencySosDialog(
                     Text(
                         text = if (isDispatched) "🚨 SOS BEACON DISPATCHED" else "⚠️ CRASH DETECTED!",
                         style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.Bold,
                         color = SpeedRed,
                         textAlign = TextAlign.Center
                     )
@@ -117,7 +117,7 @@ fun EmergencySosDialog(
                             Text(
                                 text = "$secondsLeft",
                                 style = MaterialTheme.typography.displayMedium,
-                                fontWeight = FontWeight.Black,
+                                fontWeight = FontWeight.Bold,
                                 color = SpeedRed
                             )
                         }
@@ -156,7 +156,7 @@ fun EmergencySosDialog(
                         Text(
                             text = if (isDispatched) "STOP ALARM & I'M OK" else "I'M OK — CANCEL SOS",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Black,
+                            fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
                     }

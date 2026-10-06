@@ -159,7 +159,7 @@ fun HistoryScreen(
                                 text = "${"%.1f".format(uiState.totalDistanceKm)} km",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = ElectricGreen,
-                                fontWeight = FontWeight.Black
+                                fontWeight = FontWeight.Bold
                             )
                             Text("Total Dist", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                         }
@@ -168,7 +168,7 @@ fun HistoryScreen(
                                 text = "${uiState.totalSessions}",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = VividCyan,
-                                fontWeight = FontWeight.Black
+                                fontWeight = FontWeight.Bold
                             )
                             Text(when (activityType) {
                                 "WALKING" -> "Walks"
@@ -181,7 +181,7 @@ fun HistoryScreen(
                                 text = "${"%.0f".format(uiState.totalCalories)}",
                                 style = MaterialTheme.typography.titleLarge,
                                 color = SpeedRed,
-                                fontWeight = FontWeight.Black
+                                fontWeight = FontWeight.Bold
                             )
                             Text("Calories", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                         }

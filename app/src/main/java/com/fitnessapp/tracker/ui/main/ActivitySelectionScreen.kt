@@ -49,7 +49,7 @@ fun ActivitySelectionScreen(
             text = "Ready to go?",
             style = MaterialTheme.typography.headlineLarge,
             color = TextPrimary,
-            fontWeight = FontWeight.ExtraBold
+            fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(

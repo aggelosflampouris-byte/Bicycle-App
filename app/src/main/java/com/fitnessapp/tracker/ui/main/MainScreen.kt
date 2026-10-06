@@ -136,7 +136,7 @@ fun MainScreen(
                                 Text(
                                     text = tab.label,
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                     color = if (isSelected) ElectricGreen else TextSecondary
                                 )
                             },
@@ -345,7 +345,7 @@ private fun ActiveRideMiniBanner(
                     Text(
                         text = if (isPaused) "RIDE PAUSED" else "RIDE IN PROGRESS",
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.SemiBold,
                         color = if (isPaused) WarningAmber else ElectricGreen
                     )
                     Text(

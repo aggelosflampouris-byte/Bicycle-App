@@ -48,7 +48,7 @@ fun AuthScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(listOf(DeepNavy, NavyDarker))
+                NavyDarker
             )
     ) {
         Column(
@@ -67,7 +67,7 @@ fun AuthScreen(
                     .size(80.dp)
                     .clip(CircleShape)
                     .background(
-                        Brush.radialGradient(listOf(ElectricGreen, ElectricGreenDarker))
+                        ElectricGreen
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -84,7 +84,7 @@ fun AuthScreen(
             Text(
                 text = "Smart Track",
                 style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.SemiBold,
                 color = TextPrimary
             )
             Text(
@@ -117,7 +117,7 @@ fun AuthScreen(
                             ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                         ) {
-                            Text(label, fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal, fontSize = 14.sp)
+                            Text(label, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, fontSize = 14.sp)
                         }
                     }
                 }
@@ -273,7 +273,7 @@ fun AuthScreen(
                 } else {
                     Text(
                         text = if (uiState.isLogin) "Sign In" else "Create Account",
-                        fontWeight = FontWeight.ExtraBold,
+                        fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp
                     )
                 }
