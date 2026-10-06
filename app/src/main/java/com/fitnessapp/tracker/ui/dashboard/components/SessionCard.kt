@@ -131,5 +131,3 @@ fun MiniStat(label: String, value: String) {
         Text(text = label, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)

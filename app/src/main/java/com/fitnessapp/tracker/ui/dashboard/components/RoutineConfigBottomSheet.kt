@@ -46,6 +46,7 @@ import android.widget.Toast
 
 
 import com.fitnessapp.tracker.ui.dashboard.components.*
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoutineConfigBottomSheet(
     currentProgress: com.fitnessapp.tracker.data.local.RoutineProgress?,
