@@ -14,8 +14,8 @@ android {
         applicationId = "com.fitnessapp.tracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 163
-        versionName = "1.1.153"
+        versionCode = 164
+        versionName = "1.1.154"
 
         // API key is read from local.properties (gitignored — never committed)
         // or from the GEMINI_API_KEY environment variable (GitHub Actions Secret).
