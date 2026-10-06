@@ -20,6 +20,9 @@ import javax.inject.Inject
 
 import com.fitnessapp.tracker.data.local.RoutineProgress
 import com.fitnessapp.tracker.data.local.RoutineRepository
+import com.fitnessapp.tracker.domain.usecase.GetDashboardStatsUseCase
+import com.fitnessapp.tracker.domain.usecase.GetChallengesStateUseCase
+import com.fitnessapp.tracker.domain.usecase.GetRecoveryAdviceUseCase
 
 data class DashboardUiState(
     val user: UserEntity = UserEntity(),
@@ -51,7 +54,9 @@ class DashboardViewModel @Inject constructor(
     private val settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository,
     private val routineRepository: RoutineRepository,
     private val challengeGenerator: com.fitnessapp.tracker.engine.ChallengeGenerator,
-    private val recoveryEngine: com.fitnessapp.tracker.engine.RecoveryEngine
+    private val getDashboardStatsUseCase: GetDashboardStatsUseCase,
+    private val getChallengesStateUseCase: GetChallengesStateUseCase,
+    private val getRecoveryAdviceUseCase: GetRecoveryAdviceUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -152,53 +157,16 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private data class SessionStats(
-        val sessions: List<WorkoutSessionEntity>,
-        val totalDistanceKm: Double,
-        val avgDistanceKm: Double,
-        val totalCalories: Double
-    )
-
-    private data class ChallengeState(
-        val latestChallenge: ChallengeEntity?,
-        val completedChallenges: List<ChallengeEntity>,
-        val showNewChallengeDialog: Boolean
-    )
-
     private fun loadData() {
         viewModelScope.launch {
             val routineProgressFlow = _activityType.flatMapLatest { type ->
                 routineRepository.getRoutineProgressFlow(type)
             }
-            val sessionStatsFlow = combine(
-                sessionDao.getAllSessionsFlow(),
-                _activityType
-            ) { allSessions, activityType ->
-                val sessions = allSessions.filter { it.activityType == activityType }
-                val totalDist = sessions.sumOf { it.totalDistanceMeters } / 1000.0
-                val avgDist = if (sessions.isNotEmpty()) totalDist / sessions.size else 0.0
-                val totalCals = sessions.sumOf { it.caloriesBurned }
-                SessionStats(
-                    sessions = sessions,
-                    totalDistanceKm = totalDist,
-                    avgDistanceKm = avgDist,
-                    totalCalories = totalCals
-                )
+            val sessionStatsFlow = _activityType.flatMapLatest { type -> 
+                getDashboardStatsUseCase(type)
             }
-            val challengeStateFlow = combine(
-                challengeDao.getLatestChallengeFlow(),
-                challengeDao.getCompletedChallengesFlow(),
-                _dismissedChallengeId
-            ) { latestChallenge, completedChallenges, dismissedId ->
-                val showDialog = latestChallenge != null &&
-                    latestChallenge.status == ChallengeStatus.PENDING &&
-                    latestChallenge.id != dismissedId
-                ChallengeState(
-                    latestChallenge = latestChallenge,
-                    completedChallenges = completedChallenges,
-                    showNewChallengeDialog = showDialog
-                )
-            }
+            val challengeStateFlow = getChallengesStateUseCase(_dismissedChallengeId)
+            
             val coachingStateFlow = combine(
                 challengeStateFlow,
                 trainingPlanDao.getPlanFlow()
@@ -216,13 +184,7 @@ class DashboardViewModel @Inject constructor(
                 personalRecordsFlow
             ) { user, sessionStats, routineProgress, coachingState, records ->
                 val (challengeState, plan) = coachingState
-                val recovery = if (sessionStats.sessions.isNotEmpty()) {
-                    recoveryEngine.computeRecoveryAdvice(
-                        targetSession = sessionStats.sessions.first(),
-                        recentSessions = sessionStats.sessions,
-                        user = user
-                    )
-                } else null
+                val recovery = getRecoveryAdviceUseCase(sessionStats.sessions, user)
 
                 DashboardUiState(
                     user = user,
