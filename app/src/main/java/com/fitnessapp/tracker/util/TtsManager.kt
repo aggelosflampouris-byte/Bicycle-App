@@ -65,10 +65,6 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
-    fun stopSpeaking() {
-        tts?.stop()
-    }
-
     fun stop() {
         tts?.stop()
         pendingSpeech = null

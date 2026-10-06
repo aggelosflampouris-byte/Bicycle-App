@@ -20,7 +20,7 @@ import com.google.gson.reflect.TypeToken
 import java.util.Locale
 
 /**
- * Repository for Hugging Face AI interactions powered by Qwen 2.5 (72B Instruct).
+ * Repository for Hugging Face AI interactions powered by Qwen 2.5 (27B Instruct).
  * Uses the OpenAI-compatible /v1/chat/completions endpoint.
  */
 @Singleton
@@ -170,62 +170,6 @@ class GeminiRepository @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Option 1: Multi-Week Fatigue & Fitness Progression Analysis
-     */
-    suspend fun analyzeFatigueAndFitness(
-        user: UserEntity,
-        sessions: List<WorkoutSessionEntity>,
-        persona: CoachPersona = CoachPersona.SUPPORTIVE
-    ): String? {
-        val apiKey = resolveApiKey() ?: return null
-        if (sessions.isEmpty()) return "No workout history recorded yet. Complete a few workouts to unlock fatigue & fitness trend analysis!"
-
-        val totalWorkouts = sessions.size
-        val totalDistanceKm = sessions.sumOf { it.totalDistanceMeters } / 1000.0
-        val totalDurationHours = sessions.sumOf { it.durationSeconds } / 3600.0
-        val avgSpeed = sessions.map { it.avgSpeedKmh }.filter { it > 0 }.average().takeIf { !it.isNaN() } ?: 0.0
-        
-        val now = System.currentTimeMillis()
-        val sevenDaysAgo = now - 7L * 24 * 3600 * 1000
-        val last7DaysSessions = sessions.filter { it.startTime >= sevenDaysAgo }
-        val last7DaysKm = last7DaysSessions.sumOf { it.totalDistanceMeters } / 1000.0
-
-        val prompt = """
-            You are an elite sports scientist and personal coach. Analyze this athlete's multi-week training load and fatigue progression.
-            
-            [ATHLETE PROFILE] Age: ${user.age}, Weight: ${"%.0f".format(user.weightKg)}kg, Gender: ${user.gender}
-            [CAREER STATS] Total Workouts: $totalWorkouts, Total Distance: ${"%.1f".format(totalDistanceKm)}km, Total Time: ${"%.1f".format(totalDurationHours)}h, Lifetime Avg Speed: ${"%.1f".format(avgSpeed)}km/h.
-            [ACUTE 7-DAY LOAD] Last 7 Days Volume: ${"%.1f".format(last7DaysKm)}km across ${last7DaysSessions.size} workouts.
-            
-            Provide a crisp, professional breakdown in plain text formatted with these clear sections:
-            1. 🔋 Fatigue Level & Recovery Score (Score out of 10)
-            2. ⚠️ Overtraining Risk (Low / Moderate / High with explanation)
-            3. 📈 Fitness & Endurance Trajectory (Progress analysis)
-            4. 🎯 Milestone Readiness (What distance/milestone they are ready to tackle next)
-            5. 💡 Immediate Training/Rest Recommendation for the next 48 hours
-        """.trimIndent()
-
-        val request = HfChatRequest(
-            model = HfApiService.MODEL,
-            messages = listOf(
-                HfMessage("system", buildSystemPrompt(user, sessions.firstOrNull(), "CYCLING", persona)),
-                HfMessage("user", prompt)
-            ),
-            maxTokens = 850,
-            temperature = 0.6f
-        )
-
-        return try {
-            val response = apiService.chatCompletion("Bearer $apiKey", request)
-            if (response.isSuccessful) {
-                response.body()?.choices?.firstOrNull()?.message?.content?.trim()
-            } else null
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    /**
      * Option 2: Structured JSON-Mode Adaptive Training Plan Generator
      */
     suspend fun generateWeeklyPlan(
@@ -332,51 +276,5 @@ class GeminiRepository @Inject constructor(
         }
     }
 
-    /**
-     * Option 4: Pre-Ride Strategy & Nutrition/Hydration Briefing
-     */
-    suspend fun generatePreRideBriefing(
-        user: UserEntity,
-        targetDistanceKm: Double,
-        weatherCondition: String,
-        tempC: Double,
-        windSpeedKmh: Double,
-        windDirection: String,
-        persona: CoachPersona = CoachPersona.SUPPORTIVE
-    ): String? {
-        val apiKey = resolveApiKey() ?: return null
 
-        val prompt = """
-            Prepare a tactical pre-ride strategy and nutrition/hydration gameplan for this upcoming ride:
-            
-            [TARGET] Planned Distance: ${"%.1f".format(targetDistanceKm)} km
-            [ATHLETE] Weight: ${"%.0f".format(user.weightKg)} kg, Age: ${user.age}
-            [WEATHER] Condition: $weatherCondition, Temperature: ${"%.0f".format(tempC)}°C, Wind: ${"%.1f".format(windSpeedKmh)} km/h from $windDirection.
-            
-            Provide a clear, actionable guide with:
-            1. 💨 Wind & Weather Pacing Strategy (How to handle temperature and wind)
-            2. 💧 Hydration Target (Estimated ml of water/electrolytes per hour)
-            3. 🍌 Carbohydrate Replenishment (Target grams of carbs per hour for this intensity)
-            4. 🚴 Pre-Ride Dynamic Warmup (3 quick points)
-        """.trimIndent()
-
-        val request = HfChatRequest(
-            model = HfApiService.MODEL,
-            messages = listOf(
-                HfMessage("system", buildSystemPrompt(user, null, "CYCLING", persona)),
-                HfMessage("user", prompt)
-            ),
-            maxTokens = 800,
-            temperature = 0.5f
-        )
-
-        return try {
-            val response = apiService.chatCompletion("Bearer $apiKey", request)
-            if (response.isSuccessful) {
-                response.body()?.choices?.firstOrNull()?.message?.content?.trim()
-            } else null
-        } catch (e: Exception) {
-            null
-        }
-    }
 }

@@ -80,21 +80,21 @@ class UpdaterViewModel @Inject constructor(
         val url = _uiState.value.updateInfo?.downloadUrl ?: return
         val version = _uiState.value.updateInfo?.latestVersion ?: return
             
-            viewModelScope.launch {
-                _uiState.value = _uiState.value.copy(
-                    isDownloading = true,
-                    downloadProgress = 0f,
-                    userMessage = "Downloading update..."
-                )
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isDownloading = true,
+                downloadProgress = 0f,
+                userMessage = "Downloading update..."
+            )
 
-                val result = appUpdater.downloadAndInstallApk(
-                    context = context,
-                    downloadUrl = url,
-                    latestVersion = version,
-                    onProgress = { progress ->
-                        _uiState.value = _uiState.value.copy(downloadProgress = progress)
-                    }
-                )
+            val result = appUpdater.downloadAndInstallApk(
+                context = context,
+                downloadUrl = url,
+                latestVersion = version,
+                onProgress = { progress ->
+                    _uiState.value = _uiState.value.copy(downloadProgress = progress)
+                }
+            )
 
             result.onSuccess {
                 _uiState.value = _uiState.value.copy(
