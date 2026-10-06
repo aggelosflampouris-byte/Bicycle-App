@@ -1232,7 +1232,7 @@ private fun LiveChallengeProgressHUD(
     )
     val percentage = (progressFraction * 100).toInt()
 
-    val borderColor = if (info.isCompleted) Color(0xFFFFD700) else VividCyan.copy(alpha = 0.6f)
+    val borderColor = if (info.isCompleted) ChallengeGold else VividCyan.copy(alpha = 0.6f)
     val containerBg = if (info.isCompleted) NavyCard.copy(alpha = 0.95f) else NavyCard.copy(alpha = 0.90f)
 
     Card(
@@ -1259,7 +1259,7 @@ private fun LiveChallengeProgressHUD(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(if (info.isCompleted) Color(0xFFFFD700).copy(alpha = 0.2f) else VividCyan.copy(alpha = 0.2f)),
+                            .background(if (info.isCompleted) ChallengeGold.copy(alpha = 0.2f) else VividCyan.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -1273,7 +1273,7 @@ private fun LiveChallengeProgressHUD(
                             text = if (info.isCompleted) "CHALLENGE COMPLETED!" else "${challenge.period.name} ${challenge.metric.name} CHALLENGE",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.ExtraBold,
-                            color = if (info.isCompleted) Color(0xFFFFD700) else VividCyan,
+                            color = if (info.isCompleted) ChallengeGold else VividCyan,
                             letterSpacing = 0.5.sp
                         )
                         Text(
@@ -1289,14 +1289,14 @@ private fun LiveChallengeProgressHUD(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (info.isCompleted) Color(0xFFFFD700).copy(alpha = 0.2f) else DeepNavy)
+                        .background(if (info.isCompleted) ChallengeGold.copy(alpha = 0.2f) else DeepNavy)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = "$percentage%",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Black,
-                        color = if (info.isCompleted) Color(0xFFFFD700) else ElectricGreen
+                        color = if (info.isCompleted) ChallengeGold else ElectricGreen
                     )
                 }
             }
@@ -1319,7 +1319,7 @@ private fun LiveChallengeProgressHUD(
                         .background(
                             Brush.horizontalGradient(
                                 colors = if (info.isCompleted) {
-                                    listOf(Color(0xFFFFD700), Color(0xFFFFA500), ElectricGreen)
+                                    listOf(ChallengeGold, Color(0xFFFFA500), ElectricGreen)
                                 } else {
                                     listOf(VividCyan, ElectricGreen)
                                 }

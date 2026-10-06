@@ -112,7 +112,7 @@ fun ChallengesScreen(
                                 Icon(
                                     imageVector = Icons.Default.EmojiEvents,
                                     contentDescription = null,
-                                    tint = if (challenge?.status == ChallengeStatus.COMPLETED) Color(0xFFFFD700) else TextSecondary,
+                                    tint = if (challenge?.status == ChallengeStatus.COMPLETED) ChallengeGold else TextSecondary,
                                     modifier = Modifier.size(28.dp)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -175,7 +175,7 @@ fun ChallengesScreen(
                         Text(
                             text = "${completedChallenges.size} Won",
                             style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFFFFD700),
+                            color = ChallengeGold,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -251,7 +251,7 @@ fun ChallengeCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
-        border = BorderStroke(1.dp, Color(0xFFFFD700))
+        border = BorderStroke(1.dp, ChallengeGold)
     ) {
         Column(
             modifier = Modifier
@@ -262,7 +262,7 @@ fun ChallengeCard(
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
                     contentDescription = null,
-                    tint = Color(0xFFFFD700),
+                    tint = ChallengeGold,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -312,7 +312,7 @@ fun ChallengeCard(
                 LinearProgressIndicator(
                     progress = { (challenge.currentProgress / challenge.targetValue).toFloat().coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-                    color = Color(0xFFFFD700),
+                    color = ChallengeGold,
                     trackColor = NavyDarker
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -363,7 +363,7 @@ fun CompletedChallengeCard(challenge: com.fitnessapp.tracker.data.local.entity.C
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
-        border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.5f))
+        border = BorderStroke(1.dp, ChallengeGold.copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -373,13 +373,13 @@ fun CompletedChallengeCard(challenge: com.fitnessapp.tracker.data.local.entity.C
                 modifier = Modifier
                     .size(48.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Color(0xFFFFD700).copy(alpha = 0.15f)),
+                    .background(ChallengeGold.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
                     contentDescription = null,
-                    tint = Color(0xFFFFD700),
+                    tint = ChallengeGold,
                     modifier = Modifier.size(26.dp)
                 )
             }
@@ -397,14 +397,14 @@ fun CompletedChallengeCard(challenge: com.fitnessapp.tracker.data.local.entity.C
                         fontWeight = FontWeight.Bold
                     )
                     Surface(
-                        color = Color(0xFFFFD700).copy(alpha = 0.2f),
+                        color = ChallengeGold.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(0.5.dp, Color(0xFFFFD700))
+                        border = BorderStroke(0.5.dp, ChallengeGold)
                     ) {
                         Text(
                             text = "COMPLETED",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFFFD700),
+                            color = ChallengeGold,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )

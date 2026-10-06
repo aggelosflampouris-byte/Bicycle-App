@@ -91,29 +91,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(DeepNavy)
     ) {
-        val primaryColor = ElectricGreen
-        
-        // Decorative gradient orbs
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(primaryColor.copy(alpha = 0.08f), Color.Transparent),
-                    center = Offset(size.width * 0.8f, size.height * 0.1f),
-                    radius = size.width * 0.5f
-                ),
-                radius = size.width * 0.5f,
-                center = Offset(size.width * 0.8f, size.height * 0.1f)
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(VividCyan.copy(alpha = 0.05f), Color.Transparent),
-                    center = Offset(0f, size.height * 0.6f),
-                    radius = size.width * 0.4f
-                ),
-                radius = size.width * 0.4f,
-                center = Offset(0f, size.height * 0.6f)
-            )
-        }
+
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -588,7 +566,7 @@ private fun SessionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val isGold = session.isChallengeCompletion
-            val bubbleColor = if (isGold) androidx.compose.ui.graphics.Color(0xFFFFD700) else ElectricGreen
+            val bubbleColor = if (isGold) ChallengeGold else ElectricGreen
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -887,7 +865,7 @@ fun ChallengeCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
-        border = BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFFFD700))
+        border = BorderStroke(1.dp, ChallengeGold)
     ) {
         Column(
             modifier = Modifier
@@ -898,7 +876,7 @@ fun ChallengeCard(
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
                     contentDescription = null,
-                    tint = androidx.compose.ui.graphics.Color(0xFFFFD700),
+                    tint = ChallengeGold,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -948,7 +926,7 @@ fun ChallengeCard(
                 LinearProgressIndicator(
                     progress = { (challenge.currentProgress / challenge.targetValue).toFloat().coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-                    color = androidx.compose.ui.graphics.Color(0xFFFFD700),
+                    color = ChallengeGold,
                     trackColor = NavyDarker
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1194,7 +1172,7 @@ private fun TrophiesAndRecordsCard(
         modifier = Modifier.fillMaxWidth().animateContentSize(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
-        border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.4f))
+        border = BorderStroke(1.dp, ChallengeGold.copy(alpha = 0.4f))
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(
@@ -1208,7 +1186,7 @@ private fun TrophiesAndRecordsCard(
                     Icon(
                         imageVector = Icons.Default.EmojiEvents,
                         contentDescription = null,
-                        tint = Color(0xFFFFD700),
+                        tint = ChallengeGold,
                         modifier = Modifier.size(22.dp)
                     )
                     Text(
@@ -1219,14 +1197,14 @@ private fun TrophiesAndRecordsCard(
                     )
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFFFD700).copy(alpha = 0.2f)
+                        color = ChallengeGold.copy(alpha = 0.2f)
                     ) {
                         Text(
                             text = "${records.size}",
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFFD700)
+                            color = ChallengeGold
                         )
                     }
                 }
@@ -1291,7 +1269,7 @@ private fun TrophiesAndRecordsCard(
                                 text = formattedVal,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFD700)
+                                color = ChallengeGold
                             )
                         }
                     }

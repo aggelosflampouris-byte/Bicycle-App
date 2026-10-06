@@ -31,7 +31,7 @@ fun ClimbProHUDCard(
 
     val categoryColor = when (climb.category) {
         "HC" -> SpeedRed
-        "Cat 1" -> Color(0xFFFF5722)
+        "Cat 1" -> SpeedRed
         "Cat 2" -> WarningAmber
         "Cat 3" -> VividCyan
         else -> ElectricGreen

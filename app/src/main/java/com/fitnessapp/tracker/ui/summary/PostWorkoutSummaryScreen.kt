@@ -49,11 +49,11 @@ import java.util.*
 
 // ── Lap palette (mirrors the map polyline colors) ─────────────────────────────
 private val LAP_COLORS_COMPOSE = listOf(
-    Color(0xFF00FF87), // ElectricGreen
-    Color(0xFFFFEB3B), // Yellow
-    Color(0xFFFF5722), // Orange
+    ActualElectricGreen, // ElectricGreen
+    WarningAmber, // Yellow
+    SpeedRed, // Orange
     Color(0xFFE91E63), // Pink
-    Color(0xFF03A9F4), // LightBlue
+    VividCyan, // LightBlue
     Color(0xFF9C27B0)  // Purple
 )
 
@@ -326,14 +326,14 @@ private fun SummaryContent(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = NavyCard),
-                    border = BorderStroke(1.5.dp, Color(0xFFFFD700))
+                    border = BorderStroke(1.5.dp, ChallengeGold)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.EmojiEvents,
                                 contentDescription = null,
-                                tint = Color(0xFFFFD700),
+                                tint = ChallengeGold,
                                 modifier = Modifier.size(28.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -341,7 +341,7 @@ private fun SummaryContent(
                                 text = "🏆 All-Time Personal Records Broken!",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFD700)
+                                color = ChallengeGold
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
@@ -349,8 +349,8 @@ private fun SummaryContent(
                             newAchievements.forEach { achievement ->
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFFFFD700).copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.35f)),
+                                    color = ChallengeGold.copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, ChallengeGold.copy(alpha = 0.35f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -372,7 +372,7 @@ private fun SummaryContent(
                                             text = achievement.formattedValue,
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Black,
-                                            color = Color(0xFFFFD700)
+                                            color = ChallengeGold
                                         )
                                     }
                                 }
@@ -387,7 +387,7 @@ private fun SummaryContent(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = NavyCard),
-                    border = BorderStroke(1.5.dp, Color(0xFFFFD700))
+                    border = BorderStroke(1.5.dp, ChallengeGold)
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -396,7 +396,7 @@ private fun SummaryContent(
                         Icon(
                             imageVector = Icons.Default.EmojiEvents,
                             contentDescription = null,
-                            tint = Color(0xFFFFD700),
+                            tint = ChallengeGold,
                             modifier = Modifier.size(32.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))

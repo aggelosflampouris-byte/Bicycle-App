@@ -68,10 +68,11 @@ val NavyCard: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
 val VividCyan = Color(0xFF00D4FF)
 val VividCyanDim = Color(0xFF0096B4)
 
-// ── Alert & Speed colors ─────────────────────────────────────────────────────
+// ── Alert, Speed & Gold colors ─────────────────────────────────────────────────────
 val SpeedRed = Color(0xFFFF4444)
 val WarningAmber = Color(0xFFFFA726)
 val SuccessGreen = Color(0xFF4CAF50)
+val ChallengeGold = Color(0xFFFFD700)
 
 // ── Text ─────────────────────────────────────────────────────────────────────
 val ActualTextPrimary = Color(0xFFF0F4FF)

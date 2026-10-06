@@ -344,7 +344,7 @@ private fun HistoryItemCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
-        border = BorderStroke(if (session.isChallengeCompletion) 2.dp else 1.dp, if (session.isChallengeCompletion) androidx.compose.ui.graphics.Color(0xFFFFD700) else GlassBorder)
+        border = BorderStroke(if (session.isChallengeCompletion) 2.dp else 1.dp, if (session.isChallengeCompletion) ChallengeGold else GlassBorder)
     ) {
         Column(
             modifier = Modifier
@@ -367,7 +367,7 @@ private fun HistoryItemCard(
                         Icon(
                             imageVector = Icons.Default.EmojiEvents,
                             contentDescription = "Challenge Completed",
-                            tint = androidx.compose.ui.graphics.Color(0xFFFFD700),
+                            tint = ChallengeGold,
                             modifier = Modifier.size(16.dp)
                         )
                     }

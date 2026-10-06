@@ -233,7 +233,7 @@ fun MainScreen(
                             Icon(
                                 imageVector = Icons.Default.EmojiEvents,
                                 contentDescription = null,
-                                tint = Color(0xFFFFD700),
+                                tint = ChallengeGold,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
