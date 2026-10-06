@@ -26,7 +26,7 @@ import com.fitnessapp.tracker.theme.TextSecondary
 import com.fitnessapp.tracker.theme.VividCyan
 
 @Composable
-fun AnimatedLineChart(
+fun LineChart(
     data: List<ChartBarData>,
     modifier: Modifier = Modifier,
     isArea: Boolean = false
@@ -38,15 +38,7 @@ fun AnimatedLineChart(
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = TextSecondary, fontSize = 10.sp, textAlign = TextAlign.Center)
     val valueStyle = MaterialTheme.typography.labelMedium.copy(color = TextPrimary, fontSize = 12.sp, textAlign = TextAlign.Center)
 
-    val animationProgress = remember { Animatable(0f) }
-    
-    LaunchedEffect(data) {
-        animationProgress.snapTo(0f)
-        animationProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
-        )
-    }
+
 
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
@@ -109,7 +101,7 @@ fun AnimatedLineChart(
             val points = mutableListOf<Offset>()
             
             data.forEachIndexed { index, item ->
-                val barHeight = (item.value / maxValue) * (size.height - 70.dp.toPx()) * animationProgress.value
+                val barHeight = (item.value / maxValue) * (size.height - 70.dp.toPx())
                 val centerX = startOffset + index * (barWidth + spacing) + barWidth / 2f
                 val y = bottomY - barHeight
                 points.add(Offset(centerX, y))
@@ -162,7 +154,7 @@ fun AnimatedLineChart(
         } else if (data.size == 1) {
             // Draw single point
             val item = data[0]
-            val barHeight = (item.value / maxValue) * (size.height - 70.dp.toPx()) * animationProgress.value
+            val barHeight = (item.value / maxValue) * (size.height - 70.dp.toPx())
             val centerX = startOffset + barWidth / 2f
             val y = bottomY - barHeight
             
@@ -176,7 +168,7 @@ fun AnimatedLineChart(
 
         // Draw Labels and Tooltips
         data.forEachIndexed { index, item ->
-            val barHeight = (item.value / maxValue) * (size.height - 70.dp.toPx()) * animationProgress.value
+            val barHeight = (item.value / maxValue) * (size.height - 70.dp.toPx())
             val centerX = startOffset + index * (barWidth + spacing) + barWidth / 2f
             val yOffset = bottomY - barHeight
 

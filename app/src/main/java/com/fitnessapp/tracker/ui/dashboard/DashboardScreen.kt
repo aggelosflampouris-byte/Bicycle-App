@@ -131,10 +131,7 @@ fun DashboardScreen(
 
             // Routine Progress Card
             item {
-                AnimatedVisibility(
-                    visible = !uiState.isLoading,
-                    enter = fadeIn() + slideInVertically()
-                ) {
+                if (!uiState.isLoading) {
                     RoutineProgressCard(
                         progress = uiState.routineProgress,
                         onConfigureClick = { showRoutineConfig = true }
@@ -144,10 +141,7 @@ fun DashboardScreen(
 
             // Daily Challenge Card
             item {
-                AnimatedVisibility(
-                    visible = !uiState.isLoading,
-                    enter = fadeIn() + slideInVertically()
-                ) {
+                if (!uiState.isLoading) {
                     val challenge = uiState.latestChallenge
                     if (challenge != null && (challenge.status == ChallengeStatus.PENDING || challenge.status == ChallengeStatus.ACCEPTED || challenge.status == ChallengeStatus.ACTIVE)) {
                         ChallengeCard(
@@ -163,10 +157,7 @@ fun DashboardScreen(
 
             // Weekly Training Plan Card
             item {
-                AnimatedVisibility(
-                    visible = !uiState.isLoading,
-                    enter = fadeIn() + slideInVertically()
-                ) {
+                if (!uiState.isLoading) {
                     var showGoalDialog by remember { mutableStateOf(false) }
 
                     if (showGoalDialog) {
@@ -252,10 +243,7 @@ fun DashboardScreen(
 
             // Stats cards
             item {
-                AnimatedVisibility(
-                    visible = !uiState.isLoading,
-                    enter = fadeIn() + slideInVertically()
-                ) {
+                if (!uiState.isLoading) {
                     StatsRow(uiState = uiState, activityType = activityType)
                 }
                 Spacer(modifier = Modifier.height(24.dp))

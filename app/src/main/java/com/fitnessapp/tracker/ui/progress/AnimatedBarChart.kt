@@ -23,7 +23,7 @@ import com.fitnessapp.tracker.theme.TextSecondary
 import com.fitnessapp.tracker.theme.VividCyan
 
 @Composable
-fun AnimatedBarChart(
+fun BarChart(
     data: List<ChartBarData>,
     modifier: Modifier = Modifier
 ) {
@@ -34,15 +34,7 @@ fun AnimatedBarChart(
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = TextSecondary, fontSize = 10.sp, textAlign = TextAlign.Center)
     val valueStyle = MaterialTheme.typography.labelMedium.copy(color = TextPrimary, fontSize = 12.sp, textAlign = TextAlign.Center)
 
-    val animationProgress = remember { Animatable(0f) }
-    
-    LaunchedEffect(data) {
-        animationProgress.snapTo(0f)
-        animationProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
-        )
-    }
+
 
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
@@ -100,7 +92,7 @@ fun AnimatedBarChart(
         )
 
         data.forEachIndexed { index, item ->
-            val barHeight = (item.value / maxValue) * (size.height - 70.dp.toPx()) * animationProgress.value
+            val barHeight = (item.value / maxValue) * (size.height - 70.dp.toPx())
             val xOffset = startOffset + index * (barWidth + spacing)
             val yOffset = size.height - 40.dp.toPx() - barHeight
 

@@ -300,16 +300,6 @@ private fun ActiveRideMiniBanner(
     val distanceMeters = trackingState.distanceMeters
     val isPaused = trackingState.isPaused
     
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = EaseInOutQuad),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
-    )
 
     Card(
         modifier = Modifier
@@ -336,7 +326,6 @@ private fun ActiveRideMiniBanner(
                     modifier = Modifier
                         .size(12.dp)
                         .clip(CircleShape)
-                        .graphicsLayer { alpha = if (isPaused) 1f else pulseAlpha }
                         .background(
                             if (isPaused) WarningAmber else ElectricGreen
                         )

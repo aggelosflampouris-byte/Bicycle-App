@@ -32,7 +32,7 @@ import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.service.RoutePoint
 import com.fitnessapp.tracker.theme.*
-import com.fitnessapp.tracker.ui.progress.AnimatedLineChart
+import com.fitnessapp.tracker.ui.progress.LineChart
 import com.fitnessapp.tracker.ui.progress.ChartBarData
 import com.fitnessapp.tracker.util.GpxExporter
 import kotlinx.coroutines.Dispatchers
@@ -524,7 +524,7 @@ private fun SummaryContent(
                             )
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        AnimatedLineChart(
+                        LineChart(
                             data = speedChartData,
                             modifier = Modifier.fillMaxWidth(),
                             isArea = true

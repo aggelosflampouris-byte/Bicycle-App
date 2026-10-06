@@ -89,9 +89,9 @@ fun ProgressScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 when (uiState.selectedChartType) {
-                    ChartType.BAR -> AnimatedBarChart(data = uiState.chartData)
-                    ChartType.LINE -> AnimatedLineChart(data = uiState.chartData, isArea = false)
-                    ChartType.AREA -> AnimatedLineChart(data = uiState.chartData, isArea = true)
+                    ChartType.BAR -> BarChart(data = uiState.chartData)
+                    ChartType.LINE -> LineChart(data = uiState.chartData, isArea = false)
+                    ChartType.AREA -> LineChart(data = uiState.chartData, isArea = true)
                 }
             }
         }

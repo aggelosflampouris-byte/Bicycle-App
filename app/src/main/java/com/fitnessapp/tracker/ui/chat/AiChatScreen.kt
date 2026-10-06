@@ -596,44 +596,12 @@ private fun ChatBubble(message: ChatMessage) {
 
 @Composable
 private fun TypingIndicator() {
-    val infiniteTransition = rememberInfiniteTransition(label = "typing")
-    val alpha1 by infiniteTransition.animateFloat(
-        initialValue = 0.2f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(600, delayMillis = 0), RepeatMode.Reverse
-        ), label = "dot1"
+    Text(
+        text = "Coach is typing...",
+        style = MaterialTheme.typography.bodySmall,
+        color = TextSecondary,
+        modifier = Modifier.padding(8.dp)
     )
-    val alpha2 by infiniteTransition.animateFloat(
-        initialValue = 0.2f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(600, delayMillis = 200), RepeatMode.Reverse
-        ), label = "dot2"
-    )
-    val alpha3 by infiniteTransition.animateFloat(
-        initialValue = 0.2f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(600, delayMillis = 400), RepeatMode.Reverse
-        ), label = "dot3"
-    )
-
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(NavyCard)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        listOf(alpha1, alpha2, alpha3).forEach { alpha ->
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .graphicsLayer { this.alpha = alpha }
-                    .background(ElectricGreen)
-            )
-        }
-    }
 }
 
 @Composable

@@ -739,13 +739,6 @@ fun LiveTrackingScreen(
             )
         }
 
-        // Emergency SOS Crash Dialog
-        com.fitnessapp.tracker.ui.components.EmergencySosDialog(
-            crashState = trackingState.crashState,
-            emergencyContactName = emergencyContactName,
-            emergencyContactPhone = emergencyContactPhone,
-            onCancel = { viewModel.cancelSos() }
-        )
 
         // Finish Workout Confirmation Dialog
         if (showFinishDialog) {
