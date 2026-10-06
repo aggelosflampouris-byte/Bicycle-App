@@ -518,7 +518,7 @@ private fun PersonalCoachBanner() {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Powered by Gemma 2 27B • Context-aware coaching",
+                    text = "Powered by Qwen2.5-32B • Context-aware coaching",
                     style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary
                 )

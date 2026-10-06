@@ -30,6 +30,6 @@ interface HfApiService {
     companion object {
         const val BASE_URL = "https://router.huggingface.co/"
         /** 27B parameter model for faster inference. Switched from 72B on 2026-10-06. */
-        const val MODEL = "google/gemma-2-27b-it"
+        const val MODEL = "Qwen/Qwen2.5-32B-Instruct"
     }
 }
