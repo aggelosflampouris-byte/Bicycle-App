@@ -49,6 +49,7 @@ fun AiChatScreen(
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val trackingState by com.fitnessapp.tracker.service.CyclingTrackingService.trackingState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -95,7 +96,7 @@ fun AiChatScreen(
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
             val lastMsg = uiState.messages.last()
-            if (lastMsg.role == "model" && uiState.voiceCoachingEnabled && !uiState.isLoading) {
+            if (lastMsg.role == "model" && uiState.voiceCoachingEnabled && !uiState.isLoading && trackingState.isTracking) {
                 ttsManager.speak(lastMsg.text, flushQueue = true)
             }
         }
