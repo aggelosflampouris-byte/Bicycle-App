@@ -65,7 +65,7 @@ fun DashboardScreen(
             title = "Delete Activity",
             message = "Are you sure you want to delete this activity?",
             onConfirm = {
-                viewModel.deleteSession(sessionToDelete!!)
+                viewModel.onEvent(DashboardUiEvent.DeleteSession(sessionToDelete!!))
                 sessionToDelete = null
             },
             onDismiss = { sessionToDelete = null }
@@ -73,7 +73,7 @@ fun DashboardScreen(
     }
 
     LaunchedEffect(activityType) {
-        viewModel.setActivityType(activityType)
+        viewModel.onEvent(DashboardUiEvent.SetActivityType(activityType))
     }
 
     Box(
@@ -112,7 +112,7 @@ fun DashboardScreen(
                                 "WALKING" -> "JOGGING"
                                 else -> "CYCLING"
                             }
-                            viewModel.setActivityType(newActivity)
+                            viewModel.onEvent(DashboardUiEvent.SetActivityType(newActivity))
                         }
                     },
                     onSettingsClick = onOpenSettings
@@ -136,9 +136,9 @@ fun DashboardScreen(
                     if (challenge != null && (challenge.status == ChallengeStatus.PENDING || challenge.status == ChallengeStatus.ACCEPTED || challenge.status == ChallengeStatus.ACTIVE)) {
                         ChallengeCard(
                             challenge = challenge,
-                            onAccept = { viewModel.respondToChallenge(challenge, true) },
-                            onDeny = { viewModel.respondToChallenge(challenge, false) },
-                            onCancel = { viewModel.cancelChallenge(challenge) }
+                            onAccept = { viewModel.onEvent(DashboardUiEvent.RespondToChallenge(challenge, true)) },
+                            onDeny = { viewModel.onEvent(DashboardUiEvent.RespondToChallenge(challenge, false)) },
+                            onCancel = { viewModel.onEvent(DashboardUiEvent.CancelChallenge(challenge)) }
                         )
                     }
                 }
@@ -155,7 +155,7 @@ fun DashboardScreen(
                             onDismiss = { showGoalDialog = false },
                             onSelectGoal = { goal ->
                                 showGoalDialog = false
-                                viewModel.generateTrainingPlan(goal)
+                                viewModel.onEvent(DashboardUiEvent.GenerateTrainingPlan(goal))
                             }
                         )
                     }
@@ -164,7 +164,7 @@ fun DashboardScreen(
                         trainingPlan = uiState.trainingPlan,
                         isGenerating = uiState.isGeneratingPlan,
                         onGeneratePlan = { showGoalDialog = true },
-                        onTogglePlanCompleted = { day -> viewModel.toggleDailyPlanCompleted(day) }
+                        onTogglePlanCompleted = { day -> viewModel.onEvent(DashboardUiEvent.ToggleDailyPlanCompleted(day)) }
                     )
                 }
             }
@@ -231,11 +231,11 @@ fun DashboardScreen(
                 currentProgress = uiState.routineProgress,
                 onDismiss = { showRoutineConfig = false },
                 onSave = { interval, metric, target, autoImprove ->
-                    viewModel.saveRoutine(interval, metric, target, autoImprove)
+                    viewModel.onEvent(DashboardUiEvent.SaveRoutine(interval, metric, target, autoImprove))
                     showRoutineConfig = false
                 },
                 onDelete = {
-                    viewModel.deleteRoutine()
+                    viewModel.onEvent(DashboardUiEvent.DeleteRoutine)
                     showRoutineConfig = false
                 }
             )

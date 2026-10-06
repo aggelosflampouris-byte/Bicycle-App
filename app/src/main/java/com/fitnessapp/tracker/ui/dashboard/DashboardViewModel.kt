@@ -95,7 +95,21 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun setActivityType(type: String, force: Boolean = false) {
+
+    fun onEvent(event: DashboardUiEvent) {
+        when (event) {
+            is DashboardUiEvent.SetActivityType -> setActivityType(event.type)
+            is DashboardUiEvent.DeleteSession -> deleteSession(event.sessionId)
+            is DashboardUiEvent.RespondToChallenge -> respondToChallenge(event.challenge, event.accept)
+            is DashboardUiEvent.CancelChallenge -> cancelChallenge(event.challenge)
+            is DashboardUiEvent.GenerateTrainingPlan -> generateTrainingPlan(event.goalPrompt)
+            is DashboardUiEvent.ToggleDailyPlanCompleted -> toggleDailyPlanCompleted(event.day)
+            is DashboardUiEvent.SaveRoutine -> saveRoutine(event.interval, event.metric, event.targetValue, event.autoImprove)
+            is DashboardUiEvent.DeleteRoutine -> deleteRoutine()
+        }
+    }
+
+    private fun setActivityType(type: String, force: Boolean = false) {
         viewModelScope.launch {
             val activeChallenge = challengeDao.getActiveChallenge()
             if (!force && activeChallenge != null &&
@@ -110,7 +124,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun cancelChallenge(challenge: ChallengeEntity) {
+    private fun cancelChallenge(challenge: ChallengeEntity) {
         viewModelScope.launch {
             challengeDao.updateChallenge(
                 challenge.copy(status = ChallengeStatus.CANCELLED)
@@ -118,7 +132,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
     
-    fun saveRoutine(interval: com.fitnessapp.tracker.data.local.entity.RoutineInterval, metric: com.fitnessapp.tracker.data.local.entity.RoutineMetric, targetValue: Double, autoImprove: Boolean) {
+    private fun saveRoutine(interval: com.fitnessapp.tracker.data.local.entity.RoutineInterval, metric: com.fitnessapp.tracker.data.local.entity.RoutineMetric, targetValue: Double, autoImprove: Boolean) {
         viewModelScope.launch {
             routineRepository.saveRoutine(
                 activityType = _activityType.value,
@@ -130,7 +144,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
     
-    fun deleteRoutine() {
+    private fun deleteRoutine() {
         viewModelScope.launch {
             routineRepository.deleteRoutine(_activityType.value)
         }
@@ -231,7 +245,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun deleteSession(id: Long) {
+    private fun deleteSession(id: Long) {
         viewModelScope.launch {
             sessionDao.deleteSessionById(id)
         }
@@ -248,7 +262,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun respondToChallenge(challenge: ChallengeEntity, accepted: Boolean) {
+    private fun respondToChallenge(challenge: ChallengeEntity, accepted: Boolean) {
         _dismissedChallengeId.value = challenge.id
         viewModelScope.launch {
             val status = if (accepted) ChallengeStatus.ACCEPTED else ChallengeStatus.DENIED
@@ -266,7 +280,7 @@ class DashboardViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showNewChallengeDialog = false)
     }
 
-    fun generateTrainingPlan(goal: String = "Balanced Endurance") {
+    private fun generateTrainingPlan(goal: String = "Balanced Endurance") {
         if (_uiState.value.isGeneratingPlan) return
         _uiState.value = _uiState.value.copy(isGeneratingPlan = true)
         
@@ -291,7 +305,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun toggleDailyPlanCompleted(day: String) {
+    private fun toggleDailyPlanCompleted(day: String) {
         viewModelScope.launch {
             val currentPlan = _uiState.value.trainingPlan ?: return@launch
             try {
