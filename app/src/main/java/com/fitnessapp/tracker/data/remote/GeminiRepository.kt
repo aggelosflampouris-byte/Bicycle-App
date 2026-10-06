@@ -49,7 +49,7 @@ class GeminiRepository @Inject constructor(
     ): String {
         val distance = session?.let { "%.1f".format(it.totalDistanceMeters / 1000.0) } ?: "N/A"
         val speed = session?.let { "%.1f".format(it.avgSpeedKmh) } ?: "N/A"
-        val wattsPerKg = session?.let { "%.2f".format(it.wattsPerKg) } ?: "N/A"
+        val wattsPerKg = session?.let { "%.0f".format(it.wattsPerKg) } ?: "N/A"
         val calories = session?.let { "%.0f".format(it.caloriesBurned) } ?: "N/A"
 
         val activityName = when (activityType) {
@@ -90,7 +90,7 @@ class GeminiRepository @Inject constructor(
             $personaInstructions
 
             [USER BIOMETRICS] Gender: ${user.gender}, Age: ${user.age}, Height: ${"%.0f".format(user.heightCm)}cm, Weight: ${"%.0f".format(user.weightKg)}kg.
-            [LATEST SESSION] Distance: ${distance}km, Avg Speed: ${speed}km/h, Output: ${wattsPerKg} W/kg, Energy: ${calories} kcal.
+            [LATEST SESSION] Distance: ${distance}km, Avg Speed: ${speed}km/h, Output: ${wattsPerKg} W, Energy: ${calories} kcal.
             
             [LANGUAGE & LOCALIZATION]
             - $languageInstruction
@@ -248,7 +248,7 @@ class GeminiRepository @Inject constructor(
             
             [SESSION DATA]
             $lapsInfo
-            [CALORIES & OUTPUT] Burned: ${"%.0f".format(session.caloriesBurned)} kcal, Specific Power: ${"%.2f".format(session.wattsPerKg)} W/kg.
+            [CALORIES & OUTPUT] Burned: ${"%.0f".format(session.caloriesBurned)} kcal, Average Power: ${"%.0f".format(session.wattsPerKg)} W.
             
             Analyze the workout tactics in concise bullet points:
             1. ⏱️ Pacing Consistency & Split Analysis (Did pace drop or stay steady?)

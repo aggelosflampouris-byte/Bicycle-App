@@ -592,7 +592,7 @@ class CyclingTrackingService : Service() {
 
                 val profile = currentUserProfile
                 val calories = PhysicsEngine.calculateCalories(profile, elapsedSeconds, avgSpeed, activityType)
-                val wattsPerKg = PhysicsEngine.calculateWattsPerKg(avgSpeed, profile, activityType)
+                val wattsPerKg = PhysicsEngine.calculateWatts(avgSpeed, profile, activityType)
                 val routeJson = gson.toJson(routePoints)
                 
                 var isChallengeCompletion = false

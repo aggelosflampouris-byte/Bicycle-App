@@ -477,8 +477,8 @@ private fun SummaryContent(
                 SummaryStatCard(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.ElectricBolt,
-                    label = "Watts/kg",
-                    value = "${"%.2f".format(session.wattsPerKg)} W/kg",
+                    label = "Avg Power",
+                    value = "${"%.0f".format(session.wattsPerKg)} W",
                     tint = WarningAmber
                 )
                 Spacer(modifier = Modifier.weight(1f))
