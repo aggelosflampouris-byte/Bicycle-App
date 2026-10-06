@@ -100,7 +100,7 @@ object PhysicsEngine {
         }
         val metabolicWattsPerKg = (met * 3.5 * 20.9) / 60.0
         val wattsPerKg = metabolicWattsPerKg * mechanicalEfficiency
-        val weight = if (user.weightKg > 0.0) user.weightKg else 75.0
+        val weight = if (user.weightKg > 0f) user.weightKg.toDouble() else 75.0
         return wattsPerKg * weight
     }
 
