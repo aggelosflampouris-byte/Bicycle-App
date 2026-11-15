@@ -24,8 +24,10 @@ data class RoutineProgress(
 @Singleton
 class RoutineRepository @Inject constructor(
     private val routineDao: RoutineDao,
-    private val workoutSessionDao: WorkoutSessionDao
+    private val workoutSessionDao: WorkoutSessionDao,
+    private val twinSnapshotDao: com.fitnessapp.tracker.data.local.dao.TwinSnapshotDao
 ) {
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun getRoutineProgressFlow(activityType: String): Flow<RoutineProgress?> {
         return routineDao.getRoutineFlow(activityType).flatMapLatest { routine ->
             if (routine == null) {
@@ -107,7 +109,11 @@ class RoutineRepository @Inject constructor(
         
         var newTarget = routine.targetValue
         if (routine.autoImprove && achievedValue >= routine.targetValue) {
-            newTarget = routine.targetValue * (1.0 + routine.autoImprovePercentage)
+            val latestTwin = twinSnapshotDao.getLatestSnapshot()
+            val overloadGuard = latestTwin != null && (latestTwin.acwr >= 1.3 || latestTwin.readinessScore < 40)
+            if (!overloadGuard) {
+                newTarget = routine.targetValue * (1.0 + routine.autoImprovePercentage)
+            }
         }
         
         val updatedRoutine = routine.copy(

@@ -2,10 +2,6 @@ package com.fitnessapp.tracker.util
 
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.service.RoutePoint
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 
 object GpxExporter {
     /**
@@ -13,10 +9,6 @@ object GpxExporter {
      * GPX format is widely supported by Strava, Garmin, and other fitness platforms.
      */
     fun generateGpx(session: WorkoutSessionEntity, routePoints: List<RoutePoint>): String {
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-
         val sb = java.lang.StringBuilder()
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
         sb.append("<gpx version=\"1.1\" creator=\"Smart Track\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
@@ -31,7 +23,7 @@ object GpxExporter {
             for (point in points) {
                 sb.append("      <trkpt lat=\"${point.lat}\" lon=\"${point.lng}\">\n")
                 sb.append("        <ele>${point.alt}</ele>\n")
-                val timeString = dateFormat.format(Date(point.timestamp))
+                val timeString = DateFormats.formatIsoUtcSeconds(point.timestamp)
                 sb.append("        <time>${timeString}</time>\n")
                 sb.append("      </trkpt>\n")
             }

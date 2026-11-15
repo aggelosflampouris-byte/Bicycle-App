@@ -6,8 +6,6 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
-import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
-import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.google.android.gms.location.*
@@ -42,14 +40,12 @@ data class TrackingState(
     val currentLng: Double = 0.0,
     val lastSavedSessionId: Long? = null,
     val currentLap: Int = 1,
-    val activeChallenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity? = null,
     val elevationGainMeters: Double = 0.0,
     val activityType: String = "CYCLING",
     val crashState: com.fitnessapp.tracker.safety.CrashState = com.fitnessapp.tracker.safety.CrashState.Idle,
     val activeGpxRoute: com.fitnessapp.tracker.navigation.GpxRoute? = null,
     val liveClimb: com.fitnessapp.tracker.navigation.LiveClimbInfo? = null,
     val offRouteStatus: com.fitnessapp.tracker.navigation.OffRouteStatus? = null,
-    val ghostPacerState: com.fitnessapp.tracker.gamification.GhostPacerState = com.fitnessapp.tracker.gamification.GhostPacerState(),
     val liveCadenceSpm: Double = 0.0,
     val avgCadenceSpm: Double? = null,
     val gaitStabilityScore: Double? = null,
@@ -73,7 +69,6 @@ data class TrackingState(
 class OutdoorTrackingService : Service() {
 
     @Inject lateinit var workoutSessionDao: WorkoutSessionDao
-    @Inject lateinit var challengeDao: com.fitnessapp.tracker.data.local.dao.ChallengeDao
     @Inject lateinit var settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository
     @Inject lateinit var gson: Gson
     @Inject lateinit var firestoreRepository: com.fitnessapp.tracker.data.remote.FirestoreRepository
@@ -111,9 +106,9 @@ class OutdoorTrackingService : Service() {
             age = age
         )
     
-    // TTS Voice Coach
+    // TTS Spoken Audio Cues
     private lateinit var ttsManager: com.fitnessapp.tracker.util.TtsManager
-    private var isVoiceCoachingEnabled: Boolean = true
+    private var isAudioCuesEnabled: Boolean = true
     private var lastAnnouncedKm: Int = 0
 
     // Auto-pause / manual pause state
@@ -144,27 +139,12 @@ class OutdoorTrackingService : Service() {
 
         private var instance: OutdoorTrackingService? = null
 
-        fun setGpxRoute(route: com.fitnessapp.tracker.navigation.GpxRoute?, activityType: String = _trackingState.value.activityType) {
-            if (route != null) {
-                val targetSpeedKmh = when (activityType) {
-                    "WALKING" -> 5.0
-                    "JOGGING" -> 9.5
-                    else -> 22.0
-                }
-                instance?.ghostPacerEngine?.loadFromGpx(route, targetAvgSpeedKmh = targetSpeedKmh)
-            } else {
-                instance?.ghostPacerEngine?.clear()
-            }
+        fun setGpxRoute(route: com.fitnessapp.tracker.navigation.GpxRoute?) {
             _trackingState.value = _trackingState.value.copy(
                 activeGpxRoute = route,
                 liveClimb = null,
-                offRouteStatus = null,
-                ghostPacerState = com.fitnessapp.tracker.gamification.GhostPacerState()
+                offRouteStatus = null
             )
-        }
-
-        fun setGhostSession(points: List<RoutePoint>) {
-            instance?.ghostPacerEngine?.loadFromSessionRoute(points)
         }
 
         fun cancelCrashSos() {
@@ -172,10 +152,6 @@ class OutdoorTrackingService : Service() {
             _trackingState.value = _trackingState.value.copy(
                 crashState = com.fitnessapp.tracker.safety.CrashState.Idle
             )
-        }
-
-        fun triggerSimulatedCrash() {
-            instance?.crashDetectionEngine?.triggerCountdown()
         }
 
         fun setLiveRpe(rpe: Int?) {
@@ -194,7 +170,6 @@ class OutdoorTrackingService : Service() {
         const val ACTION_TOGGLE_PAUSE = "ACTION_TOGGLE_PAUSE"
         const val ACTION_DISCARD = "ACTION_DISCARD"
         const val ACTION_LAP = "ACTION_LAP"
-        const val ACTION_CANCEL_CHALLENGE = "ACTION_CANCEL_CHALLENGE"
         const val ACTION_CANCEL_SOS = "ACTION_CANCEL_SOS"
 
         const val EXTRA_WEIGHT = "extra_weight"
@@ -205,7 +180,6 @@ class OutdoorTrackingService : Service() {
 
     private lateinit var crashDetectionEngine: com.fitnessapp.tracker.safety.CrashDetectionEngine
     private lateinit var sensorCollector: com.fitnessapp.tracker.sensor.WorkoutSensorCollector
-    private val ghostPacerEngine = com.fitnessapp.tracker.gamification.GhostPacerEngine()
     private var isCrashDetectionEnabled = true
     private var isTwinVoiceNudgesEnabled = true
     private var lastOffRouteAlertTime = 0L
@@ -245,8 +219,8 @@ class OutdoorTrackingService : Service() {
         }
         
         serviceScope.launch {
-            settingsRepository.isVoiceCoachingEnabled.collect { enabled ->
-                isVoiceCoachingEnabled = enabled
+            settingsRepository.isAudioCuesEnabled.collect { enabled ->
+                isAudioCuesEnabled = enabled
                 if (!enabled && ::ttsManager.isInitialized) {
                     ttsManager.stop()
                 }
@@ -301,10 +275,6 @@ class OutdoorTrackingService : Service() {
                 _trackingState.value = _trackingState.value.copy(
                     currentLap = nextLap
                 )
-                updateNotification()
-            }
-            ACTION_CANCEL_CHALLENGE -> {
-                _trackingState.value = _trackingState.value.copy(activeChallenge = null)
                 updateNotification()
             }
             ACTION_CANCEL_SOS -> {
@@ -384,12 +354,7 @@ class OutdoorTrackingService : Service() {
             )
         }
         
-        serviceScope.launch {
-            val challenge = challengeDao.getActiveChallenge()
-            _trackingState.value = _trackingState.value.copy(activeChallenge = challenge)
-        }
-
-        val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L, false, null, 1)
+        val notification = NotificationHelper.buildTrackingNotification(this, 0.0, 0.0, 0L, false, 1)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NotificationHelper.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
@@ -573,7 +538,7 @@ class OutdoorTrackingService : Service() {
 
         if (route != null && route.points.isNotEmpty()) {
             offRoute = com.fitnessapp.tracker.navigation.OffRouteDetector.checkOffRoute(lat, lng, route.points)
-            if (offRoute.isOffRoute && isVoiceCoachingEnabled) {
+            if (offRoute.isOffRoute && isAudioCuesEnabled) {
                 offRoute.alertMessage?.let { msg ->
                     if (elapsedSeconds - lastOffRouteAlertTime >= 25L) {
                         ttsManager.speak(msg)
@@ -583,12 +548,6 @@ class OutdoorTrackingService : Service() {
             }
 
             liveClimbInfo = com.fitnessapp.tracker.navigation.ClimbEngine.evaluateLiveClimb(route.climbs, totalDistanceMeters)
-        }
-
-        // Ghost Pacer Evaluation
-        var ghostState = _trackingState.value.ghostPacerState
-        if (ghostPacerEngine.hasGhost) {
-            ghostState = ghostPacerEngine.evaluate(totalDistanceMeters, elapsedSeconds)
         }
 
         // ── Update UI State ──────────────────────────────────────────────────
@@ -601,15 +560,14 @@ class OutdoorTrackingService : Service() {
             currentLng = lng,
             elevationGainMeters = elevationGainMeters,
             liveClimb = liveClimbInfo,
-            offRouteStatus = offRoute,
-            ghostPacerState = ghostState
+            offRouteStatus = offRoute
         )
 
         // Check for 1km milestone announcement
         val currentKm = (totalDistanceMeters / 1000).toInt()
         if (currentKm > lastAnnouncedKm && currentKm > 0) {
             lastAnnouncedKm = currentKm
-            if (isVoiceCoachingEnabled) {
+            if (isAudioCuesEnabled) {
                 val speed = "%.1f".format(avgSpeed)
                 ttsManager.speak("$currentKm kilometers reached. Average speed $speed kilometers per hour.")
             }
@@ -624,7 +582,6 @@ class OutdoorTrackingService : Service() {
                 totalDistanceMeters,
                 elapsedSeconds,
                 _trackingState.value.isPaused,
-                _trackingState.value.activeChallenge,
                 _trackingState.value.currentLap
             )
             val manager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
@@ -670,35 +627,6 @@ class OutdoorTrackingService : Service() {
                     elevationGainMeters <= 0.0 && it > 2.0
                 } ?: elevationGainMeters
                 val routeJson = gson.toJson(routePoints)
-                
-                var isChallengeCompletion = false
-                val activeChallenge = _trackingState.value.activeChallenge
-                if (activeChallenge != null && activeChallenge.activityType == activityType) {
-                    val progressVal = when (activeChallenge.metric) {
-                        ChallengeMetric.DISTANCE -> totalDistanceMeters
-                        ChallengeMetric.SPEED    -> avgSpeed
-                        ChallengeMetric.CALORIES -> calories
-                    }
-                    
-                    val newProgress = if (activeChallenge.metric == ChallengeMetric.SPEED) progressVal else activeChallenge.currentProgress + progressVal
-                    
-                    if (newProgress >= activeChallenge.targetValue) {
-                        isChallengeCompletion = true
-                        val updatedChallenge = activeChallenge.copy(
-                            currentProgress = newProgress,
-                            status = ChallengeStatus.COMPLETED,
-                            completedAt = System.currentTimeMillis()
-                        )
-                        challengeDao.updateChallenge(updatedChallenge)
-                        NotificationHelper.showChallengeCompletedNotification(this@OutdoorTrackingService, updatedChallenge)
-                    } else {
-                        val updatedChallenge = activeChallenge.copy(
-                            currentProgress = newProgress
-                        )
-                        challengeDao.updateChallenge(updatedChallenge)
-                    }
-                }
-
                 val encryptedRouteJson = routeCryptoManager.encryptRoute(routeJson)
                 val session = WorkoutSessionEntity(
                     startTime = startTimeMs,
@@ -711,7 +639,6 @@ class OutdoorTrackingService : Service() {
                     wattsPerKg = wattsPerKg,
                     routePointsJson = encryptedRouteJson,
                     activityType = activityType,
-                    isChallengeCompletion = isChallengeCompletion,
                     rpe = finalRpe,
                     avgCadenceSpm = finalSensorTelemetry.avgCadenceSpm,
                     gaitStabilityScore = finalSensorTelemetry.gaitStabilityScore,
@@ -816,7 +743,7 @@ class OutdoorTrackingService : Service() {
 
     private fun emitTwinNudge(message: String) {
         _trackingState.value = _trackingState.value.copy(activeTwinNudge = message)
-        if (isVoiceCoachingEnabled && isTwinVoiceNudgesEnabled && ::ttsManager.isInitialized) {
+        if (isAudioCuesEnabled && isTwinVoiceNudgesEnabled && ::ttsManager.isInitialized) {
             ttsManager.speak(message)
         }
     }

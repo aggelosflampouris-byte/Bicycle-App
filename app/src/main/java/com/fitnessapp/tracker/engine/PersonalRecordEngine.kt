@@ -24,6 +24,22 @@ class PersonalRecordEngine @Inject constructor(
 ) {
     companion object {
         private const val TAG = "PersonalRecordEngine"
+
+        fun formatRecordValue(type: PersonalRecordType, value: Double): String {
+            return when (type) {
+                PersonalRecordType.FASTEST_1KM,
+                PersonalRecordType.FASTEST_5KM,
+                PersonalRecordType.FASTEST_10KM,
+                PersonalRecordType.FASTEST_20KM,
+                PersonalRecordType.FASTEST_50KM -> PhysicsEngine.formatDurationVerbose(value.toLong())
+
+                PersonalRecordType.LONGEST_DURATION -> PhysicsEngine.formatDurationVerbose(value.toLong())
+                PersonalRecordType.LONGEST_DISTANCE -> "%.2f km".format(value / 1000.0)
+                PersonalRecordType.MAX_ELEVATION_GAIN -> "+%.0f m".format(value)
+                PersonalRecordType.MAX_AVG_SPEED -> "%.1f km/h".format(value)
+                PersonalRecordType.MAX_CALORIES -> "%.0f kcal".format(value)
+            }
+        }
     }
 
     /**
@@ -166,32 +182,5 @@ class PersonalRecordEngine @Inject constructor(
             }
         }
         return minDuration
-    }
-
-    fun formatRecordValue(type: PersonalRecordType, value: Double): String {
-        return when (type) {
-            PersonalRecordType.FASTEST_1KM,
-            PersonalRecordType.FASTEST_5KM,
-            PersonalRecordType.FASTEST_10KM,
-            PersonalRecordType.FASTEST_20KM,
-            PersonalRecordType.FASTEST_50KM -> formatDuration(value.toLong())
-
-            PersonalRecordType.LONGEST_DURATION -> formatDuration(value.toLong())
-            PersonalRecordType.LONGEST_DISTANCE -> "%.2f km".format(value / 1000.0)
-            PersonalRecordType.MAX_ELEVATION_GAIN -> "+%.0f m".format(value)
-            PersonalRecordType.MAX_AVG_SPEED -> "%.1f km/h".format(value)
-            PersonalRecordType.MAX_CALORIES -> "%.0f kcal".format(value)
-        }
-    }
-
-    private fun formatDuration(totalSeconds: Long): String {
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
-        return if (hours > 0) {
-            "%dh %02dm %02ds".format(hours, minutes, seconds)
-        } else {
-            "%dm %02ds".format(minutes, seconds)
-        }
     }
 }

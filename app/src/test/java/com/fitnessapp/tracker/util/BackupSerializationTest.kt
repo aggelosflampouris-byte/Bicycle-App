@@ -32,7 +32,6 @@ class BackupSerializationTest {
                 wattsPerKg = 2.4,
                 routePointsJson = encryptedGpsRoute,
                 activityType = "CYCLING",
-                isChallengeCompletion = true,
                 rpe = 7,
                 wellnessFeel = 4,
                 avgCadenceSpm = 88.0,
@@ -59,20 +58,6 @@ class BackupSerializationTest {
             )
         )
 
-        val challenges = listOf(
-            ChallengeEntity(
-                id = 1L,
-                activityType = "CYCLING",
-                metric = ChallengeMetric.DISTANCE,
-                targetValue = 20000.0,
-                currentProgress = 20000.0,
-                period = ChallengePeriod.DAY,
-                status = ChallengeStatus.COMPLETED,
-                createdAt = 1700000000000L,
-                completedAt = 1700003600000L
-            )
-        )
-
         val personalRecords = listOf(
             PersonalRecordEntity(
                 recordType = PersonalRecordType.FASTEST_10KM,
@@ -81,12 +66,6 @@ class BackupSerializationTest {
                 sessionId = 101L,
                 achievedAt = 1700003600000L
             )
-        )
-
-        val trainingPlan = TrainingPlanEntity(
-            id = 1,
-            generatedAtMs = 1700000000000L,
-            planJson = "{\"goal\":\"Build Endurance\",\"days\":[]}"
         )
 
         val wellnessCheckIns = listOf(
@@ -125,9 +104,7 @@ class BackupSerializationTest {
             user = user,
             sessions = sessions,
             routines = routines,
-            challenges = challenges,
             personalRecords = personalRecords,
-            trainingPlan = trainingPlan,
             wellnessCheckIns = wellnessCheckIns,
             twinSnapshots = twinSnapshots
         )
@@ -136,7 +113,6 @@ class BackupSerializationTest {
         assertNotNull(json)
         assertTrue(json.contains(encryptedGpsRoute))
         assertTrue(json.contains("FASTEST_10KM"))
-        assertTrue(json.contains("Build Endurance"))
         assertTrue(json.contains("PRE_WORKOUT"))
 
         val deserialized = gson.fromJson(json, BackupData::class.java)
@@ -146,8 +122,6 @@ class BackupSerializationTest {
         assertEquals(92.5, deserialized.sessions?.first()?.gaitStabilityScore ?: 0.0, 0.01)
         assertEquals(1, deserialized.personalRecords?.size)
         assertEquals(PersonalRecordType.FASTEST_10KM, deserialized.personalRecords?.first()?.recordType)
-        assertNotNull(deserialized.trainingPlan)
-        assertEquals(1, deserialized.trainingPlan?.id)
         assertEquals(1, deserialized.wellnessCheckIns?.size)
         assertEquals(1, deserialized.twinSnapshots?.size)
         assertEquals(82, deserialized.twinSnapshots?.first()?.readinessScore)
@@ -163,16 +137,44 @@ class BackupSerializationTest {
                 "weightKg": 60.0,
                 "heightCm": 168.0
               },
-              "sessions": [],
+              "sessions": [
+                {
+                  "id": 7,
+                  "startTime": 1700000000000,
+                  "endTime": 1700001800000,
+                  "durationSeconds": 1800,
+                  "totalDistanceMeters": 8500.0,
+                  "elevationGainMeters": 120.0,
+                  "avgSpeedKmh": 17.0,
+                  "caloriesBurned": 320.0,
+                  "wattsPerKg": 2.4,
+                  "routePointsJson": "[]",
+                  "activityType": "CYCLING",
+                  "isChallengeCompletion": true
+                }
+              ],
               "routines": [],
-              "challenges": []
+              "trainingPlan": {
+                "id": 1,
+                "generatedAtMs": 1700000000000,
+                "planJson": "{\"goal\":\"Legacy Plan\",\"days\":[]}"
+              },
+              "challenges": [
+                {
+                  "id": 99,
+                  "activityType": "CYCLING",
+                  "metric": "DISTANCE",
+                  "targetValue": 10000.0
+                }
+              ]
             }
         """.trimIndent()
 
         val deserialized = gson.fromJson(legacyJson, BackupData::class.java)
         assertNotNull(deserialized.user)
         assertEquals(32, deserialized.user?.age)
+        assertEquals(1, deserialized.sessions?.size)
+        assertEquals(8500.0, deserialized.sessions?.first()?.totalDistanceMeters ?: 0.0, 0.01)
         assertTrue(deserialized.personalRecords.isNullOrEmpty())
-        assertNull(deserialized.trainingPlan)
     }
 }

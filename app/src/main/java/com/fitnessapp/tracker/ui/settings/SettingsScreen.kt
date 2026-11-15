@@ -1,6 +1,8 @@
 package com.fitnessapp.tracker.ui.settings
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,17 +33,10 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.graphics.Bitmap
-import android.graphics.Color as AndroidColor
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.window.Dialog
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.qrcode.QRCodeWriter
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitnessapp.tracker.BuildConfig
-import com.fitnessapp.tracker.data.local.CoachPersona
 import com.fitnessapp.tracker.data.local.ThemeMode
 import com.fitnessapp.tracker.service.OutdoorTrackingService
 import com.fitnessapp.tracker.theme.*
@@ -268,27 +264,27 @@ fun SettingsScreen(
                 }
             }
 
-            // ── AI Coach Settings ──────────────────────────────────────────────────
+            // ── Spoken Audio Settings ───────────────────────────────────────────────
             SettingsSectionCard(
-                icon = Icons.Default.SmartToy,
-                title = "AI Coach & Language",
-                subtitle = "Choose language, coaching tone, and behavior"
+                icon = Icons.Default.RecordVoiceOver,
+                title = "Audio Cues & Language",
+                subtitle = "Choose spoken cue language and workout alerts"
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(
-                        "Coach Language",
+                        "Spoken Language",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
 
                     val languages = listOf(
-                        com.fitnessapp.tracker.data.local.CoachLanguage.ENGLISH,
-                        com.fitnessapp.tracker.data.local.CoachLanguage.GREEK,
-                        com.fitnessapp.tracker.data.local.CoachLanguage.GERMAN,
-                        com.fitnessapp.tracker.data.local.CoachLanguage.FRENCH,
-                        com.fitnessapp.tracker.data.local.CoachLanguage.RUSSIAN,
-                        com.fitnessapp.tracker.data.local.CoachLanguage.AUTO
+                        com.fitnessapp.tracker.data.local.AudioLanguage.ENGLISH,
+                        com.fitnessapp.tracker.data.local.AudioLanguage.GREEK,
+                        com.fitnessapp.tracker.data.local.AudioLanguage.GERMAN,
+                        com.fitnessapp.tracker.data.local.AudioLanguage.FRENCH,
+                        com.fitnessapp.tracker.data.local.AudioLanguage.RUSSIAN,
+                        com.fitnessapp.tracker.data.local.AudioLanguage.AUTO
                     )
 
                     FlowRow(
@@ -298,9 +294,9 @@ fun SettingsScreen(
                     ) {
                         languages.forEach { lang ->
                             FilterChip(
-                                selected = settingsState.coachLanguage == lang,
-                                onClick = { settingsViewModel.setCoachLanguage(lang) },
-                                label = { Text(lang.title, fontWeight = if (settingsState.coachLanguage == lang) FontWeight.Bold else FontWeight.Normal) },
+                                selected = settingsState.audioLanguage == lang,
+                                onClick = { settingsViewModel.setAudioLanguage(lang) },
+                                label = { Text(lang.title, fontWeight = if (settingsState.audioLanguage == lang) FontWeight.Bold else FontWeight.Normal) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = ElectricGreen.copy(alpha = 0.2f),
                                     selectedLabelColor = ElectricGreen,
@@ -308,8 +304,8 @@ fun SettingsScreen(
                                 ),
                                 border = FilterChipDefaults.filterChipBorder(
                                     enabled = true,
-                                    selected = settingsState.coachLanguage == lang,
-                                    borderColor = if (settingsState.coachLanguage == lang) ElectricGreen else GlassBorder
+                                    selected = settingsState.audioLanguage == lang,
+                                    borderColor = if (settingsState.audioLanguage == lang) ElectricGreen else GlassBorder
                                 )
                             )
                         }
@@ -318,17 +314,17 @@ fun SettingsScreen(
                     HorizontalDivider(color = GlassBorder)
 
                     SettingsToggleRow(
-                        title = "Voice Coaching",
-                        subtitle = "Speak live split & AI coach cues during workouts",
-                        checked = settingsState.voiceCoachingEnabled,
-                        onCheckedChange = settingsViewModel::setVoiceCoachingEnabled
+                        title = "Spoken Audio Cues",
+                        subtitle = "Speak live split, off-route & Digital Twin alerts during workouts",
+                        checked = settingsState.audioCuesEnabled,
+                        onCheckedChange = settingsViewModel::setAudioCuesEnabled
                     )
 
                     SettingsToggleRow(
                         title = "Digital Twin Smart Nudges",
                         subtitle = "In-workout voice alerts for thermal stress, hydration & form fade",
                         checked = settingsState.twinVoiceNudgesEnabled,
-                        enabled = settingsState.voiceCoachingEnabled,
+                        enabled = settingsState.audioCuesEnabled,
                         onCheckedChange = settingsViewModel::setTwinVoiceNudgesEnabled
                     )
 
@@ -537,7 +533,7 @@ fun SettingsScreen(
                             contentColor = SpeedRed
                         )
                     ) {
-                        Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Log Out", fontWeight = FontWeight.Bold)
                     }
@@ -558,7 +554,7 @@ fun SettingsScreen(
         }
 
         if (showShareDialog) {
-            QrCodeDialog(
+            ShareAppDialog(
                 url = "https://github.com/aggelosflampouris-byte/Bicycle-App/releases/latest",
                 onDismiss = { showShareDialog = false }
             )
@@ -814,19 +810,9 @@ private fun SettingsTextField(
 }
 
 @Composable
-fun QrCodeDialog(url: String, onDismiss: () -> Unit) {
-    val bitmap = remember(url) {
-        val writer = QRCodeWriter()
-        val size = 512
-        val bitMatrix = writer.encode(url, BarcodeFormat.QR_CODE, size, size)
-        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        for (x in 0 until size) {
-            for (y in 0 until size) {
-                bmp.setPixel(x, y, if (bitMatrix.get(x, y)) AndroidColor.BLACK else AndroidColor.WHITE)
-            }
-        }
-        bmp.asImageBitmap()
-    }
+fun ShareAppDialog(url: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var copied by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -842,43 +828,26 @@ fun QrCodeDialog(url: String, onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.QrCodeScanner,
+                    imageVector = Icons.Default.Share,
                     contentDescription = null,
                     tint = ElectricGreen,
                     modifier = Modifier.size(32.dp)
                 )
-                
+
                 Text(
-                    text = "Scan to Download",
+                    text = "Share Smart Track",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = TextPrimary
                 )
-                
+
                 Text(
-                    text = "Scan this QR code to download the latest Smart Track APK directly from GitHub.",
+                    text = "Share or copy the latest Smart Track APK release link from GitHub.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary,
                     textAlign = TextAlign.Center
                 )
 
-                // The QR Code Image
-                Box(
-                    modifier = Modifier
-                        .size(220.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White)
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        bitmap = bitmap,
-                        contentDescription = "QR Code",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -898,17 +867,48 @@ fun QrCodeDialog(url: String, onDismiss: () -> Unit) {
                     )
                     IconButton(
                         onClick = {
-                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(url))
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("Smart Track Release", url))
+                            copied = true
                         },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ContentCopy,
+                            imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
                             contentDescription = "Copy Link",
                             tint = ElectricGreen,
                             modifier = Modifier.size(18.dp)
                         )
                     }
+                }
+
+                if (copied) {
+                    Text(
+                        text = "Link copied to clipboard",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ElectricGreen
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "Smart Track APK")
+                            putExtra(Intent.EXTRA_TEXT, "Download Smart Track: $url")
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share Smart Track"))
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ElectricGreen,
+                        contentColor = DeepNavy
+                    )
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Share Link", fontWeight = FontWeight.Bold)
                 }
 
                 Button(

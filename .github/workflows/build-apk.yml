@@ -31,13 +31,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # Write the AI Coach API key into local.properties so build.gradle.kts
-      # can read it cleanly while preserving the existing GEMINI_API_KEY secret.
-      # local.properties is gitignored so the key is never committed.
-      - name: Inject API key into local.properties
-        run: |
-          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> local.properties
-
       - name: Inject google-services.json
         env:
           GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
@@ -74,9 +67,7 @@ jobs:
           MAPPING="app/build/outputs/mapping/release/mapping.txt"
           for cls in \
             "com.fitnessapp.tracker.data.remote.api.OpenMeteoApiService" \
-            "com.fitnessapp.tracker.data.remote.api.AiCoachApiService" \
             "com.fitnessapp.tracker.data.remote.model.OpenMeteoResponse" \
-            "com.fitnessapp.tracker.data.remote.model.AiChatRequest" \
             "com.fitnessapp.tracker.data.remote.EnvironmentSnapshot" \
             "com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity" \
             "com.fitnessapp.tracker.data.local.entity.WellnessCheckInEntity" \

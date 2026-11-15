@@ -16,32 +16,26 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 
 enum class ThemeMode { DARK, LIGHT, SYSTEM }
 
-enum class CoachPersona(val title: String, val subtitle: String) {
-    SUPPORTIVE("Supportive Mentor", "Empathetic, positive, and wellness-focused encouragement"),
-    DRILL_SERGEANT("Pro Drill Sergeant", "Direct, intense, and challenge-driven pushing your limits"),
-    DATA_SCIENTIST("Sports Scientist", "Analytical, metrics-driven, focusing on efficiency & power")
-}
-
-enum class CoachLanguage(val title: String, val promptInstruction: String) {
-    AUTO("System Default 🌐", "Respond in the user's primary locale language (or match the user's prompt)."),
-    ENGLISH("English 🇬🇧", "Respond strictly and fluently in English."),
-    GREEK("Ελληνικά 🇬🇷", "Respond strictly and fluently in Greek (Ελληνικά). Use natural Greek athletic terminology."),
-    GERMAN("Deutsch 🇩🇪", "Respond strictly and fluently in German (Deutsch). Use natural German athletic terminology."),
-    FRENCH("Français 🇫🇷", "Respond strictly and fluently in French (Français). Use natural French athletic terminology."),
-    RUSSIAN("Русский 🇷🇺", "Respond strictly and fluently in Russian (Русский). Use natural Russian athletic terminology.")
+enum class AudioLanguage(val title: String) {
+    AUTO("System Default 🌐"),
+    ENGLISH("English 🇬🇧"),
+    GREEK("Ελληνικά 🇬🇷"),
+    GERMAN("Deutsch 🇩🇪"),
+    FRENCH("Français 🇫🇷"),
+    RUSSIAN("Русский 🇷🇺")
 }
 
 @Singleton
 class SettingsRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     companion object {
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         private val ACTIVITY_TYPE_KEY = stringPreferencesKey("activity_type")
-        private val VOICE_COACHING_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("voice_coaching_enabled")
+        // Keep DataStore key names unchanged so saved user preferences persist across upgrades.
+        private val AUDIO_CUES_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("voice_coaching_enabled")
         private val LOCK_PORTRAIT_MODE_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("lock_portrait_mode")
-        private val COACH_PERSONA_KEY = stringPreferencesKey("coach_persona")
-        private val COACH_LANGUAGE_KEY = stringPreferencesKey("coach_language")
+        private val AUDIO_LANGUAGE_KEY = stringPreferencesKey("coach_language")
         private val CRASH_DETECTION_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("crash_detection_enabled")
         private val EMERGENCY_CONTACT_NAME_KEY = stringPreferencesKey("emergency_contact_name")
         private val EMERGENCY_CONTACT_PHONE_KEY = stringPreferencesKey("emergency_contact_phone")
@@ -69,14 +63,14 @@ class SettingsRepository @Inject constructor(
         prefs[EMERGENCY_CONTACT_PHONE_KEY] ?: ""
     }
 
-    val coachLanguage: Flow<CoachLanguage> = context.settingsDataStore.data.map { prefs ->
-        when (prefs[COACH_LANGUAGE_KEY]) {
-            "ENGLISH" -> CoachLanguage.ENGLISH
-            "GREEK" -> CoachLanguage.GREEK
-            "GERMAN" -> CoachLanguage.GERMAN
-            "FRENCH" -> CoachLanguage.FRENCH
-            "RUSSIAN" -> CoachLanguage.RUSSIAN
-            else -> CoachLanguage.AUTO
+    val audioLanguage: Flow<AudioLanguage> = context.settingsDataStore.data.map { prefs ->
+        when (prefs[AUDIO_LANGUAGE_KEY]) {
+            "ENGLISH" -> AudioLanguage.ENGLISH
+            "GREEK" -> AudioLanguage.GREEK
+            "GERMAN" -> AudioLanguage.GERMAN
+            "FRENCH" -> AudioLanguage.FRENCH
+            "RUSSIAN" -> AudioLanguage.RUSSIAN
+            else -> AudioLanguage.AUTO
         }
     }
 
@@ -92,20 +86,12 @@ class SettingsRepository @Inject constructor(
         prefs[ACTIVITY_TYPE_KEY] ?: "CYCLING"
     }
 
-    val isVoiceCoachingEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[VOICE_COACHING_ENABLED_KEY] ?: true
+    val isAudioCuesEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[AUDIO_CUES_ENABLED_KEY] ?: true
     }
 
     val isLockPortraitModeEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[LOCK_PORTRAIT_MODE_KEY] ?: true
-    }
-
-    val coachPersona: Flow<CoachPersona> = context.settingsDataStore.data.map { prefs ->
-        when (prefs[COACH_PERSONA_KEY]) {
-            "DRILL_SERGEANT" -> CoachPersona.DRILL_SERGEANT
-            "DATA_SCIENTIST" -> CoachPersona.DATA_SCIENTIST
-            else -> CoachPersona.SUPPORTIVE
-        }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -120,9 +106,9 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun setVoiceCoachingEnabled(enabled: Boolean) {
+    suspend fun setAudioCuesEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
-            prefs[VOICE_COACHING_ENABLED_KEY] = enabled
+            prefs[AUDIO_CUES_ENABLED_KEY] = enabled
         }
     }
 
@@ -132,15 +118,9 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun setCoachPersona(persona: CoachPersona) {
+    suspend fun setAudioLanguage(language: AudioLanguage) {
         context.settingsDataStore.edit { prefs ->
-            prefs[COACH_PERSONA_KEY] = persona.name
-        }
-    }
-
-    suspend fun setCoachLanguage(language: CoachLanguage) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[COACH_LANGUAGE_KEY] = language.name
+            prefs[AUDIO_LANGUAGE_KEY] = language.name
         }
     }
 

@@ -15,13 +15,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsBike
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Route
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -36,6 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fitnessapp.tracker.data.local.entity.ActivityType
 import com.fitnessapp.tracker.theme.ElectricGreen
 import com.fitnessapp.tracker.theme.GlassBorder
 import com.fitnessapp.tracker.theme.NavyCard
@@ -45,8 +42,11 @@ import com.fitnessapp.tracker.theme.TextSecondary
 import com.fitnessapp.tracker.theme.VividCyan
 import com.fitnessapp.tracker.theme.WarningAmber
 import com.fitnessapp.tracker.ui.dashboard.DashboardUiState
+import com.fitnessapp.tracker.ui.util.icon
+import com.fitnessapp.tracker.ui.util.statsCountTitle
 @Composable
 fun StatsRow(uiState: DashboardUiState, activityType: String) {
+    val activity = ActivityType.fromString(activityType)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -64,7 +64,7 @@ fun StatsRow(uiState: DashboardUiState, activityType: String) {
             label = "Avg Distance",
             value = "${"%.1f".format(uiState.avgDistanceKm)}",
             unit = "km",
-            icon = Icons.Default.ShowChart,
+            icon = Icons.AutoMirrored.Filled.ShowChart,
             iconTint = VividCyan
         )
     }
@@ -75,25 +75,10 @@ fun StatsRow(uiState: DashboardUiState, activityType: String) {
     ) {
         StatCard(
             modifier = Modifier.weight(1f),
-            label = when (activityType) {
-                "WALKING" -> "Total Walks"
-                "JOGGING" -> "Total Jogs"
-                "CYCLING" -> "Total Rides"
-                else -> "Total Workouts"
-            },
+            label = activity.statsCountTitle,
             value = "${uiState.totalSessions}",
-            unit = when (activityType) {
-                "WALKING" -> "walks"
-                "JOGGING" -> "jogs"
-                "CYCLING" -> "rides"
-                else -> "workouts"
-            },
-            icon = when (activityType) {
-                "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
-                "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
-                "CYCLING" -> Icons.AutoMirrored.Filled.DirectionsBike
-                else -> Icons.Default.FitnessCenter
-            },
+            unit = activity.nounPlural,
+            icon = activity.icon,
             iconTint = WarningAmber
         )
         StatCard(

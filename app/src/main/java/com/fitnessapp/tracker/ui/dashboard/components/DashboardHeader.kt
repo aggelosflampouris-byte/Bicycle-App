@@ -8,10 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsBike
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,9 +20,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.fitnessapp.tracker.data.local.entity.ActivityType
 import com.fitnessapp.tracker.theme.NavyCard
 import com.fitnessapp.tracker.theme.TextPrimary
 import com.fitnessapp.tracker.theme.TextSecondary
+import com.fitnessapp.tracker.ui.util.icon
 @Composable
 fun DashboardHeader(
     userName: String,
@@ -34,6 +32,7 @@ fun DashboardHeader(
     onSwitchActivity: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
+    val activity = ActivityType.fromString(activityType)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -48,14 +47,8 @@ fun DashboardHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            val subtitleText = when (activityType) {
-                "WALKING" -> "Ready to walk?"
-                "JOGGING" -> "Ready to jog?"
-                "CYCLING" -> "Ready to ride?"
-                else -> "Ready to move?"
-            }
             Text(
-                text = subtitleText,
+                text = "Ready to ${activity.nounSingular}?",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
@@ -68,14 +61,8 @@ fun DashboardHeader(
                     .background(NavyCard)
             ) {
                 Crossfade(targetState = activityType, label = "activityIcon") { type ->
-                    val icon = when (type) {
-                        "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
-                        "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
-                        "CYCLING" -> Icons.AutoMirrored.Filled.DirectionsBike
-                        else -> Icons.Default.FitnessCenter
-                    }
                     Icon(
-                        imageVector = icon,
+                        imageVector = ActivityType.fromString(type).icon,
                         contentDescription = "Switch Activity",
                         tint = TextSecondary
                     )

@@ -5,7 +5,6 @@ plugins {
   alias(libs.plugins.hilt)
   id("com.google.gms.google-services")
 }
-import java.util.Properties
 
 android {
     namespace = "com.fitnessapp.tracker"
@@ -16,21 +15,6 @@ android {
         targetSdk = 36
         versionCode = 172
         versionName = "1.2.2"
-
-        // API key is read from local.properties (gitignored — never committed)
-        // or from AI_COACH_API_KEY / GEMINI_API_KEY environment variables.
-        // The file is safe: local.properties is in .gitignore by default.
-        val localProperties = Properties()
-        val localPropertiesFile = rootProject.file("local.properties")
-        if (localPropertiesFile.exists()) {
-            localProperties.load(localPropertiesFile.inputStream())
-        }
-        val apiKey = localProperties.getProperty("AI_COACH_API_KEY")
-            ?: System.getenv("AI_COACH_API_KEY")
-            ?: localProperties.getProperty("GEMINI_API_KEY")
-            ?: System.getenv("GEMINI_API_KEY")
-            ?: ""
-        buildConfigField("String", "AI_COACH_API_KEY", "\"$apiKey\"")
     }
 
     signingConfigs {
@@ -108,7 +92,7 @@ dependencies {
   implementation(libs.hilt.android)
   ksp(libs.hilt.compiler)
 
-  // Retrofit + OkHttp (Gemini AI)
+  // Retrofit + OkHttp (Open-Meteo Weather)
   implementation(libs.retrofit.core)
   implementation(libs.retrofit.gson)
   implementation(libs.okhttp.core)
@@ -145,17 +129,14 @@ dependencies {
   androidTestImplementation(libs.androidx.test.espresso.core)
   androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 
-  // QR Code
-  implementation(libs.zxing.core)
-
   // WorkManager
   implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.androidx.hilt.work)
   ksp(libs.androidx.hilt.compiler)
 
   // Firebase
-  implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
-  implementation("com.google.firebase:firebase-analytics")
-  implementation("com.google.firebase:firebase-auth-ktx")
-  implementation("com.google.firebase:firebase-firestore-ktx")
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.analytics)
+  implementation(libs.firebase.auth.ktx)
+  implementation(libs.firebase.firestore.ktx)
 }

@@ -34,19 +34,17 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fitnessapp.tracker.data.local.entity.ActivityType
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.safety.CrashState
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog
 import com.fitnessapp.tracker.util.TtsManager
-import com.fitnessapp.tracker.util.VoiceInteractionManager
-import com.fitnessapp.tracker.util.VoiceState
 import kotlin.math.abs
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -63,27 +61,24 @@ fun LiveTrackingScreen(
     viewModel: TrackingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val isTracking by remember(viewModel.trackingState) { viewModel.trackingState.map { it.isTracking }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
-    val isPaused by remember(viewModel.trackingState) { viewModel.trackingState.map { it.isPaused }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
-    val currentLap by remember(viewModel.trackingState) { viewModel.trackingState.map { it.currentLap }.distinctUntilChanged() }.collectAsStateWithLifecycle(1)
-    val lastSavedSessionId by remember(viewModel.trackingState) { viewModel.trackingState.map { it.lastSavedSessionId }.distinctUntilChanged() }.collectAsStateWithLifecycle(null)
-    val coachLanguage by viewModel.coachLanguage.collectAsStateWithLifecycle()
-    val isVoiceCoachingEnabled by viewModel.isVoiceCoachingEnabled.collectAsStateWithLifecycle()
-    val inFlightState by viewModel.inFlightState.collectAsStateWithLifecycle()
+    val activityNoun = ActivityType.fromString(activityType).nounSingular
     val trackingState by viewModel.trackingState.collectAsStateWithLifecycle()
+    val isTracking = trackingState.isTracking
+    val isPaused = trackingState.isPaused
+    val currentLap = trackingState.currentLap
+    val lastSavedSessionId = trackingState.lastSavedSessionId
+    val audioLanguage by viewModel.audioLanguage.collectAsStateWithLifecycle()
+    val isAudioCuesEnabled by viewModel.isAudioCuesEnabled.collectAsStateWithLifecycle()
     val elapsedSeconds by viewModel.elapsedSeconds.collectAsStateWithLifecycle()
 
-    val voiceManager = remember { VoiceInteractionManager(context) }
-    val voiceState by voiceManager.voiceState.collectAsStateWithLifecycle()
     val ttsManager = remember { TtsManager(context) }
 
-    LaunchedEffect(coachLanguage) {
-        ttsManager.setCoachLanguage(coachLanguage)
+    LaunchedEffect(audioLanguage) {
+        ttsManager.setAudioLanguage(audioLanguage)
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            voiceManager.stopListening()
             ttsManager.shutdown()
         }
     }
@@ -91,35 +86,10 @@ fun LiveTrackingScreen(
     val emergencyContactName by viewModel.emergencyContactName.collectAsStateWithLifecycle()
     val emergencyContactPhone by viewModel.emergencyContactPhone.collectAsStateWithLifecycle()
 
-    val audioPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            voiceManager.startListening(coachLanguage)
-        }
-    }
-
     val gpxPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let { viewModel.loadGpxRoute(context, it) }
-    }
-
-    LaunchedEffect(voiceState) {
-        when (val state = voiceState) {
-            is VoiceState.Success -> {
-                viewModel.askInFlightCoach(state.recognizedText)
-                voiceManager.resetState()
-            }
-            else -> {}
-        }
-    }
-
-    LaunchedEffect(inFlightState.response) {
-        val reply = inFlightState.response
-        if (!reply.isNullOrBlank() && isVoiceCoachingEnabled) {
-            ttsManager.speak(reply, flushQueue = true)
-        }
     }
 
     var showFinishDialog by remember { mutableStateOf(false) }
@@ -219,7 +189,7 @@ fun LiveTrackingScreen(
                         val polyline = lapPolylines.getOrPut(lap) {
                             Polyline().apply {
                                 val colorHex = lapColors[(lap - 1) % lapColors.size]
-                                outlinePaint.color = android.graphics.Color.parseColor(colorHex)
+                                outlinePaint.color = colorHex.toColorInt()
                                 outlinePaint.strokeWidth = 10f
                                 outlinePaint.isAntiAlias = true
                                 map.overlays.add(this)
@@ -252,7 +222,7 @@ fun LiveTrackingScreen(
             gpxPolylineRef?.let { map.overlays.remove(it) }
             if (route != null && route.points.isNotEmpty()) {
                 val poly = Polyline().apply {
-                    outlinePaint.color = android.graphics.Color.parseColor("#00E5FF")
+                    outlinePaint.color = "#00E5FF".toColorInt()
                     outlinePaint.strokeWidth = 12f
                     outlinePaint.isAntiAlias = true
                     for (pt in route.points) {
@@ -262,30 +232,6 @@ fun LiveTrackingScreen(
                 gpxPolylineRef = poly
                 map.overlays.add(0, poly)
                 map.invalidate()
-            }
-        }
-    }
-
-    // Ghost Pacer Marker on Map
-    var ghostMarkerRef by remember { mutableStateOf<org.osmdroid.views.overlay.Marker?>(null) }
-    LaunchedEffect(trackingState.ghostPacerState, mapViewRef) {
-        val ghost = trackingState.ghostPacerState
-        mapViewRef?.let { map ->
-            if (ghost.isActive && ghost.ghostLat != 0.0) {
-                val marker = ghostMarkerRef ?: org.osmdroid.views.overlay.Marker(map).apply {
-                    title = "👻 Ghost Pacer (${ghost.ghostSpeedKmh.toInt()} km/h)"
-                    setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
-                    map.overlays.add(this)
-                    ghostMarkerRef = this
-                }
-                marker.position = GeoPoint(ghost.ghostLat, ghost.ghostLng)
-                map.invalidate()
-            } else {
-                ghostMarkerRef?.let {
-                    map.overlays.remove(it)
-                    ghostMarkerRef = null
-                    map.invalidate()
-                }
             }
         }
     }
@@ -362,146 +308,32 @@ fun LiveTrackingScreen(
                             .background(if (trackingState.activeGpxRoute != null) VividCyan.copy(alpha = 0.25f) else NavyCard)
                     ) {
                         Icon(
-                            imageVector = if (trackingState.activeGpxRoute != null) Icons.Default.AltRoute else Icons.Default.FileUpload,
+                            imageVector = if (trackingState.activeGpxRoute != null) Icons.AutoMirrored.Filled.AltRoute else Icons.Default.FileUpload,
                             contentDescription = "Import GPX Route",
                             tint = if (trackingState.activeGpxRoute != null) VividCyan else TextSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    // AI Voice Coach Mute / Unmute Button
+                    // Spoken Audio Cues Mute / Unmute Button
                     IconButton(
                         onClick = {
-                            if (isVoiceCoachingEnabled) {
+                            if (isAudioCuesEnabled) {
                                 ttsManager.stop()
                             }
-                            viewModel.toggleVoiceCoaching()
+                            viewModel.toggleAudioCues()
                         },
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(if (!isVoiceCoachingEnabled) SpeedRed.copy(alpha = 0.2f) else NavyCard)
+                            .background(if (!isAudioCuesEnabled) SpeedRed.copy(alpha = 0.2f) else NavyCard)
                     ) {
                         Icon(
-                            imageVector = if (isVoiceCoachingEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                            contentDescription = if (isVoiceCoachingEnabled) "Mute AI Voice Coach" else "Unmute AI Voice Coach",
-                            tint = if (isVoiceCoachingEnabled) ElectricGreen else SpeedRed,
+                            imageVector = if (isAudioCuesEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                            contentDescription = if (isAudioCuesEnabled) "Mute Audio Cues" else "Unmute Audio Cues",
+                            tint = if (isAudioCuesEnabled) ElectricGreen else SpeedRed,
                             modifier = Modifier.size(20.dp)
                         )
-                    }
-
-                    // Hands-free in-flight AI voice coach button
-                    val isListening = voiceState is VoiceState.Listening || voiceState is VoiceState.Recognizing
-                    IconButton(
-                        onClick = {
-                            if (isListening) {
-                                voiceManager.stopListening()
-                            } else {
-                                if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                                    voiceManager.startListening(coachLanguage)
-                                } else {
-                                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(if (isListening) SpeedRed.copy(alpha = 0.3f) else NavyCard)
-                    ) {
-                        Icon(
-                            imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
-                            contentDescription = "Ask AI Coach",
-                            tint = if (isListening) SpeedRed else ElectricGreen,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            // In-flight AI response or listening banner
-            if (voiceState is VoiceState.Listening || voiceState is VoiceState.Recognizing || inFlightState.isLoading || inFlightState.response != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    colors = CardDefaults.cardColors(containerColor = NavyCard.copy(alpha = 0.95f)),
-                    border = BorderStroke(1.dp, if (voiceState is VoiceState.Listening) SpeedRed else ElectricGreen),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(ElectricGreen.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (inFlightState.isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    color = ElectricGreen,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(Icons.Default.SmartToy, contentDescription = null, tint = ElectricGreen, modifier = Modifier.size(20.dp))
-                            }
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = when {
-                                    voiceState is VoiceState.Listening -> "🎙️ Listening... (Ask anything about your pace/route)"
-                                    voiceState is VoiceState.Recognizing -> "🧠 Processing speech..."
-                                    inFlightState.isLoading -> "🤖 AI Coach Analyzing Live Telemetry..."
-                                    else -> inFlightState.query ?: "AI Coach Briefing"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = if (voiceState is VoiceState.Listening) SpeedRed else TextSecondary
-                            )
-                            if (!inFlightState.response.isNullOrBlank()) {
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = inFlightState.response!!,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = TextPrimary
-                                )
-                            }
-                        }
-                        if (inFlightState.response != null) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                IconButton(
-                                    onClick = {
-                                        if (isVoiceCoachingEnabled) {
-                                            ttsManager.stop()
-                                        }
-                                        viewModel.toggleVoiceCoaching()
-                                    },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = if (isVoiceCoachingEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                                        contentDescription = if (isVoiceCoachingEnabled) "Mute AI" else "Unmute AI",
-                                        tint = if (isVoiceCoachingEnabled) ElectricGreen else SpeedRed,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        ttsManager.stop()
-                                        viewModel.dismissInFlightResponse()
-                                    },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = TextSecondary, modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -575,12 +407,7 @@ fun LiveTrackingScreen(
                                 style = MaterialTheme.typography.titleSmall
                             )
                             Text(
-                                when (activityType) {
-                                    "WALKING" -> "Turn on Location Services to track your walk."
-                                    "JOGGING" -> "Turn on Location Services to track your jog."
-                                    "CYCLING" -> "Turn on Location Services to track your ride."
-                                    else -> "Turn on Location Services to track your workout."
-                                },
+                                "Turn on Location Services to track your $activityNoun.",
                                 color = TextPrimary,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -625,81 +452,35 @@ fun LiveTrackingScreen(
                 }
             }
 
-            // Live Challenge Real-time Completion HUD
-            val activeChallenge = trackingState.activeChallenge
-            if (activeChallenge != null && activeChallenge.activityType == activityType) {
-                LiveChallengeProgressHUD(
-                    challenge = activeChallenge,
-                    trackingState = trackingState,
-                    elapsedSeconds = elapsedSeconds
-                )
-            }
-
-            // Compact Live Climb & Ghost Pacer HUD chips
+            // Compact Live Climb HUD chip
             val liveClimb = trackingState.liveClimb
-            val ghost = trackingState.ghostPacerState
-            if (liveClimb != null || ghost.isActive) {
-                Row(
+            if (liveClimb != null) {
+                val climbText = if (liveClimb.isAscending) {
+                    "${liveClimb.climb.category} • ${"%.1f".format(liveClimb.climb.avgGradientPct)}% • ${liveClimb.distanceToSummitMeters.toInt()}m (${liveClimb.progressPct}%)"
+                } else {
+                    "${liveClimb.climb.category} in ${liveClimb.distanceToStartMeters.toInt()}m"
+                }
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    shape = RoundedCornerShape(10.dp),
+                    color = WarningAmber.copy(alpha = 0.16f),
+                    border = BorderStroke(1.dp, WarningAmber.copy(alpha = 0.6f))
                 ) {
-                    if (liveClimb != null) {
-                        val climbText = if (liveClimb.isAscending) {
-                            "${liveClimb.climb.category} • ${"%.1f".format(liveClimb.climb.avgGradientPct)}% • ${liveClimb.distanceToSummitMeters.toInt()}m (${liveClimb.progressPct}%)"
-                        } else {
-                            "${liveClimb.climb.category} in ${liveClimb.distanceToStartMeters.toInt()}m"
-                        }
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            color = WarningAmber.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, WarningAmber.copy(alpha = 0.6f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(Icons.Default.Terrain, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(16.dp))
-                                Text(
-                                    text = climbText,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = WarningAmber,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                    if (ghost.isActive) {
-                        val ghostTint = if (ghost.isAhead) ElectricGreen else SpeedRed
-                        val deltaSec = abs(ghost.timeDeltaSeconds.toInt())
-                        val deltaDist = abs(ghost.distanceDeltaMeters.toInt())
-                        val deltaSign = if (ghost.isAhead) "+" else "-"
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            color = ghostTint.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, ghostTint.copy(alpha = 0.6f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null, tint = ghostTint, modifier = Modifier.size(16.dp))
-                                Text(
-                                    text = "Ghost $deltaSign${deltaSec}s (${deltaSign}${deltaDist}m)",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ghostTint,
-                                    maxLines = 1
-                                )
-                            }
-                        }
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Default.Terrain, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(16.dp))
+                        Text(
+                            text = climbText,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = WarningAmber,
+                            maxLines = 1
+                        )
                     }
                 }
             }
@@ -1201,12 +982,7 @@ private fun FinishWorkoutDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    when (activityType) {
-                        "WALKING" -> "Great walk! Are you ready to save your workout summary and get feedback from your AI Coach?"
-                        "JOGGING" -> "Great jog! Are you ready to save your workout summary and get feedback from your AI Coach?"
-                        "CYCLING" -> "Great ride! Are you ready to save your workout summary and get feedback from your AI Coach?"
-                        else -> "Great workout! Are you ready to save your workout summary and get feedback from your AI Coach?"
-                    },
+                    "Great ${ActivityType.fromString(activityType).nounSingular}! Are you ready to save your workout summary and Digital Twin recovery analysis?",
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -1430,206 +1206,4 @@ private fun OsmMapView(
             // Map updates handled via LaunchedEffect for route drawing
         }
     )
-}
-
-private data class LiveChallengeProgress(
-    val currentVal: Double,
-    val targetVal: Double,
-    val unit: String,
-    val formattedCurrent: String,
-    val formattedTarget: String,
-    val remainingText: String,
-    val isCompleted: Boolean
-)
-
-@Composable
-private fun LiveChallengeProgressHUD(
-    challenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity,
-    trackingState: com.fitnessapp.tracker.service.TrackingState,
-    elapsedSeconds: Long,
-    modifier: Modifier = Modifier
-) {
-    val metric = challenge.metric
-    val target = challenge.targetValue
-
-    val info = when (metric) {
-        com.fitnessapp.tracker.data.local.entity.ChallengeMetric.DISTANCE -> {
-            val totalMeters = challenge.currentProgress + trackingState.distanceMeters
-            val currentKm = totalMeters / 1000.0
-            val targetKm = target / 1000.0
-            val remainingMeters = (target - totalMeters).coerceAtLeast(0.0)
-            val remainingKm = remainingMeters / 1000.0
-            val done = totalMeters >= target
-            val remText = if (done) "Goal Achieved!" else "${"%.2f".format(remainingKm)} km to go"
-            LiveChallengeProgress(
-                currentVal = totalMeters,
-                targetVal = target,
-                unit = "km",
-                formattedCurrent = "%.2f".format(currentKm),
-                formattedTarget = "%.2f".format(targetKm),
-                remainingText = remText,
-                isCompleted = done
-            )
-        }
-        com.fitnessapp.tracker.data.local.entity.ChallengeMetric.SPEED -> {
-            val avgSpeed = if (elapsedSeconds > 0) (trackingState.distanceMeters / 1000.0) / (elapsedSeconds / 3600.0) else trackingState.speedKmh
-            val done = avgSpeed >= target && elapsedSeconds >= 30
-            val remSpeed = (target - avgSpeed).coerceAtLeast(0.0)
-            val remText = if (done) "Target Speed Maintained!" else "+${"%.1f".format(remSpeed)} km/h needed"
-            LiveChallengeProgress(
-                currentVal = avgSpeed,
-                targetVal = target,
-                unit = "km/h",
-                formattedCurrent = "%.1f".format(avgSpeed),
-                formattedTarget = "%.1f".format(target),
-                remainingText = remText,
-                isCompleted = done
-            )
-        }
-        com.fitnessapp.tracker.data.local.entity.ChallengeMetric.CALORIES -> {
-            val totalCals = challenge.currentProgress + trackingState.calories
-            val done = totalCals >= target
-            val remainingCals = (target - totalCals).coerceAtLeast(0.0)
-            val remText = if (done) "Calorie Goal Crushed!" else "${"%.0f".format(remainingCals)} kcal to go"
-            LiveChallengeProgress(
-                currentVal = totalCals,
-                targetVal = target,
-                unit = "kcal",
-                formattedCurrent = "%.0f".format(totalCals),
-                formattedTarget = "%.0f".format(target),
-                remainingText = remText,
-                isCompleted = done
-            )
-        }
-    }
-
-    val progressFraction = if (info.targetVal > 0) (info.currentVal / info.targetVal).coerceIn(0.0, 1.0).toFloat() else 1.0f
-    val animatedProgress by animateFloatAsState(
-        targetValue = progressFraction,
-        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
-        label = "challengeProgress"
-    )
-    val percentage = (progressFraction * 100).toInt()
-
-    val borderColor = if (info.isCompleted) ChallengeGold else VividCyan.copy(alpha = 0.6f)
-    val containerBg = if (info.isCompleted) NavyCard.copy(alpha = 0.95f) else NavyCard.copy(alpha = 0.90f)
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = containerBg),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(if (info.isCompleted) 1.5.dp else 1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (info.isCompleted) 8.dp else 4.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(if (info.isCompleted) ChallengeGold.copy(alpha = 0.2f) else VividCyan.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (info.isCompleted) "🏆" else "🏅",
-                            fontSize = 14.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = if (info.isCompleted) "CHALLENGE COMPLETED!" else "${challenge.period.name} ${challenge.metric.name} CHALLENGE",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (info.isCompleted) ChallengeGold else VividCyan,
-                            letterSpacing = 0.5.sp
-                        )
-                        Text(
-                            text = info.remainingText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (info.isCompleted) ElectricGreen else TextSecondary,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-
-                // Live Percentage Badge
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (info.isCompleted) ChallengeGold.copy(alpha = 0.2f) else DeepNavy)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "$percentage%",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (info.isCompleted) ChallengeGold else ElectricGreen
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Animated Gradient Progress Bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(CircleShape)
-                    .background(DeepNavy)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(animatedProgress)
-                        .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = if (info.isCompleted) {
-                                    listOf(ChallengeGold, Color(0xFFFFA500), ElectricGreen)
-                                } else {
-                                    listOf(VividCyan, ElectricGreen)
-                                }
-                            )
-                        )
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Live progress numbers
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Live Progress: ${info.formattedCurrent} / ${info.formattedTarget} ${info.unit}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
-                if (info.isCompleted) {
-                    Text(
-                        text = "🎉 Done! Keep Pushing!",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ElectricGreen,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
 }

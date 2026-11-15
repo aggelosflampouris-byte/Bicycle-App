@@ -230,17 +230,16 @@ class AnalyticsViewModel @Inject constructor(
 
         when (filter) {
             TimeFilter.DAILY -> {
-                val format = java.text.SimpleDateFormat("EEE", Locale.getDefault())
                 for (i in 6 downTo 0) {
                     cal.timeInMillis = System.currentTimeMillis()
                     cal.add(Calendar.DAY_OF_YEAR, -i)
-                    val label = format.format(cal.time)
+                    val label = com.fitnessapp.tracker.util.DateFormats.formatShortDayOfWeek(cal.timeInMillis)
                     labelsInOrder.add(label)
                     dataMap[label] = 0.0
                     countMap[label] = 0
                 }
                 sessions.forEach {
-                    val label = format.format(Date(it.startTime))
+                    val label = com.fitnessapp.tracker.util.DateFormats.formatShortDayOfWeek(it.startTime)
                     if (dataMap.containsKey(label)) {
                         val valueToAdd = sessionMetricValue(it, metric, userWeightKg)
                         dataMap[label] = dataMap[label]!! + valueToAdd
@@ -249,17 +248,16 @@ class AnalyticsViewModel @Inject constructor(
                 }
             }
             TimeFilter.WEEKLY -> {
-                val format = java.text.SimpleDateFormat("w", Locale.getDefault())
                 for (i in 3 downTo 0) {
                     cal.timeInMillis = System.currentTimeMillis()
                     cal.add(Calendar.WEEK_OF_YEAR, -i)
-                    val label = "W${format.format(cal.time)}"
+                    val label = "W${com.fitnessapp.tracker.util.DateFormats.formatWeekOfYear(cal.timeInMillis)}"
                     labelsInOrder.add(label)
                     dataMap[label] = 0.0
                     countMap[label] = 0
                 }
                 sessions.forEach {
-                    val label = "W${format.format(Date(it.startTime))}"
+                    val label = "W${com.fitnessapp.tracker.util.DateFormats.formatWeekOfYear(it.startTime)}"
                     if (dataMap.containsKey(label)) {
                         val valueToAdd = sessionMetricValue(it, metric, userWeightKg)
                         dataMap[label] = dataMap[label]!! + valueToAdd
@@ -268,17 +266,16 @@ class AnalyticsViewModel @Inject constructor(
                 }
             }
             TimeFilter.MONTHLY -> {
-                val format = java.text.SimpleDateFormat("MMM", Locale.getDefault())
                 for (i in 5 downTo 0) {
                     cal.timeInMillis = System.currentTimeMillis()
                     cal.add(Calendar.MONTH, -i)
-                    val label = format.format(cal.time)
+                    val label = com.fitnessapp.tracker.util.DateFormats.formatShortMonth(cal.timeInMillis)
                     labelsInOrder.add(label)
                     dataMap[label] = 0.0
                     countMap[label] = 0
                 }
                 sessions.forEach {
-                    val label = format.format(Date(it.startTime))
+                    val label = com.fitnessapp.tracker.util.DateFormats.formatShortMonth(it.startTime)
                     if (dataMap.containsKey(label)) {
                         val valueToAdd = sessionMetricValue(it, metric, userWeightKg)
                         dataMap[label] = dataMap[label]!! + valueToAdd

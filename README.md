@@ -16,7 +16,7 @@ You can download the ready-to-install `.apk` directly from:
 - 🌤️ **Keyless Outdoor Microclimate (`Open-Meteo`)** — Live temperature, feels-like temperature, wind speed, humidity, UV index, precipitation probability, environmental stress modifier, and best workout window with offline DataStore TTL caching.
 - 🎯 **Adaptive In-Workout & Post-Workout Loop** — Rate-limited smart Twin nudges (heat hydration, dusk visibility, form fade) via TTS/HUD banners, 1-tap in-workout effort (RPE) tags, and post-workout check-ins (`Sleep / Energy / Soreness / Stress / Hydration`).
 - 🏃 **Multi-Activity Outdoor Tracking** — Dedicated Cycling, Walking, and Jogging physics (Mifflin-St Jeor BMR, MET calories, Watts/kg), dynamic GPS polling with auto-pause, GPX route import, climb detection, off-route alerts, and Ghost Pacer.
-- 🤖 **Digital Twin AI Coach** — Context-aware coaching powered by `Qwen/Qwen2.5-32B-Instruct` via the Hugging Face OpenAI-compatible router, enriched with live Digital Twin readiness, weather context, wellness check-ins, workout metrics, weekly training plans, and tactical debriefs.
+- 🔊 **Spoken Audio Cues (`TtsManager`)** — Multi-language offline TTS alerts for Digital Twin smart nudges (heat hydration, dusk visibility, form fade), km splits, and off-route warnings.
 - 🛡️ **Crash Impact Detection & SOS** — Accelerometer crash impact monitoring with emergency SMS distress beacon.
 - 💾 **GPX & Encrypted JSON Backup** — Export standard `.gpx` routes or password-encrypted JSON backups (including wellness check-ins and Twin snapshots).
 
@@ -27,12 +27,11 @@ You can download the ready-to-install `.apk` directly from:
 | Language | Kotlin |
 | UI | Jetpack Compose + Material 3 |
 | Architecture | MVVM + Coroutines + Flows |
-| Database | Room v14 (offline-first, explicit non-destructive migrations) |
+| Database | Room v16 (offline-first, explicit non-destructive migrations) |
 | Sensors & Location | `SensorManager` (Step/Accel/Baro/Light), `FusedLocationProviderClient` |
 | Maps | osmdroid (OpenStreetMap) |
 | Environment API | Open-Meteo (keyless forecast API) |
 | Background | WorkManager (Hilt on-demand `Configuration.Provider`), ForegroundService (`location`) |
-| AI | OpenAI-compatible Chat Completions (`Qwen/Qwen2.5-32B-Instruct`) |
 | Networking | Retrofit2 + OkHttp + Gson |
 | DI | Hilt |
 
@@ -41,8 +40,8 @@ You can download the ready-to-install `.apk` directly from:
 ```text
 app/
 ├── data/
-│   ├── local/          # Room DB v14, Entities (User, WorkoutSession, WellnessCheckIn, TwinSnapshot, Routine, PR, TrainingPlan), DAOs, SettingsRepository
-│   └── remote/         # AiCoachApiService, AiCoachRepository, OpenMeteoApiService, EnvironmentContextRepository, AuthRepository, FirestoreRepository
+│   ├── local/          # Room DB v16, Entities (User, WorkoutSession, WellnessCheckIn, TwinSnapshot, Routine, PR), DAOs, SettingsRepository
+│   └── remote/         # OpenMeteoApiService, EnvironmentContextRepository, AuthRepository, FirestoreRepository
 ├── engine/             # DigitalTwinEngine, PhysicsEngine, PersonalRecordEngine, RecoveryEngine
 ├── sensor/             # WorkoutSensorCollector (cadence, gait stability, barometer, ambient lux)
 ├── safety/             # CrashDetectionEngine
@@ -56,9 +55,8 @@ app/
 │   ├── tracking/       # Live tracking screen + Map rendering + Twin nudges & RPE bar
 │   ├── summary/        # Post-workout summary + Twin strain & check-in feedback
 │   ├── progress/       # Analytics charts & period comparisons (Distance, Speed, Calories, Strain)
-│   ├── chat/           # Personal AI Coach chat + Multi-Session Select
 │   ├── onboarding/     # Biometrics setup
-│   ├── settings/       # Settings (Voice Nudges, SOS, Backup, QR Code share)
+│   ├── settings/       # Settings (Audio Cues, SOS, Backup, QR Code share)
 │   └── theme/          # Material 3 outdoor dark/light themes
 └── Navigation.kt       # AppNavGraph
 ```
@@ -70,5 +68,4 @@ app/
 - `POST_NOTIFICATIONS` — Persistent tracking notification & goal reminders
 - `FOREGROUND_SERVICE_LOCATION` — Foreground location tracking service
 - `ACTIVITY_RECOGNITION` — Optional (API 29+) hardware step detector cadence (falls back to accelerometer if declined)
-- `RECORD_AUDIO` — Optional voice coaching queries
 - `SEND_SMS` — Optional emergency SOS distress beacon (`android.hardware.telephony` marked `required="false"`)

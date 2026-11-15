@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
@@ -32,26 +32,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.fitnessapp.tracker.theme.ChallengeGold
+import com.fitnessapp.tracker.data.local.entity.ActivityType
+import com.fitnessapp.tracker.data.local.entity.PersonalRecordEntity
+import com.fitnessapp.tracker.engine.PersonalRecordEngine
 import com.fitnessapp.tracker.theme.DeepNavy
+import com.fitnessapp.tracker.theme.ElectricGreen
 import com.fitnessapp.tracker.theme.GlassBorder
 import com.fitnessapp.tracker.theme.NavyCard
 import com.fitnessapp.tracker.theme.TextPrimary
 import com.fitnessapp.tracker.theme.TextSecondary
+import com.fitnessapp.tracker.theme.VividCyan
+
 @Composable
 fun TrophiesAndRecordsCard(
-    records: List<com.fitnessapp.tracker.data.local.entity.PersonalRecordEntity>,
+    records: List<PersonalRecordEntity>,
     activityType: String
 ) {
     if (records.isEmpty()) return
 
     var isExpanded by remember { mutableStateOf(false) }
+    val activityLabel = ActivityType.fromString(activityType).displayTitle
 
     Card(
         modifier = Modifier.fillMaxWidth().animateContentSize(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NavyCard),
-        border = BorderStroke(1.dp, ChallengeGold.copy(alpha = 0.4f))
+        border = BorderStroke(1.dp, VividCyan.copy(alpha = 0.4f))
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(
@@ -61,29 +67,33 @@ fun TrophiesAndRecordsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Icon(
-                        imageVector = Icons.Default.EmojiEvents,
+                        imageVector = Icons.AutoMirrored.Filled.ShowChart,
                         contentDescription = null,
-                        tint = ChallengeGold,
+                        tint = VividCyan,
                         modifier = Modifier.size(22.dp)
                     )
                     Text(
-                        text = "All-Time Records & Trophies",
+                        text = "$activityLabel Performance Benchmarks",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = ChallengeGold.copy(alpha = 0.2f)
+                        color = VividCyan.copy(alpha = 0.2f)
                     ) {
                         Text(
                             text = "${records.size}",
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = ChallengeGold
+                            color = VividCyan
                         )
                     }
                 }
@@ -120,35 +130,11 @@ fun TrophiesAndRecordsCard(
                                     fontWeight = FontWeight.Medium
                                 )
                             }
-                            val formattedVal = when (record.recordType) {
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.FASTEST_1KM,
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.FASTEST_5KM,
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.FASTEST_10KM,
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.FASTEST_20KM,
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.FASTEST_50KM -> {
-                                    val sec = record.value.toLong()
-                                    val m = (sec % 3600) / 60
-                                    val s = sec % 60
-                                    val h = sec / 3600
-                                    if (h > 0) "%dh %02dm %02ds".format(h, m, s) else "%dm %02ds".format(m, s)
-                                }
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.LONGEST_DURATION -> {
-                                    val sec = record.value.toLong()
-                                    val m = (sec % 3600) / 60
-                                    val s = sec % 60
-                                    val h = sec / 3600
-                                    if (h > 0) "%dh %02dm %02ds".format(h, m, s) else "%dm %02ds".format(m, s)
-                                }
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.LONGEST_DISTANCE -> "%.2f km".format(record.value / 1000.0)
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.MAX_ELEVATION_GAIN -> "+%.0f m".format(record.value)
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.MAX_AVG_SPEED -> "%.1f km/h".format(record.value)
-                                com.fitnessapp.tracker.data.local.entity.PersonalRecordType.MAX_CALORIES -> "%.0f kcal".format(record.value)
-                            }
                             Text(
-                                text = formattedVal,
+                                text = PersonalRecordEngine.formatRecordValue(record.recordType, record.value),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = ChallengeGold
+                                color = ElectricGreen
                             )
                         }
                     }

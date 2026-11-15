@@ -27,20 +27,20 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.fitnessapp.tracker.data.local.entity.ActivityType
 import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.service.OutdoorTrackingService
 import com.fitnessapp.tracker.theme.*
-import com.fitnessapp.tracker.ui.chat.AiChatScreen
 import com.fitnessapp.tracker.ui.dashboard.DashboardScreen
 import com.fitnessapp.tracker.ui.history.HistoryScreen
 import com.fitnessapp.tracker.ui.settings.SettingsScreen
+import com.fitnessapp.tracker.ui.util.icon
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 enum class MainTab(val label: String, val icon: ImageVector) {
     DASHBOARD("Home", Icons.Default.Home),
-    AI_COACH("AI Coach", Icons.Default.Psychology),
     TWIN("Twin", Icons.Default.Insights),
     HISTORY("Activities", Icons.Default.Assessment),
     SETTINGS("Settings", Icons.Default.Settings)
@@ -97,12 +97,7 @@ fun MainScreen(
                             },
                             icon = {
                                 val displayIcon = if (tab == MainTab.DASHBOARD) {
-                                    when (activityType) {
-                                        "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
-                                        "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
-                                        "CYCLING" -> Icons.AutoMirrored.Filled.DirectionsBike
-                                        else -> Icons.Default.FitnessCenter
-                                    }
+                                    ActivityType.fromString(activityType).icon
                                 } else {
                                     tab.icon
                                 }
@@ -168,11 +163,6 @@ fun MainScreen(
                                 }
                             )
                         }
-                    MainTab.AI_COACH -> {
-                        AiChatScreen(
-                            showBackButton = false
-                        )
-                    }
                     MainTab.HISTORY -> {
                         HistoryScreen(
                             onSessionClick = onSessionClick,
@@ -260,13 +250,7 @@ private fun ActiveWorkoutMiniBanner(
                     color = WarningAmber
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                val icon = when (activityType) {
-                    "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
-                    "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
-                    "CYCLING" -> Icons.AutoMirrored.Filled.DirectionsBike
-                    else -> Icons.Default.FitnessCenter
-                }
-                Icon(icon, contentDescription = "Active Workout", tint = ElectricGreen)
+                Icon(ActivityType.fromString(activityType).icon, contentDescription = "Active Workout", tint = ElectricGreen)
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Expand",

@@ -6,9 +6,6 @@ import com.fitnessapp.tracker.data.local.dao.UserDao
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
 import com.fitnessapp.tracker.data.local.entity.UserEntity
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
-import com.fitnessapp.tracker.data.local.entity.TrainingPlanEntity
-import com.fitnessapp.tracker.data.local.dao.TrainingPlanDao
-import com.fitnessapp.tracker.data.remote.AiCoachRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -18,7 +15,6 @@ import javax.inject.Inject
 import com.fitnessapp.tracker.data.local.RoutineProgress
 import com.fitnessapp.tracker.data.local.RoutineRepository
 import com.fitnessapp.tracker.domain.usecase.GetDashboardStatsUseCase
-import com.fitnessapp.tracker.domain.usecase.GetRecoveryAdviceUseCase
 
 data class DashboardUiState(
     val user: UserEntity = UserEntity(),
@@ -29,12 +25,9 @@ data class DashboardUiState(
     val totalCalories: Double = 0.0,
     val routineProgress: RoutineProgress? = null,
     val personalRecords: List<com.fitnessapp.tracker.data.local.entity.PersonalRecordEntity> = emptyList(),
-    val trainingPlan: TrainingPlanEntity? = null,
-    val recoveryAdvice: com.fitnessapp.tracker.engine.RecoveryAdvice? = null,
     val twinState: com.fitnessapp.tracker.engine.DigitalTwinState? = null,
     val isRefreshingEnvironment: Boolean = false,
-    val isLoading: Boolean = false,
-    val isGeneratingPlan: Boolean = false
+    val isLoading: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -43,13 +36,9 @@ class DashboardViewModel @Inject constructor(
     private val userDao: UserDao,
     private val sessionDao: WorkoutSessionDao,
     private val personalRecordDao: com.fitnessapp.tracker.data.local.dao.PersonalRecordDao,
-    private val trainingPlanDao: TrainingPlanDao,
-    private val aiCoachRepository: AiCoachRepository,
     private val settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository,
     private val routineRepository: RoutineRepository,
     private val getDashboardStatsUseCase: GetDashboardStatsUseCase,
-    private val getRecoveryAdviceUseCase: GetRecoveryAdviceUseCase,
-    private val gson: com.google.gson.Gson,
     private val wellnessCheckInDao: com.fitnessapp.tracker.data.local.dao.WellnessCheckInDao,
     private val environmentContextRepository: com.fitnessapp.tracker.data.remote.EnvironmentContextRepository,
     private val digitalTwinEngine: com.fitnessapp.tracker.engine.DigitalTwinEngine
@@ -76,8 +65,6 @@ class DashboardViewModel @Inject constructor(
             is DashboardUiEvent.DeleteSession -> deleteSession(event.sessionId)
             is DashboardUiEvent.RefreshEnvironment -> refreshEnvironment(forceRefresh = true)
             is DashboardUiEvent.SubmitWellnessCheckIn -> submitWellnessCheckIn(event)
-            is DashboardUiEvent.GenerateTrainingPlan -> generateTrainingPlan(event.goalPrompt)
-            is DashboardUiEvent.ToggleDailyPlanCompleted -> toggleDailyPlanCompleted(event.day)
             is DashboardUiEvent.SaveRoutine -> saveRoutine(event.interval, event.metric, event.targetValue, event.autoImprove)
             is DashboardUiEvent.DeleteRoutine -> deleteRoutine()
         }
@@ -147,13 +134,8 @@ class DashboardViewModel @Inject constructor(
                 getDashboardStatsUseCase(type)
             }
 
-            val coachingAndRecordsFlow = combine(
-                trainingPlanDao.getPlanFlow(),
-                _activityType.flatMapLatest { type ->
-                    personalRecordDao.getRecordsForActivityFlow(type)
-                }
-            ) { plan, records ->
-                Pair(plan, records)
+            val personalRecordsFlow = _activityType.flatMapLatest { type ->
+                personalRecordDao.getRecordsForActivityFlow(type)
             }
             val twinInputsFlow = combine(
                 wellnessCheckInDao.getLatestCheckInFlow(),
@@ -163,8 +145,8 @@ class DashboardViewModel @Inject constructor(
             ) { checkIn, env, isRefreshing, activityType ->
                 listOf(checkIn, env, isRefreshing, activityType)
             }
-            val bundledMetaFlow = combine(coachingAndRecordsFlow, twinInputsFlow) { coachingAndRecords, twinList ->
-                Pair(coachingAndRecords, twinList)
+            val bundledMetaFlow = combine(personalRecordsFlow, twinInputsFlow) { records, twinList ->
+                Pair(records, twinList)
             }
             combine(
                 userDao.getUserFlow().map { it ?: UserEntity() },
@@ -173,15 +155,12 @@ class DashboardViewModel @Inject constructor(
                 routineProgressFlow,
                 bundledMetaFlow
             ) { user, sessionStats, allSessions, routineProgress, bundledMeta ->
-                val (coachingAndRecords, twinList) = bundledMeta
-                val (plan, records) = coachingAndRecords
+                val (records, twinList) = bundledMeta
                 val latestCheckIn = twinList[0] as com.fitnessapp.tracker.data.local.entity.WellnessCheckInEntity?
                 val env = twinList[1] as com.fitnessapp.tracker.data.remote.EnvironmentSnapshot
                 val isRefreshingEnv = twinList[2] as Boolean
                 val preferredSport = twinList[3] as String
 
-                // Whole-body recovery must consider every recorded activity, not just the selected dashboard tab.
-                val recovery = getRecoveryAdviceUseCase(allSessions, user)
                 val twinState = digitalTwinEngine.computeTwinState(
                     sessions = allSessions,
                     user = user,
@@ -199,12 +178,9 @@ class DashboardViewModel @Inject constructor(
                     totalCalories = sessionStats.totalCalories,
                     routineProgress = routineProgress,
                     personalRecords = records,
-                    trainingPlan = plan,
-                    recoveryAdvice = recovery,
                     twinState = twinState,
                     isRefreshingEnvironment = isRefreshingEnv,
-                    isLoading = false,
-                    isGeneratingPlan = _uiState.value.isGeneratingPlan
+                    isLoading = false
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -225,52 +201,6 @@ class DashboardViewModel @Inject constructor(
                 userDao.insertUser(user)
             } else {
                 userDao.updateUser(user.copy(id = existing.id))
-            }
-        }
-    }
-
-    private fun generateTrainingPlan(goal: String = "Balanced Endurance") {
-        if (_uiState.value.isGeneratingPlan) return
-        _uiState.value = _uiState.value.copy(isGeneratingPlan = true)
-        
-        viewModelScope.launch {
-            val user = userDao.getUser() ?: UserEntity()
-            val persona = settingsRepository.coachPersona.first()
-            // Provide the last 7 days of sessions for context
-            val oneWeekAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
-            val recentSessions = sessionDao.getAllSessionsFlow().first().filter { it.startTime >= oneWeekAgo }
-            
-            val dailyPlans = aiCoachRepository.generateWeeklyPlan(user, recentSessions, goal, persona)
-            if (dailyPlans != null) {
-                val json = gson.toJson(dailyPlans)
-                val entity = TrainingPlanEntity(
-                    id = 1,
-                    generatedAtMs = System.currentTimeMillis(),
-                    planJson = json
-                )
-                trainingPlanDao.insertPlan(entity)
-            }
-            _uiState.value = _uiState.value.copy(isGeneratingPlan = false)
-        }
-    }
-
-    private fun toggleDailyPlanCompleted(day: String) {
-        viewModelScope.launch {
-            val currentPlan = _uiState.value.trainingPlan ?: return@launch
-            try {
-                val type = object : com.google.gson.reflect.TypeToken<List<com.fitnessapp.tracker.data.local.entity.DailyPlan>>() {}.type
-                val plans: MutableList<com.fitnessapp.tracker.data.local.entity.DailyPlan> = gson.fromJson(currentPlan.planJson, type)
-                
-                val index = plans.indexOfFirst { it.day == day }
-                if (index != -1) {
-                    val plan = plans[index]
-                    plans[index] = plan.copy(isCompleted = !plan.isCompleted)
-                    val newJson = gson.toJson(plans)
-                    val newPlan = currentPlan.copy(planJson = newJson)
-                    trainingPlanDao.insertPlan(newPlan)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardViewModel", "Error toggling daily plan completion for day: $day", e)
             }
         }
     }

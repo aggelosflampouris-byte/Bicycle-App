@@ -29,9 +29,4 @@ interface PersonalRecordDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateRecords(records: List<PersonalRecordEntity>)
 
-    @Query("DELETE FROM personal_records WHERE activityType = :activityType")
-    suspend fun clearRecordsForActivity(activityType: String)
-
-    @Query("DELETE FROM personal_records")
-    suspend fun deleteAll()
 }

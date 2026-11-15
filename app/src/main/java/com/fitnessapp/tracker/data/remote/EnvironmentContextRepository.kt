@@ -15,7 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
+import com.fitnessapp.tracker.util.DateFormats
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
@@ -46,7 +46,7 @@ data class EnvironmentSnapshot(
 
 @Singleton
 class EnvironmentContextRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val openMeteoApi: OpenMeteoApiService,
     private val settingsRepository: SettingsRepository,
     private val gson: Gson
@@ -74,7 +74,7 @@ class EnvironmentContextRepository @Inject constructor(
         internal fun resolveCurrentPrecipProb(
             hourly: OpenMeteoHourly?,
             currentTimeIso: String?,
-            fallbackHourIso: String = SimpleDateFormat("yyyy-MM-dd'T'HH", Locale.US).format(Date())
+            fallbackHourIso: String = DateFormats.formatWeatherHourKey()
         ): Int {
             if (hourly == null || hourly.time.isEmpty() || hourly.precipitationProbabilityPct.isEmpty()) return 0
             val hourPrefix = currentTimeIso?.take(13) ?: fallbackHourIso
@@ -84,7 +84,7 @@ class EnvironmentContextRepository @Inject constructor(
 
         internal fun computeBestWorkoutWindow(
             hourly: OpenMeteoHourly?,
-            currentHourIso: String = SimpleDateFormat("yyyy-MM-dd'T'HH", Locale.US).format(Date())
+            currentHourIso: String = DateFormats.formatWeatherHourKey()
         ): String? {
             if (hourly == null || hourly.time.isEmpty()) return null
             val startIdx = hourly.time.indexOfFirst { it.take(13) >= currentHourIso }.coerceAtLeast(0)

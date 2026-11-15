@@ -13,9 +13,6 @@ interface WellnessCheckInDao {
     fun getLatestCheckInFlow(): Flow<WellnessCheckInEntity?>
 
     @Query("SELECT * FROM wellness_check_ins ORDER BY timestampMs DESC LIMIT :limit")
-    fun getRecentCheckInsFlow(limit: Int = 14): Flow<List<WellnessCheckInEntity>>
-
-    @Query("SELECT * FROM wellness_check_ins ORDER BY timestampMs DESC LIMIT :limit")
     suspend fun getRecentCheckIns(limit: Int = 14): List<WellnessCheckInEntity>
 
     @Query("SELECT * FROM wellness_check_ins ORDER BY timestampMs DESC")

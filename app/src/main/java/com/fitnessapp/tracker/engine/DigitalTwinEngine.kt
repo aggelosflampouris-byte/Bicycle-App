@@ -5,8 +5,8 @@ import com.fitnessapp.tracker.data.local.entity.UserEntity
 import com.fitnessapp.tracker.data.local.entity.WellnessCheckInEntity
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.data.remote.EnvironmentSnapshot
-import java.text.SimpleDateFormat
-import java.util.Date
+import com.fitnessapp.tracker.util.DateFormats
+import com.fitnessapp.tracker.data.local.entity.ActivityType
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -61,6 +61,45 @@ data class SimulationOutcome(
     val advisoryNote: String
 )
 
+enum class RecoveryStatus(
+    val title: String,
+    val description: String,
+    val colorHex: String
+) {
+    FULLY_RECOVERED(
+        "Fully Primed & Recovered",
+        "Your physiological systems are restored. Ideal for progressive efforts or higher-intensity intervals.",
+        "#00FF87"
+    ),
+    ACTIVE_RECOVERY_OPTIMAL(
+        "Active Recovery Optimal",
+        "Gentle Zone 1–2 aerobic movement will boost circulation and accelerate metabolic clearance.",
+        "#03A9F4"
+    ),
+    MODERATE_FATIGUE(
+        "Moderate Fatigue",
+        "Muscular and glycogen repair is underway. Keep workouts controlled at steady aerobic pacing.",
+        "#FFEB3B"
+    ),
+    EXHAUSTED_REST_REQUIRED(
+        "High Fatigue / Rest Required",
+        "High systemic strain and accumulated load. Prioritize sleep, hydration, and rest.",
+        "#FF5722"
+    )
+}
+
+data class RecoveryAdvice(
+    val recoveryHoursTotal: Int,
+    val remainingRecoveryHours: Int,
+    val recoveryPercentage: Int,
+    val status: RecoveryStatus,
+    val trainingStressScore: Double,
+    val recommendedSleepHours: Double,
+    val hydrationTargetLiters: Double,
+    val actionableTips: List<String>,
+    val optimalNextEffortTimestamp: Long
+)
+
 /**
  * Closed-loop physiological Digital Twin engine combining:
  * 1) Mechanical load & sensor stability from workouts
@@ -68,9 +107,7 @@ data class SimulationOutcome(
  * 3) Subjective wellness & RPE user signals
  */
 @Singleton
-class DigitalTwinEngine @Inject constructor(
-    private val recoveryEngine: RecoveryEngine
-) {
+class DigitalTwinEngine @Inject constructor() {
     companion object {
         private const val ONE_DAY_MS = 24L * 3600L * 1000L
         private const val SEVEN_DAYS_MS = 7L * ONE_DAY_MS
@@ -106,7 +143,7 @@ class DigitalTwinEngine @Inject constructor(
         session: WorkoutSessionEntity,
         userWeightKg: Float = 75f
     ): Double {
-        val baseTss = recoveryEngine.calculateSessionTss(session, userWeightKg)
+        val baseTss = calculateSessionTss(session, userWeightKg)
         val envFactor = session.environmentStressFactor.coerceIn(0.95, 1.40)
         val rpeFactor = session.rpe?.let { (0.75 + (it.coerceIn(1, 10) / 10.0) * 0.5).coerceIn(0.75, 1.25) } ?: 1.0
         val stabilityPenalty = session.gaitStabilityScore?.let { score ->
@@ -252,10 +289,12 @@ class DigitalTwinEngine @Inject constructor(
         val hydrationRate = calculateHydrationRateLitersPerHour(state.environment, user.weightKg, safeRpe)
         val fluidLossMl = (hydrationRate * (safeMinutes / 60.0) * 1000.0).roundToInt()
 
-        val advice = recoveryEngine.computeRecoveryAdvice(
+        val advice = computeRecoveryAdvice(
             targetSession = syntheticSession,
             recentSessions = state.latestSession?.let { listOf(it) } ?: emptyList(),
             user = user,
+            latestCheckIn = state.latestCheckIn,
+            twinState = state,
             currentTimeMs = syntheticSession.endTime
         )
 
@@ -280,7 +319,7 @@ class DigitalTwinEngine @Inject constructor(
     }
 
     fun toSnapshotEntity(state: DigitalTwinState, nowMs: Long = System.currentTimeMillis()): TwinSnapshotEntity {
-        val dateKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(nowMs))
+        val dateKey = DateFormats.formatIsoDate(nowMs)
         return TwinSnapshotEntity(
             dateKey = dateKey,
             updatedAtMs = nowMs,
@@ -295,6 +334,140 @@ class DigitalTwinEngine @Inject constructor(
             windSpeedKmh = state.environment.windSpeedKmh,
             humidityPct = state.environment.humidityPct,
             uvIndex = state.environment.uvIndex
+        )
+    }
+
+    /**
+     * Estimates base mechanical Training Stress Score (TSS) before RPE, gait stability,
+     * and microclimate modifiers are applied by [calculateSessionTwinStrain].
+     */
+    fun calculateSessionTss(session: WorkoutSessionEntity, userWeightKg: Float = 75f): Double {
+        val durationHours = max(1.0, session.durationSeconds.toDouble()) / 3600.0
+        val baselineSpeed = ActivityType.fromString(session.activityType).defaultAvgSpeedKmh
+        val speedRatio = (session.avgSpeedKmh / baselineSpeed).coerceIn(0.5, 2.5)
+        val elevationFactor = (session.elevationGainMeters / 100.0) * 10.0
+        val calorieFactor = (session.caloriesBurned / 500.0) * 12.0
+        val normalizedWKg = PhysicsEngine.resolveWattsPerKg(session.wattsPerKg, userWeightKg)
+        val powerFactor = if (normalizedWKg > 0) (normalizedWKg / 2.5) * 15.0 else 0.0
+
+        val baseTss = (durationHours * 45.0 * speedRatio * speedRatio) + elevationFactor + calorieFactor + powerFactor
+        return baseTss.coerceIn(5.0, 350.0)
+    }
+
+    /**
+     * Computes unified Twin-aware post-workout recovery guidance combining session strain
+     * (RPE, environment stress, stability drift), 7-day decayed fatigue, ACWR overload state,
+     * subjective check-ins, and thermal fluid demand.
+     */
+    fun computeRecoveryAdvice(
+        targetSession: WorkoutSessionEntity,
+        recentSessions: List<WorkoutSessionEntity> = emptyList(),
+        user: UserEntity = UserEntity(),
+        latestCheckIn: WellnessCheckInEntity? = null,
+        twinState: DigitalTwinState? = null,
+        currentTimeMs: Long = System.currentTimeMillis()
+    ): RecoveryAdvice {
+        val sessionStrain = calculateSessionTwinStrain(targetSession, user.weightKg)
+
+        var cumulativeFatigue = sessionStrain
+        recentSessions.forEach { prev ->
+            if (prev.id != targetSession.id && prev.startTime < targetSession.startTime) {
+                val elapsedHours = max(0.0, (targetSession.startTime - prev.startTime) / (1000.0 * 3600.0))
+                val prevStrain = calculateSessionTwinStrain(prev, user.weightKg)
+                val decayedLoad = prevStrain * kotlin.math.exp(-elapsedHours / 48.0)
+                cumulativeFatigue += decayedLoad
+            }
+        }
+
+        val ageMultiplier = if (user.age > 30) {
+            1.0 + ((user.age - 30) * 0.01).coerceAtMost(0.4)
+        } else 1.0
+
+        val acwrMultiplier = when (twinState?.acwrZone) {
+            AcwrZone.OVERTRAINING -> 1.20
+            AcwrZone.ELEVATED_RISK -> 1.10
+            else -> 1.0
+        }
+
+        val wellnessMultiplier = if (latestCheckIn != null) {
+            val poorSleepPenalty = if (latestCheckIn.sleepQuality <= 2) 0.12 else 0.0
+            val sorenessPenalty = if (latestCheckIn.muscleSoreness >= 4) 0.10 else 0.0
+            val freshCredit = if (latestCheckIn.sleepQuality >= 4 && latestCheckIn.muscleSoreness <= 2) -0.08 else 0.0
+            (1.0 + poorSleepPenalty + sorenessPenalty + freshCredit).coerceIn(0.88, 1.25)
+        } else 1.0
+
+        val rawHours = (cumulativeFatigue * 0.28 * ageMultiplier * acwrMultiplier * wellnessMultiplier).coerceIn(6.0, 72.0)
+        val totalRecoveryHours = rawHours.roundToInt()
+
+        val sessionEndTime = targetSession.startTime + (targetSession.durationSeconds * 1000L)
+        val hoursElapsedSinceWorkout = max(0.0, (currentTimeMs - sessionEndTime) / (1000.0 * 3600.0))
+
+        val remainingHours = max(0.0, totalRecoveryHours - hoursElapsedSinceWorkout).roundToInt()
+        val recoveryPct = if (totalRecoveryHours > 0) {
+            (((totalRecoveryHours - remainingHours).toDouble() / totalRecoveryHours) * 100.0).roundToInt().coerceIn(0, 100)
+        } else 100
+
+        var status = when {
+            remainingHours <= 2 -> RecoveryStatus.FULLY_RECOVERED
+            remainingHours <= 12 -> RecoveryStatus.ACTIVE_RECOVERY_OPTIMAL
+            remainingHours <= 28 -> RecoveryStatus.MODERATE_FATIGUE
+            else -> RecoveryStatus.EXHAUSTED_REST_REQUIRED
+        }
+        if (twinState?.acwrZone == AcwrZone.OVERTRAINING && status == RecoveryStatus.FULLY_RECOVERED) {
+            status = RecoveryStatus.MODERATE_FATIGUE
+        } else if (twinState?.acwrZone == AcwrZone.ELEVATED_RISK && status == RecoveryStatus.FULLY_RECOVERED) {
+            status = RecoveryStatus.ACTIVE_RECOVERY_OPTIMAL
+        }
+
+        val extraSleepHours = (totalRecoveryHours / 24.0) * 0.75 +
+            if ((targetSession.rpe ?: 0) >= 8 || twinState?.acwrZone == AcwrZone.OVERTRAINING) 0.25 else 0.0
+        val recommendedSleep = (7.5 + extraSleepHours).coerceIn(7.5, 9.5)
+
+        val envBonusLiters = max(0.0, targetSession.environmentStressFactor - 1.0) * 1.6
+        val hydrationLiters = (
+            1.5 +
+                (targetSession.caloriesBurned / 1000.0) * 0.8 +
+                (targetSession.elevationGainMeters / 1000.0) * 0.5 +
+                envBonusLiters
+            ).coerceIn(1.8, 4.8)
+
+        val tips = mutableListOf<String>()
+        tips.add("Target %.1f hours of uninterrupted sleep tonight to support nervous system recovery.".format(recommendedSleep))
+        tips.add("Drink %.1f L of water + electrolytes to restore plasma and sodium balance.".format(hydrationLiters))
+
+        if (targetSession.environmentStressFactor > 1.08) {
+            tips.add("Elevated outdoor weather stress (${"x%.2f".format(targetSession.environmentStressFactor)}): cool down gradually and top up electrolytes early.")
+        }
+        if ((targetSession.rpe ?: 0) >= 8) {
+            tips.add("High perceived exertion (RPE ${targetSession.rpe}/10): prioritize mobility work and extra recovery before your next hard block.")
+        }
+        if ((targetSession.gaitStabilityScore ?: 100.0) < 75.0) {
+            tips.add("Noticeable form/stability drift recorded late in this session — include core stability and dynamic warmups.")
+        }
+        if (targetSession.elevationGainMeters > 300) {
+            tips.add("Significant climbing load: perform 10 mins of gentle mobility for quads, calves, and lower back.")
+        }
+        if (targetSession.caloriesBurned > 600) {
+            tips.add("High energy expenditure: refuel with complex carbohydrates and 25–30g quality protein.")
+        }
+        if (twinState?.acwrZone == AcwrZone.OVERTRAINING || remainingHours > 24) {
+            tips.add("Keep your next session to gentle Zone 1–2 aerobic movement or complete rest until ACWR & soreness settle.")
+        } else {
+            tips.add("Light Zone 1–2 aerobic recovery will boost circulation without compounding fatigue.")
+        }
+
+        val optimalNextTimestamp = sessionEndTime + (totalRecoveryHours * 3600L * 1000L)
+
+        return RecoveryAdvice(
+            recoveryHoursTotal = totalRecoveryHours,
+            remainingRecoveryHours = remainingHours,
+            recoveryPercentage = recoveryPct,
+            status = status,
+            trainingStressScore = sessionStrain,
+            recommendedSleepHours = recommendedSleep,
+            hydrationTargetLiters = hydrationLiters,
+            actionableTips = tips,
+            optimalNextEffortTimestamp = optimalNextTimestamp
         )
     }
 
@@ -376,7 +549,7 @@ class DigitalTwinEngine @Inject constructor(
         env: EnvironmentSnapshot,
         flags: List<String>
     ): String {
-        val sportLabel = sport.lowercase().replaceFirstChar { it.uppercase() }
+        val sportLabel = ActivityType.fromString(sport).displayTitle
         val base = "${intensity.label} ($sportLabel): ${intensity.summary}"
         val envNote = env.bestWindowLabel?.let { " $it." } ?: ""
         val riskNote = if (flags.isNotEmpty()) " Watch: ${flags.first()}." else ""

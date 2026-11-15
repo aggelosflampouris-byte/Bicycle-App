@@ -175,4 +175,15 @@ object PhysicsEngine {
         val s = seconds % 60
         return if (h > 0) "%02d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
     }
+
+    fun formatDurationVerbose(totalSeconds: Long): String {
+        val h = totalSeconds / 3600
+        val m = (totalSeconds % 3600) / 60
+        val s = totalSeconds % 60
+        return when {
+            h > 0 -> "${h}h %02dm %02ds".format(m, s)
+            m > 0 -> "${m}m %02ds".format(s)
+            else -> "${s}s"
+        }
+    }
 }

@@ -8,16 +8,12 @@ import com.fitnessapp.tracker.data.local.entity.*
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 
 data class BackupData(
     val user: UserEntity?,
     val sessions: List<WorkoutSessionEntity>?,
     val routines: List<RoutineEntity>?,
-    val challenges: List<ChallengeEntity>?,
     val personalRecords: List<PersonalRecordEntity>? = null,
-    val trainingPlan: TrainingPlanEntity? = null,
     val wellnessCheckIns: List<WellnessCheckInEntity>? = null,
     val twinSnapshots: List<TwinSnapshotEntity>? = null
 )
@@ -33,9 +29,7 @@ class DataBackupManager(private val context: Context, private val db: AppDatabas
             // Query complete sessions with full encrypted route points preserved
             val sessions = db.workoutSessionDao().getAllSessionsForBackup()
             val routines = db.routineDao().getAllRoutines()
-            val challenges = db.challengeDao().getAllChallenges()
             val personalRecords = db.personalRecordDao().getAllRecords()
-            val trainingPlan = db.trainingPlanDao().getPlan()
             val wellnessCheckIns = db.wellnessCheckInDao().getAllCheckIns()
             val twinSnapshots = db.twinSnapshotDao().getAllSnapshots()
 
@@ -43,9 +37,7 @@ class DataBackupManager(private val context: Context, private val db: AppDatabas
                 user = user,
                 sessions = sessions,
                 routines = routines,
-                challenges = challenges,
                 personalRecords = personalRecords,
-                trainingPlan = trainingPlan,
                 wellnessCheckIns = wellnessCheckIns,
                 twinSnapshots = twinSnapshots
             )
@@ -88,14 +80,8 @@ class DataBackupManager(private val context: Context, private val db: AppDatabas
                 if (!backup.routines.isNullOrEmpty()) {
                     backup.routines.forEach { db.routineDao().saveRoutine(it) }
                 }
-                if (!backup.challenges.isNullOrEmpty()) {
-                    backup.challenges.forEach { db.challengeDao().insertChallenge(it) }
-                }
                 if (!backup.personalRecords.isNullOrEmpty()) {
                     db.personalRecordDao().insertOrUpdateRecords(backup.personalRecords)
-                }
-                backup.trainingPlan?.let {
-                    db.trainingPlanDao().insertPlan(it)
                 }
                 if (!backup.wellnessCheckIns.isNullOrEmpty()) {
                     db.wellnessCheckInDao().insertCheckIns(backup.wellnessCheckIns)

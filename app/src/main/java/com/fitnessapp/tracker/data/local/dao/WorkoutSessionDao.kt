@@ -10,7 +10,7 @@ interface WorkoutSessionDao {
     @Query("""
         SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
                elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
-               '' as routePointsJson, activityType, isChallengeCompletion,
+               '' as routePointsJson, activityType,
                rpe, wellnessFeel, avgCadenceSpm, gaitStabilityScore,
                weatherTempC, weatherWindKmh, weatherHumidityPct,
                environmentStressFactor, perceivedNotes
@@ -22,7 +22,7 @@ interface WorkoutSessionDao {
     @Query("""
         SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
                elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
-               '' as routePointsJson, activityType, isChallengeCompletion,
+               '' as routePointsJson, activityType,
                rpe, wellnessFeel, avgCadenceSpm, gaitStabilityScore,
                weatherTempC, weatherWindKmh, weatherHumidityPct,
                environmentStressFactor, perceivedNotes
@@ -35,7 +35,7 @@ interface WorkoutSessionDao {
     @Query("""
         SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
                elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
-               '' as routePointsJson, activityType, isChallengeCompletion,
+               '' as routePointsJson, activityType,
                rpe, wellnessFeel, avgCadenceSpm, gaitStabilityScore,
                weatherTempC, weatherWindKmh, weatherHumidityPct,
                environmentStressFactor, perceivedNotes
@@ -45,19 +45,6 @@ interface WorkoutSessionDao {
         LIMIT :limit
     """)
     suspend fun getRecentSessionsByType(activityType: String, limit: Int = 10): List<WorkoutSessionEntity>
-
-    @Query("""
-        SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
-               elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
-               '' as routePointsJson, activityType, isChallengeCompletion,
-               rpe, wellnessFeel, avgCadenceSpm, gaitStabilityScore,
-               weatherTempC, weatherWindKmh, weatherHumidityPct,
-               environmentStressFactor, perceivedNotes
-        FROM workout_sessions
-        WHERE startTime >= :sinceTimestamp
-        ORDER BY startTime DESC
-    """)
-    fun getSessionsSinceFlow(sinceTimestamp: Long): Flow<List<WorkoutSessionEntity>>
 
     @Query("""
         UPDATE workout_sessions
@@ -77,41 +64,14 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions WHERE id = :id")
     suspend fun getSessionById(id: Long): WorkoutSessionEntity?
 
-    @Query("SELECT SUM(totalDistanceMeters) FROM workout_sessions")
-    fun getTotalDistanceFlow(): Flow<Double?>
-
-    @Query("SELECT AVG(avgSpeedKmh) FROM workout_sessions")
-    suspend fun getAverageSpeed(): Double?
-
-    @Query("SELECT COUNT(*) FROM workout_sessions")
-    suspend fun getSessionCount(): Int
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: WorkoutSessionEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSessions(sessions: List<WorkoutSessionEntity>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertSessionsSync(sessions: List<WorkoutSessionEntity>)
-
-    @Update
-    suspend fun updateSession(session: WorkoutSessionEntity)
-
     @Query("DELETE FROM workout_sessions WHERE id = :id")
     suspend fun deleteSessionById(id: Long)
-
-    @Query("DELETE FROM workout_sessions")
-    suspend fun deleteAllSessions()
-
-    @Query("""
-        SELECT SUM(totalDistanceMeters) as totalDist,
-               AVG(avgSpeedKmh) as avgSpeed,
-               SUM(caloriesBurned) as totalCals,
-               COUNT(*) as sessionCount
-        FROM workout_sessions
-    """)
-    suspend fun getAggregateSummary(): AggregateSummary?
 
     @Query("""
         SELECT SUM(totalDistanceMeters) as totalDist,

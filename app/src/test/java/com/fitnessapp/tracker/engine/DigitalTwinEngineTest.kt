@@ -10,7 +10,7 @@ import org.junit.Test
 
 class DigitalTwinEngineTest {
 
-    private val engine = DigitalTwinEngine(RecoveryEngine())
+    private val engine = DigitalTwinEngine()
     private val defaultUser = UserEntity(age = 30, weightKg = 75f, heightCm = 178f, gender = "male")
 
     @Test
@@ -132,6 +132,73 @@ class DigitalTwinEngineTest {
         assertEquals(state.readinessScore, snapshot.readinessScore)
         assertEquals(state.bodyBattery, snapshot.bodyBattery)
         assertEquals(29.0, snapshot.weatherTempC ?: 0.0, 0.01)
+    }
+
+    @Test
+    fun `computeRecoveryAdvice scales with session strain, twin state, and stays sport neutral`() {
+        val easyWalk = WorkoutSessionEntity(
+            id = 10L,
+            startTime = 1_700_050_000_000L,
+            endTime = 1_700_051_800_000L,
+            durationSeconds = 1800L,
+            totalDistanceMeters = 2_500.0,
+            avgSpeedKmh = 5.0,
+            caloriesBurned = 150.0,
+            activityType = "WALKING",
+            rpe = 2,
+            environmentStressFactor = 1.0
+        )
+        val hardHotJog = WorkoutSessionEntity(
+            id = 11L,
+            startTime = 1_700_050_000_000L,
+            endTime = 1_700_055_400_000L,
+            durationSeconds = 5400L,
+            totalDistanceMeters = 18_000.0,
+            avgSpeedKmh = 12.0,
+            caloriesBurned = 1100.0,
+            activityType = "JOGGING",
+            rpe = 9,
+            gaitStabilityScore = 52.0,
+            weatherTempC = 32.0,
+            environmentStressFactor = 1.3
+        )
+        val stressedState = engine.computeTwinState(
+            sessions = listOf(hardHotJog),
+            user = defaultUser,
+            latestCheckIn = null,
+            environment = EnvironmentSnapshot(temperatureC = 32.0, windSpeedKmh = 20.0, uvIndex = 8.0),
+            nowMs = 1_700_056_000_000L
+        )
+
+        val easyRecovery = engine.computeRecoveryAdvice(
+            targetSession = easyWalk,
+            recentSessions = listOf(easyWalk),
+            user = defaultUser,
+            currentTimeMs = 1_700_052_000_000L
+        )
+        val hardRecovery = engine.computeRecoveryAdvice(
+            targetSession = hardHotJog,
+            recentSessions = listOf(hardHotJog),
+            user = defaultUser,
+            twinState = stressedState,
+            currentTimeMs = 1_700_056_000_000L
+        )
+
+        assertTrue(
+            "Hard/hot high-RPE session should require more recovery hours (${hardRecovery.recoveryHoursTotal} vs ${easyRecovery.recoveryHoursTotal})",
+            hardRecovery.recoveryHoursTotal > easyRecovery.recoveryHoursTotal
+        )
+        assertTrue(
+            "Hard/hot session should require higher hydration target (${hardRecovery.hydrationTargetLiters} vs ${easyRecovery.hydrationTargetLiters})",
+            hardRecovery.hydrationTargetLiters > easyRecovery.hydrationTargetLiters
+        )
+        assertTrue(hardRecovery.actionableTips.isNotEmpty())
+        assertTrue(
+            "Recovery tips for walking/jogging should remain sport-neutral",
+            hardRecovery.actionableTips.none { tip ->
+                tip.contains("cycling", ignoreCase = true) || tip.contains("bicycle", ignoreCase = true)
+            }
+        )
     }
 }
 

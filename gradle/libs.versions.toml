@@ -24,7 +24,7 @@ gson = "2.12.1"
 datastorePrefs = "1.1.2"
 splashscreen = "1.0.1"
 navigationCompose = "2.9.3"
-zxing = "3.5.3"
+firebaseBom = "33.1.2"
 workManager = "2.10.0"
 hiltWork = "1.2.0"
 
@@ -86,8 +86,11 @@ androidx-datastore-preferences = { module = "androidx.datastore:datastore-prefer
 # Splash screen
 androidx-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "splashscreen" }
 
-# ZXing (QR Code)
-zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+# Firebase
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-auth-ktx = { module = "com.google.firebase:firebase-auth-ktx" }
+firebase-firestore-ktx = { module = "com.google.firebase:firebase-firestore-ktx" }
 
 # WorkManager
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workManager" }

@@ -10,7 +10,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.fitnessapp.tracker.ui.chat.AiChatScreen
 import com.fitnessapp.tracker.ui.main.MainScreen
 import com.fitnessapp.tracker.ui.onboarding.OnboardingScreen
 import com.fitnessapp.tracker.ui.summary.PostWorkoutSummaryScreen
@@ -24,9 +23,6 @@ sealed class Screen(val route: String) {
     object LiveTracking : Screen("tracking")
     object PostWorkoutSummary : Screen("summary/{sessionId}") {
         fun createRoute(sessionId: Long) = "summary/$sessionId"
-    }
-    object AiChat : Screen("ai_chat/{sessionId}") {
-        fun createRoute(sessionId: Long) = "ai_chat/$sessionId"
     }
 }
 
@@ -147,20 +143,7 @@ fun AppNavGraph(
             val sessionId = backStackEntry.arguments?.getLong("sessionId") ?: -1L
             PostWorkoutSummaryScreen(
                 sessionId = sessionId,
-                onAskPersonalCoach = {
-                    navController.navigate(Screen.AiChat.createRoute(sessionId))
-                },
                 onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(
-            route = Screen.AiChat.route,
-            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
-        ) {
-            AiChatScreen(
-                onBack = { navController.popBackStack() },
-                triggerAnalysis = true
             )
         }
     }

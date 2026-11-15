@@ -3,7 +3,7 @@ package com.fitnessapp.tracker.util
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.util.Log
-import com.fitnessapp.tracker.data.local.CoachLanguage
+import com.fitnessapp.tracker.data.local.AudioLanguage
 import java.util.Locale
 
 class TtsManager(context: Context) : TextToSpeech.OnInitListener {
@@ -31,14 +31,14 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
-    fun setCoachLanguage(language: CoachLanguage) {
+    fun setAudioLanguage(language: AudioLanguage) {
         val locale = when (language) {
-            CoachLanguage.GREEK -> Locale.forLanguageTag("el-GR")
-            CoachLanguage.GERMAN -> Locale.GERMAN
-            CoachLanguage.FRENCH -> Locale.FRENCH
-            CoachLanguage.RUSSIAN -> Locale.forLanguageTag("ru-RU")
-            CoachLanguage.ENGLISH -> Locale.US
-            CoachLanguage.AUTO -> Locale.getDefault()
+            AudioLanguage.GREEK -> Locale.forLanguageTag("el-GR")
+            AudioLanguage.GERMAN -> Locale.GERMAN
+            AudioLanguage.FRENCH -> Locale.FRENCH
+            AudioLanguage.RUSSIAN -> Locale.forLanguageTag("ru-RU")
+            AudioLanguage.ENGLISH -> Locale.US
+            AudioLanguage.AUTO -> Locale.getDefault()
         }
         pendingLanguage = locale
         if (isInitialized) {

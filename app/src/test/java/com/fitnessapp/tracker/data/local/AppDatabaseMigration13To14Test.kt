@@ -59,7 +59,7 @@ class AppDatabaseMigration13To14Test {
             AppDatabase::class.java,
             dbFile.name
         )
-            .addMigrations(AppDatabase.MIGRATION_13_14)
+            .addMigrations(AppDatabase.MIGRATION_13_14, AppDatabase.MIGRATION_14_15, AppDatabase.MIGRATION_15_16)
             .allowMainThreadQueries()
             .build()
         roomDb = migratedDb
@@ -96,7 +96,7 @@ class AppDatabaseMigration13To14Test {
             AppDatabase::class.java,
             dbFile.name
         )
-            .addMigrations(AppDatabase.MIGRATION_13_14)
+            .addMigrations(AppDatabase.MIGRATION_13_14, AppDatabase.MIGRATION_14_15, AppDatabase.MIGRATION_15_16)
             .allowMainThreadQueries()
             .build()
         roomDb = migratedDb

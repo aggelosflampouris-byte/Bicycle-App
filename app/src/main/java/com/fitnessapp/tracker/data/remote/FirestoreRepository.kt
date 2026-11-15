@@ -1,11 +1,9 @@
 package com.fitnessapp.tracker.data.remote
 
 import android.util.Log
-import com.fitnessapp.tracker.data.local.dao.ChallengeDao
 import com.fitnessapp.tracker.data.local.dao.RoutineDao
 import com.fitnessapp.tracker.data.local.dao.UserDao
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
-import com.fitnessapp.tracker.data.local.entity.ChallengeEntity
 import com.fitnessapp.tracker.data.local.entity.RoutineEntity
 import com.fitnessapp.tracker.data.local.entity.UserEntity
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
@@ -20,7 +18,6 @@ import javax.inject.Singleton
 class FirestoreRepository @Inject constructor(
     private val workoutSessionDao: WorkoutSessionDao,
     private val routineDao: RoutineDao,
-    private val challengeDao: ChallengeDao,
     private val userDao: UserDao
 ) {
     private val firestore = FirebaseFirestore.getInstance()
@@ -62,23 +59,6 @@ class FirestoreRepository @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync routine: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
-
-    suspend fun syncChallenge(challenge: ChallengeEntity): Result<Unit> {
-        val uid = currentUserId ?: return Result.failure(Exception("Not logged in"))
-        val docId = challenge.createdAt.toString()
-        return try {
-            firestore.collection("users")
-                .document(uid)
-                .collection("challenges")
-                .document(docId)
-                .set(challenge, SetOptions.merge())
-                .await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to sync challenge: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -150,24 +130,6 @@ class FirestoreRepository @Inject constructor(
             val cloudRoutines = routinesSnapshot.toObjects(RoutineEntity::class.java)
             for (routine in cloudRoutines) {
                 routineDao.saveRoutine(routine)
-            }
-
-            // 4. Restore Challenges
-            val challengesSnapshot = firestore.collection("users")
-                .document(uid)
-                .collection("challenges")
-                .get()
-                .await()
-
-            val cloudChallenges = challengesSnapshot.toObjects(ChallengeEntity::class.java)
-            if (cloudChallenges.isNotEmpty()) {
-                val localChallenges = challengeDao.getAllChallenges()
-                val existingCreatedAts = localChallenges.map { it.createdAt }.toSet()
-                val newChallenges = cloudChallenges.filter { it.createdAt !in existingCreatedAts }
-                    .map { it.copy(id = 0) }
-                for (ch in newChallenges) {
-                    challengeDao.insertChallenge(ch)
-                }
             }
 
             Log.d(TAG, "Successfully restored cloud user data")

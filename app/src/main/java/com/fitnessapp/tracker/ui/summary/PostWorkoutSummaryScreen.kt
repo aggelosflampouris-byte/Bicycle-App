@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -34,18 +35,15 @@ import com.fitnessapp.tracker.service.RoutePoint
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.progress.LineChart
 import com.fitnessapp.tracker.ui.progress.ChartBarData
+import com.fitnessapp.tracker.util.DateFormats
 import com.fitnessapp.tracker.util.GpxExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Polyline
-import java.text.SimpleDateFormat
-import java.util.*
 
 // ── Lap palette (mirrors the map polyline colors) ─────────────────────────────
 private val LAP_COLORS_COMPOSE = listOf(
@@ -107,7 +105,6 @@ private fun buildLapSummaries(routePoints: List<RoutePoint>): List<LapSummary> {
 @Composable
 fun PostWorkoutSummaryScreen(
     sessionId: Long,
-    onAskPersonalCoach: () -> Unit,
     onBack: () -> Unit,
     viewModel: SummaryViewModel = hiltViewModel()
 ) {
@@ -126,18 +123,15 @@ fun PostWorkoutSummaryScreen(
                 uiState.session != null -> {
                     SummaryContent(
                         session = uiState.session!!,
+                        routePoints = uiState.routePoints,
                         user = uiState.user,
                         context = context,
-                        isGeneratingDebrief = uiState.isGeneratingDebrief,
-                        tacticalDebrief = uiState.tacticalDebrief,
                         newAchievements = uiState.newAchievements,
                         recoveryAdvice = uiState.recoveryAdvice,
                         twinStrain = uiState.twinStrain,
                         isSavingFeedback = uiState.isSavingFeedback,
                         feedbackSaved = uiState.feedbackSaved,
                         onSaveFeedback = viewModel::savePostWorkoutFeedback,
-                        onGenerateDebrief = { laps -> viewModel.generateTacticalDebrief(laps) },
-                        onAskPersonalCoach = onAskPersonalCoach,
                         onBack = onBack
                     )
                 }
@@ -156,32 +150,20 @@ fun PostWorkoutSummaryScreen(
 @Composable
 private fun SummaryContent(
     session: WorkoutSessionEntity,
+    routePoints: List<RoutePoint>,
     user: com.fitnessapp.tracker.data.local.entity.UserEntity,
     context: Context,
-    isGeneratingDebrief: Boolean,
-    tacticalDebrief: String?,
     newAchievements: List<com.fitnessapp.tracker.engine.PersonalRecordAchievement>,
     recoveryAdvice: com.fitnessapp.tracker.engine.RecoveryAdvice?,
     twinStrain: Double?,
     isSavingFeedback: Boolean,
     feedbackSaved: Boolean,
     onSaveFeedback: (Int, Int, String) -> Unit,
-    onGenerateDebrief: (List<LapSummary>?) -> Unit,
-    onAskPersonalCoach: () -> Unit,
     onBack: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val dateFormat = SimpleDateFormat("EEEE, MMM dd yyyy", Locale.getDefault())
-    val gson = remember { Gson() }
-    val routePoints: List<RoutePoint> = remember(session.routePointsJson) {
-        try {
-            val type = object : TypeToken<List<RoutePoint>>() {}.type
-            gson.fromJson(session.routePointsJson, type) ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    val formattedDate = remember(session.startTime) { DateFormats.formatFullDate(session.startTime) }
 
     // Lap summaries — only meaningful when there are multiple laps
     val lapSummaries: List<LapSummary> = remember(routePoints) {
@@ -281,7 +263,7 @@ private fun SummaryContent(
             if (routePoints.isNotEmpty()) {
                 IconButton(
                     onClick = {
-                        val dateStr = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date(session.startTime))
+                        val dateStr = DateFormats.formatFileTimestamp(session.startTime)
                         gpxExportLauncher.launch("SmartTrack_${session.activityType}_$dateStr.gpx")
                     },
                     modifier = Modifier
@@ -336,22 +318,22 @@ private fun SummaryContent(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = NavyCard),
-                    border = BorderStroke(1.5.dp, ChallengeGold)
+                    border = BorderStroke(1.5.dp, ElectricGreen)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.EmojiEvents,
                                 contentDescription = null,
-                                tint = ChallengeGold,
+                                tint = ElectricGreen,
                                 modifier = Modifier.size(28.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "🏆 All-Time Personal Records Broken!",
+                                text = "New Personal Benchmarks Set!",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = ChallengeGold
+                                color = ElectricGreen
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
@@ -359,8 +341,8 @@ private fun SummaryContent(
                             newAchievements.forEach { achievement ->
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = ChallengeGold.copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, ChallengeGold.copy(alpha = 0.35f)),
+                                    color = ElectricGreen.copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, ElectricGreen.copy(alpha = 0.35f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -382,7 +364,7 @@ private fun SummaryContent(
                                             text = achievement.formattedValue,
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = ChallengeGold
+                                            color = ElectricGreen
                                         )
                                     }
                                 }
@@ -392,43 +374,8 @@ private fun SummaryContent(
                 }
             }
 
-            if (session.isChallengeCompletion) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = NavyCard),
-                    border = BorderStroke(1.5.dp, ChallengeGold)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.EmojiEvents,
-                            contentDescription = null,
-                            tint = ChallengeGold,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "🏆 Challenge Completed!",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "Congratulations! This workout completed your active daily challenge.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                }
-            }
-
             Text(
-                text = dateFormat.format(Date(session.startTime)),
+                text = formattedDate,
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
@@ -584,79 +531,6 @@ private fun SummaryContent(
                 }
             }
 
-            // ── AI Tactical Debrief Card ─────────────────────────────────────
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = NavyCard),
-                border = BorderStroke(1.dp, if (tacticalDebrief != null) VividCyan else GlassBorder)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(
-                                imageVector = Icons.Default.SmartToy,
-                                contentDescription = null,
-                                tint = VividCyan,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = "Tactical AI Debrief",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                        }
-
-                        if (tacticalDebrief == null && !isGeneratingDebrief) {
-                            Button(
-                                onClick = { onGenerateDebrief(lapSummaries.takeIf { it.size >= 2 }) },
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = VividCyan.copy(alpha = 0.15f),
-                                    contentColor = VividCyan
-                                )
-                            ) {
-                                Text("Analyze", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    if (isGeneratingDebrief) {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = VividCyan,
-                                strokeWidth = 2.dp
-                            )
-                            Text(
-                                text = "AI Coach is analyzing pace splits and elevation...",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                        }
-                    } else if (tacticalDebrief != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = GlassBorder, thickness = 0.5.dp)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = tacticalDebrief,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextPrimary,
-                            lineHeight = 22.sp
-                        )
-                    }
-                }
-            }
-
             // ── Digital Twin Subjective Check-In Card ────────────────────────
             PostWorkoutTwinCheckInCard(
                 initialRpe = session.rpe ?: 5,
@@ -670,33 +544,6 @@ private fun SummaryContent(
             // ── Smart Recovery & Sleep Advisor Card ──────────────────────────
             recoveryAdvice?.let { recovery ->
                 SmartRecoveryAdvisorCard(recovery = recovery)
-            }
-
-            // Ask AI Coach button
-            Button(
-                onClick = onAskPersonalCoach,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NavyCard,
-                    contentColor = ElectricGreen
-                ),
-                border = BorderStroke(1.5.dp, ElectricGreen)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Psychology,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "Ask AI Coach",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -954,7 +801,7 @@ private fun SummaryMapView(
                 ctx.getSharedPreferences("osmdroid", android.content.Context.MODE_PRIVATE)
             )
             osmConfig.userAgentValue =
-                "${ctx.packageName}/1.0 (Android; Smart Track cycling app; contact@velotrack.app)"
+                "${ctx.packageName}/1.0 (Android; Smart Track outdoor workout app)"
 
             val cartoDbTileSource = org.osmdroid.tileprovider.tilesource.XYTileSource(
                 "CartoDB-Voyager",
@@ -996,7 +843,7 @@ private fun SummaryMapView(
 
                     if (geoPoints.size >= 2) {
                         val colorHex = LAP_COLORS_HEX[(lap - 1) % LAP_COLORS_HEX.size]
-                        val lapColor = android.graphics.Color.parseColor(colorHex)
+                        val lapColor = colorHex.toColorInt()
 
                         val isSelected   = selectedLap == lap
                         val noneSelected = selectedLap == null
@@ -1058,7 +905,7 @@ private val CircleShape = RoundedCornerShape(50)
 private fun SmartRecoveryAdvisorCard(
     recovery: com.fitnessapp.tracker.engine.RecoveryAdvice
 ) {
-    val statusColor = Color(android.graphics.Color.parseColor(recovery.status.colorHex))
+    val statusColor = Color(recovery.status.colorHex.toColorInt())
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1085,7 +932,7 @@ private fun SmartRecoveryAdvisorCard(
                         modifier = Modifier.size(22.dp)
                     )
                     Text(
-                        text = "Smart Recovery Advisor",
+                        text = "Digital Twin Recovery & Readiness",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary

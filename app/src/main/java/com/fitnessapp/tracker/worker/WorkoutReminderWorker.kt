@@ -8,84 +8,105 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.fitnessapp.tracker.data.local.SettingsRepository
+import com.fitnessapp.tracker.data.local.dao.UserDao
+import com.fitnessapp.tracker.data.local.dao.WellnessCheckInDao
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
+import com.fitnessapp.tracker.data.local.entity.ActivityType
+import com.fitnessapp.tracker.data.local.entity.UserEntity
+import com.fitnessapp.tracker.data.remote.EnvironmentContextRepository
+import com.fitnessapp.tracker.data.remote.EnvironmentSnapshot
+import com.fitnessapp.tracker.engine.AcwrZone
+import com.fitnessapp.tracker.engine.DigitalTwinEngine
 import com.fitnessapp.tracker.service.NotificationHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
+/**
+ * Digital Twin-aware workout reminder worker. Evaluates recovery readiness, ACWR load ratio,
+ * and outdoor microclimate before recommending an appropriate sport or gentle rest/recovery.
+ */
 @HiltWorker
 class WorkoutReminderWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val workoutSessionDao: WorkoutSessionDao
+    private val workoutSessionDao: WorkoutSessionDao,
+    private val userDao: UserDao,
+    private val wellnessCheckInDao: WellnessCheckInDao,
+    private val environmentContextRepository: EnvironmentContextRepository,
+    private val settingsRepository: SettingsRepository,
+    private val digitalTwinEngine: DigitalTwinEngine
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        try {
-            val recentSessions = workoutSessionDao.getRecentSessions(limit = 10)
-            if (recentSessions.isEmpty()) {
-                return Result.success()
-            }
+        return try {
+            val recentSessions = workoutSessionDao.getRecentSessions(limit = 30)
+            if (recentSessions.isEmpty()) return Result.success()
 
             val latestSession = recentSessions.first()
             val now = System.currentTimeMillis()
             val twoDaysMs = TimeUnit.DAYS.toMillis(2)
+            if (now - latestSession.endTime < twoDaysMs) return Result.success()
 
-            // Check if at least 2 days have passed since the latest workout session
-            if (now - latestSession.endTime >= twoDaysMs) {
-                // Determine a smart workout activity recommendation
-                val recommendedActivity = getRecommendedActivity(recentSessions.map { it.activityType })
-                
-                val (title, message) = when (recommendedActivity) {
-                    "CYCLING" -> Pair(
-                        "🚴 Ready for a ride?",
-                        "It's been 2 days since your last workout. How about a cycling session today? Tap to hit the road!"
-                    )
-                    "JOGGING" -> Pair(
-                        "🏃 Time for a run?",
-                        "It's been 2 days since your last workout. A refreshing jog is waiting for you! Tap to start."
-                    )
-                    "WALKING" -> Pair(
-                        "🚶 Let's go for a walk!",
-                        "It's been 2 days since your last workout. Step outside for a brisk walk today! Tap to track."
-                    )
-                    else -> Pair(
-                        "💪 Time to workout!",
-                        "It's been 2 days since your last workout session. Stay active and keep your streak going! Tap to start."
-                    )
-                }
-
-                val canNotify = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    ContextCompat.checkSelfPermission(
-                        context, Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
-                } else {
-                    true
-                }
-
-                if (canNotify) {
-                    NotificationHelper.showWorkoutReminderNotification(
-                        context = context,
-                        recommendedActivity = recommendedActivity,
-                        title = title,
-                        message = message
-                    )
-                }
+            val user = userDao.getUser() ?: UserEntity()
+            val latestCheckIn = wellnessCheckInDao.getRecentCheckIns(limit = 1).firstOrNull()
+            val preferredSport = settingsRepository.activityType.first()
+            val environment = try {
+                environmentContextRepository.getEnvironmentContext()
+            } catch (_: Exception) {
+                EnvironmentSnapshot(isOfflineFallback = true)
             }
 
-            return Result.success()
+            val twinState = digitalTwinEngine.computeTwinState(
+                sessions = recentSessions,
+                user = user,
+                latestCheckIn = latestCheckIn,
+                environment = environment,
+                preferredActivityType = preferredSport,
+                nowMs = now
+            )
+
+            val frequentSport = ActivityType.fromString(
+                recentSessions.groupingBy { it.activityType }.eachCount().maxByOrNull { it.value }?.key
+                    ?: preferredSport
+            )
+
+            val needsRestOrGentleRecovery = twinState.readinessScore < 40 || twinState.acwrZone == AcwrZone.OVERTRAINING
+            val recommendedActivity = if (needsRestOrGentleRecovery) ActivityType.WALKING else frequentSport
+            val weatherHint = environment.bestWindowLabel?.let { " $it." } ?: ""
+
+            val (title, message) = if (needsRestOrGentleRecovery) {
+                "Twin Recovery Check-In" to
+                    "Readiness is ${twinState.readinessScore}/100 (ACWR ${"%.2f".format(twinState.acwr)}). Prioritize rest or an easy restorative walk today.$weatherHint"
+            } else {
+                val sportName = recommendedActivity.displayTitle
+                "Ready for $sportName?" to
+                    "Digital Twin Readiness ${twinState.readinessScore}/100 • Body Battery ${twinState.bodyBattery}%. ${twinState.recommendedIntensity.label} looks great today.$weatherHint"
+            }
+
+            val canNotify = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+
+            if (canNotify) {
+                NotificationHelper.showWorkoutReminderNotification(
+                    context = context,
+                    recommendedActivity = recommendedActivity.name,
+                    title = title,
+                    message = message
+                )
+            }
+
+            Result.success()
         } catch (e: Exception) {
             android.util.Log.e("WorkoutReminderWorker", "Error executing workout reminder worker", e)
-            return Result.failure()
+            Result.failure()
         }
-    }
-
-    private fun getRecommendedActivity(recentActivityTypes: List<String>): String {
-        if (recentActivityTypes.isEmpty()) return "WALKING"
-        
-        // Count frequencies of recent activity types
-        val counts = recentActivityTypes.groupingBy { it }.eachCount()
-        return counts.maxByOrNull { it.value }?.key ?: "WALKING"
     }
 }

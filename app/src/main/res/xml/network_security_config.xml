@@ -3,7 +3,7 @@
     Network security config:
     - Allows cleartext (HTTP) traffic to tile.openstreetmap.org for map tiles,
       since some OSM tile mirrors serve over HTTP.
-    - All other traffic (HF API, etc.) goes over HTTPS.
+    - All other traffic (Open-Meteo weather API, etc.) goes over HTTPS.
 -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">

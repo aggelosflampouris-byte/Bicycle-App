@@ -19,9 +19,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.fitnessapp.tracker.util.DateFormats
 import kotlin.math.sqrt
 
 sealed class CrashState {
@@ -175,7 +173,7 @@ class CrashDetectionEngine(
         _crashState.value = CrashState.SosDispatched(System.currentTimeMillis(), emergencyContactPhone)
         Log.e(TAG, "🚨 DISPATCHING EMERGENCY SOS BEACON to $emergencyContactPhone")
 
-        val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val timeStr = DateFormats.formatTimeOfDay()
         val mapsUrl = "https://maps.google.com/?q=$currentLat,$currentLng"
         val message = "🚨 EMERGENCY: Smart Track detected a possible crash or fall at $timeStr. Coordinates: $currentLat, $currentLng. Live Map: $mapsUrl"
 
@@ -258,12 +256,7 @@ class CrashDetectionEngine(
             } else {
                 @Suppress("DEPRECATION")
                 val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator?.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator?.vibrate(durationMs)
-                }
+                vibrator?.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
             }
         } catch (e: Exception) {
             Log.w(TAG, "Vibration trigger failed: ${e.message}")

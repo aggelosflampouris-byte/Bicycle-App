@@ -37,7 +37,8 @@ import com.fitnessapp.tracker.engine.DigitalTwinState
 import com.fitnessapp.tracker.engine.RecommendedIntensity
 import com.fitnessapp.tracker.engine.SimulationOutcome
 import com.fitnessapp.tracker.theme.*
-import java.text.SimpleDateFormat
+import com.fitnessapp.tracker.data.local.entity.ActivityType
+import com.fitnessapp.tracker.util.DateFormats
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -471,8 +472,7 @@ private fun WellnessCheckInCard(
                         fontWeight = FontWeight.Bold
                     )
                     val subtitle = latestCheckIn?.let {
-                        val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
-                        "Last updated ${fmt.format(Date(it.timestampMs))}"
+                        "Last updated ${DateFormats.formatMonthDayTime(it.timestampMs)}"
                     } ?: "Log how your body feels today (1–5)"
                     Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                 }
@@ -596,7 +596,9 @@ private fun WorkoutSimulatorCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf("CYCLING" to "Cycling", "JOGGING" to "Running", "WALKING" to "Walking").forEach { (id, title) ->
+                listOf(ActivityType.CYCLING, ActivityType.JOGGING, ActivityType.WALKING).forEach { type ->
+                    val id = type.name
+                    val title = type.displayTitle
                     val selected = simInput.activityType == id
                     Box(
                         modifier = Modifier

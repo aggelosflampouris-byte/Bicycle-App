@@ -19,11 +19,7 @@ sealed class DashboardUiEvent {
         val notes: String = "",
         val type: CheckInType = CheckInType.PRE_WORKOUT
     ) : DashboardUiEvent()
-    
-    // Training Plan
-    data class GenerateTrainingPlan(val goalPrompt: String) : DashboardUiEvent()
-    data class ToggleDailyPlanCompleted(val day: String) : DashboardUiEvent()
-    
+
     // Routine
     data class SaveRoutine(
         val interval: RoutineInterval,

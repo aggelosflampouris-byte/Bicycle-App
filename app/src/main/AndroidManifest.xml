@@ -14,7 +14,7 @@
     <!-- Notification Permission (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Network for osmdroid tiles + AI Coach API -->
+    <!-- Network for osmdroid tiles + Open-Meteo weather API -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -27,8 +27,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-    <!-- Audio Recording for Voice AI Coach -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Emergency SOS Crash Beacon -->
     <uses-permission android:name="android.permission.SEND_SMS" />
@@ -37,12 +36,6 @@
 
     <!-- Optional Hardware Step Cadence for Digital Twin (API 29+) -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-
-    <queries>
-        <intent>
-            <action android:name="android.speech.RecognitionService" />
-        </intent>
-    </queries>
 
     <application
         android:allowBackup="true"
@@ -71,9 +64,7 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
-        <!-- Challenge Action Receiver -->
-        <receiver android:name=".service.ChallengeActionReceiver"
-            android:exported="false" />
+
 
         <!-- Disable default WorkManagerInitializer since SmartTrackApp uses Hilt on-demand Configuration.Provider -->
         <provider

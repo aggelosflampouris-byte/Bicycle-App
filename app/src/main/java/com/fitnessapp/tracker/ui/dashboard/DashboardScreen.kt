@@ -1,46 +1,47 @@
 package com.fitnessapp.tracker.ui.dashboard
 
-import com.fitnessapp.tracker.ui.dashboard.components.*
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
-import com.fitnessapp.tracker.engine.PhysicsEngine
-import com.fitnessapp.tracker.theme.*
-import java.text.SimpleDateFormat
-import java.util.*
-import com.fitnessapp.tracker.data.local.entity.DailyPlan
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-
+import com.fitnessapp.tracker.data.local.entity.ActivityType
 import com.fitnessapp.tracker.service.OutdoorTrackingService
-import com.fitnessapp.tracker.data.local.entity.RoutineInterval
-import com.fitnessapp.tracker.data.local.entity.RoutineMetric
-import android.widget.Toast
+import com.fitnessapp.tracker.theme.DeepNavy
+import com.fitnessapp.tracker.theme.LocalActivityTheme
+import com.fitnessapp.tracker.theme.TextPrimary
+import com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog
+import com.fitnessapp.tracker.ui.dashboard.components.DashboardHeader
+import com.fitnessapp.tracker.ui.dashboard.components.DigitalTwinDashboardCard
+import com.fitnessapp.tracker.ui.dashboard.components.PreWorkoutCheckInDialog
+import com.fitnessapp.tracker.ui.dashboard.components.RoutineConfigBottomSheet
+import com.fitnessapp.tracker.ui.dashboard.components.RoutineProgressCard
+import com.fitnessapp.tracker.ui.dashboard.components.SessionCard
+import com.fitnessapp.tracker.ui.dashboard.components.StartWorkoutButton
+import com.fitnessapp.tracker.ui.dashboard.components.StatsRow
+import com.fitnessapp.tracker.ui.dashboard.components.TrophiesAndRecordsCard
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 
 @Composable
 fun DashboardScreen(
@@ -53,7 +54,7 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val trackingState by OutdoorTrackingService.trackingState.collectAsStateWithLifecycle()
     val isTracking = trackingState.isTracking
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val activityType = LocalActivityTheme.current
     var showRoutineConfig by remember { mutableStateOf(false) }
     var showQuickCheckIn by remember { mutableStateOf(false) }
@@ -81,7 +82,7 @@ fun DashboardScreen(
     }
 
     if (sessionToDelete != null) {
-        com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog(
+        DeleteConfirmationDialog(
             title = "Delete Activity",
             message = "Are you sure you want to delete this activity?",
             onConfirm = {
@@ -117,10 +118,10 @@ fun DashboardScreen(
                         if (isTracking) {
                             Toast.makeText(context, "Cannot switch activity while a workout is in progress.", Toast.LENGTH_SHORT).show()
                         } else {
-                            val newActivity = when (activityType) {
-                                "CYCLING" -> "WALKING"
-                                "WALKING" -> "JOGGING"
-                                else -> "CYCLING"
+                            val newActivity = when (ActivityType.fromString(activityType)) {
+                                ActivityType.CYCLING -> ActivityType.WALKING.name
+                                ActivityType.WALKING -> ActivityType.JOGGING.name
+                                ActivityType.JOGGING -> ActivityType.CYCLING.name
                             }
                             viewModel.onEvent(DashboardUiEvent.SetActivityType(newActivity))
                         }
@@ -153,31 +154,7 @@ fun DashboardScreen(
             }
 
 
-            // Weekly Training Plan Card
-            item {
-                if (!uiState.isLoading) {
-                    var showGoalDialog by remember { mutableStateOf(false) }
-
-                    if (showGoalDialog) {
-                        TrainingPlanGoalDialog(
-                            onDismiss = { showGoalDialog = false },
-                            onSelectGoal = { goal ->
-                                showGoalDialog = false
-                                viewModel.onEvent(DashboardUiEvent.GenerateTrainingPlan(goal))
-                            }
-                        )
-                    }
-
-                    WeeklyTrainingPlanCard(
-                        trainingPlan = uiState.trainingPlan,
-                        isGenerating = uiState.isGeneratingPlan,
-                        onGeneratePlan = { showGoalDialog = true },
-                        onTogglePlanCompleted = { day -> viewModel.onEvent(DashboardUiEvent.ToggleDailyPlanCompleted(day)) }
-                    )
-                }
-            }
-
-            // All-Time Records & Trophies Card
+            // Performance Benchmarks Card
             item {
                 AnimatedVisibility(
                     visible = !uiState.isLoading && uiState.personalRecords.isNotEmpty(),
@@ -206,13 +183,9 @@ fun DashboardScreen(
             // Recent sessions header
             item {
                 if (uiState.sessions.isNotEmpty()) {
+                    val recentTitle = "Recent ${ActivityType.fromString(activityType).nounPlural.replaceFirstChar { it.uppercase() }}"
                     Text(
-                        text = when (activityType) {
-                            "WALKING" -> "Recent Walks"
-                            "JOGGING" -> "Recent Jogs"
-                            "CYCLING" -> "Recent Rides"
-                            else -> "Recent Workouts"
-                        },
+                        text = recentTitle,
                         style = MaterialTheme.typography.headlineSmall,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold

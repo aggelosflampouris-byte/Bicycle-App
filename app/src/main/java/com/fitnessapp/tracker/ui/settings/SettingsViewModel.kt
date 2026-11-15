@@ -10,8 +10,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.net.Uri
 import com.fitnessapp.tracker.data.local.AppDatabase
-import com.fitnessapp.tracker.data.local.CoachLanguage
-import com.fitnessapp.tracker.data.local.CoachPersona
+import com.fitnessapp.tracker.data.local.AudioLanguage
 import com.fitnessapp.tracker.data.remote.AuthRepository
 import com.fitnessapp.tracker.util.DataBackupManager
 import kotlinx.coroutines.Dispatchers
@@ -19,9 +18,8 @@ import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
-    val coachPersona: CoachPersona = CoachPersona.SUPPORTIVE,
-    val coachLanguage: CoachLanguage = CoachLanguage.AUTO,
-    val voiceCoachingEnabled: Boolean = true,
+    val audioLanguage: AudioLanguage = AudioLanguage.AUTO,
+    val audioCuesEnabled: Boolean = true,
     val twinVoiceNudgesEnabled: Boolean = true,
     val lockPortraitModeEnabled: Boolean = true,
     val isCrashDetectionEnabled: Boolean = true,
@@ -31,10 +29,9 @@ data class SettingsUiState(
     val backupMessage: String? = null
 )
 
-private data class CoachingPrefs(
-    val persona: CoachPersona,
-    val language: CoachLanguage,
-    val voiceEnabled: Boolean,
+private data class AudioPrefs(
+    val language: AudioLanguage,
+    val audioEnabled: Boolean,
     val twinNudgesEnabled: Boolean
 )
 
@@ -51,13 +48,12 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val coachingPrefsFlow = combine(
-                settingsRepository.coachPersona,
-                settingsRepository.coachLanguage,
-                settingsRepository.isVoiceCoachingEnabled,
+            val audioPrefsFlow = combine(
+                settingsRepository.audioLanguage,
+                settingsRepository.isAudioCuesEnabled,
                 settingsRepository.isTwinVoiceNudgesEnabled
-            ) { persona, language, voiceEnabled, twinNudgesEnabled ->
-                CoachingPrefs(persona, language, voiceEnabled, twinNudgesEnabled)
+            ) { language, audioEnabled, twinNudgesEnabled ->
+                AudioPrefs(language, audioEnabled, twinNudgesEnabled)
             }
 
             val safetyPrefsFlow = combine(
@@ -71,15 +67,14 @@ class SettingsViewModel @Inject constructor(
             combine(
                 settingsRepository.themeMode,
                 settingsRepository.isLockPortraitModeEnabled,
-                coachingPrefsFlow,
+                audioPrefsFlow,
                 safetyPrefsFlow
-            ) { theme, lockPortraitModeEnabled, coaching, (crashEnabled, contactName, contactPhone) ->
+            ) { theme, lockPortraitModeEnabled, audio, (crashEnabled, contactName, contactPhone) ->
                 SettingsUiState(
                     themeMode = theme,
-                    coachPersona = coaching.persona,
-                    coachLanguage = coaching.language,
-                    voiceCoachingEnabled = coaching.voiceEnabled,
-                    twinVoiceNudgesEnabled = coaching.twinNudgesEnabled,
+                    audioLanguage = audio.language,
+                    audioCuesEnabled = audio.audioEnabled,
+                    twinVoiceNudgesEnabled = audio.twinNudgesEnabled,
                     lockPortraitModeEnabled = lockPortraitModeEnabled,
                     isCrashDetectionEnabled = crashEnabled,
                     emergencyContactName = contactName,
@@ -103,12 +98,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     }
 
-    fun setActivityType(type: String) {
-        viewModelScope.launch { settingsRepository.setActivityType(type) }
-    }
-
-    fun setVoiceCoachingEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setVoiceCoachingEnabled(enabled) }
+    fun setAudioCuesEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setAudioCuesEnabled(enabled) }
     }
 
     fun setTwinVoiceNudgesEnabled(enabled: Boolean) {
@@ -119,12 +110,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setLockPortraitModeEnabled(enabled) }
     }
 
-    fun setCoachPersona(persona: CoachPersona) {
-        viewModelScope.launch { settingsRepository.setCoachPersona(persona) }
-    }
-
-    fun setCoachLanguage(language: CoachLanguage) {
-        viewModelScope.launch { settingsRepository.setCoachLanguage(language) }
+    fun setAudioLanguage(language: AudioLanguage) {
+        viewModelScope.launch { settingsRepository.setAudioLanguage(language) }
     }
 
     fun exportData(uri: Uri, password: String) {

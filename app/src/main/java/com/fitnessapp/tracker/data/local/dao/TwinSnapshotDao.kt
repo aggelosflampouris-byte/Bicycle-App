@@ -12,6 +12,9 @@ interface TwinSnapshotDao {
     @Query("SELECT * FROM twin_snapshots ORDER BY dateKey DESC LIMIT 1")
     fun getLatestSnapshotFlow(): Flow<TwinSnapshotEntity?>
 
+    @Query("SELECT * FROM twin_snapshots ORDER BY dateKey DESC LIMIT 1")
+    suspend fun getLatestSnapshot(): TwinSnapshotEntity?
+
     @Query("SELECT * FROM twin_snapshots ORDER BY dateKey DESC LIMIT :limit")
     fun getRecentSnapshotsFlow(limit: Int = 30): Flow<List<TwinSnapshotEntity>>
 

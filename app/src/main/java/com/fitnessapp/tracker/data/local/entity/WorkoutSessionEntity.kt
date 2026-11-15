@@ -3,7 +3,44 @@ package com.fitnessapp.tracker.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-enum class ActivityType { CYCLING, WALKING, JOGGING }
+enum class ActivityType(
+    val displayTitle: String,
+    val nounSingular: String,
+    val nounPlural: String,
+    val longSessionThresholdMeters: Double,
+    val fastSpeedThresholdKmh: Double,
+    val defaultAvgSpeedKmh: Double
+) {
+    CYCLING(
+        displayTitle = "Cycling",
+        nounSingular = "ride",
+        nounPlural = "rides",
+        longSessionThresholdMeters = 30_000.0,
+        fastSpeedThresholdKmh = 25.0,
+        defaultAvgSpeedKmh = 22.0
+    ),
+    WALKING(
+        displayTitle = "Walking",
+        nounSingular = "walk",
+        nounPlural = "walks",
+        longSessionThresholdMeters = 5_000.0,
+        fastSpeedThresholdKmh = 5.5,
+        defaultAvgSpeedKmh = 5.0
+    ),
+    JOGGING(
+        displayTitle = "Jogging",
+        nounSingular = "jog",
+        nounPlural = "jogs",
+        longSessionThresholdMeters = 8_000.0,
+        fastSpeedThresholdKmh = 10.0,
+        defaultAvgSpeedKmh = 9.5
+    );
+
+    companion object {
+        fun fromString(raw: String?): ActivityType =
+            entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: CYCLING
+    }
+}
 
 /**
  * Room entity for a completed workout session.
@@ -23,7 +60,6 @@ data class WorkoutSessionEntity(
     val wattsPerKg: Double = 0.0,           // Estimated power-to-weight ratio
     val routePointsJson: String = "[]",     // JSON array of {lat, lng, alt, timestamp}
     val activityType: String = ActivityType.CYCLING.name, // "CYCLING", "WALKING", or "JOGGING"
-    val isChallengeCompletion: Boolean = false, // Legacy challenge compatibility flag
     val rpe: Int? = null,                   // 1..10 Rating of Perceived Exertion
     val wellnessFeel: Int? = null,          // 1..5 post-workout subjective feel
     val avgCadenceSpm: Double? = null,      // Sensor steps or pedal bounce cadence

@@ -49,10 +49,6 @@ class MainActivity : ComponentActivity() {
         // Background location should be requested contextually later if needed.
     }
 
-    private val backgroundLocationLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { /* Background location result handled gracefully */ }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -72,9 +68,7 @@ class MainActivity : ComponentActivity() {
             workRequest
         )
 
-        // Cancel legacy ChallengeWorker jobs if present from earlier app versions
-        androidx.work.WorkManager.getInstance(this).cancelUniqueWork("DailyChallenge")
-        androidx.work.WorkManager.getInstance(this).cancelUniqueWork("ImmediateChallenge")
+
 
         // Schedule WorkManager for Inactivity Workout Reminder (Daily Check)
         val reminderPeriodicRequest = androidx.work.PeriodicWorkRequestBuilder<com.fitnessapp.tracker.worker.WorkoutReminderWorker>(
@@ -93,17 +87,11 @@ class MainActivity : ComponentActivity() {
             val initialDestination by produceState<String?>(initialValue = null) {
                 val user = userDao.getUserFlow().firstOrNull()
                 val isTracking = com.fitnessapp.tracker.service.OutdoorTrackingService.trackingState.value.isTracking
-                val isRecommendedWorkout = intent?.action == com.fitnessapp.tracker.service.IntentActions.RECOMMENDED_WORKOUT
-                val recommendedActivity = intent?.getStringExtra("RECOMMENDED_ACTIVITY")
 
                 value = when {
                     user == null -> Screen.Onboarding.route
                     !authRepository.isUserLoggedIn -> Screen.Auth.route
                     isTracking -> Screen.LiveTracking.route
-                    isRecommendedWorkout && !recommendedActivity.isNullOrBlank() -> {
-                        settingsRepository.setActivityType(recommendedActivity)
-                        Screen.Main.route
-                    }
                     else -> Screen.Main.route
                 }
             }

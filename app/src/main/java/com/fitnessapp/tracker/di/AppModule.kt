@@ -4,17 +4,12 @@ import android.content.Context
 import androidx.room.Room
 import com.fitnessapp.tracker.BuildConfig
 import com.fitnessapp.tracker.data.local.AppDatabase
-import com.fitnessapp.tracker.data.local.dao.ChatMessageDao
-import com.fitnessapp.tracker.data.local.dao.ChatSessionDao
 import com.fitnessapp.tracker.data.local.dao.RoutineDao
-import com.fitnessapp.tracker.data.local.dao.ChallengeDao
 import com.fitnessapp.tracker.data.local.dao.PersonalRecordDao
-import com.fitnessapp.tracker.data.local.dao.TrainingPlanDao
 import com.fitnessapp.tracker.data.local.dao.TwinSnapshotDao
 import com.fitnessapp.tracker.data.local.dao.UserDao
 import com.fitnessapp.tracker.data.local.dao.WellnessCheckInDao
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
-import com.fitnessapp.tracker.data.remote.api.AiCoachApiService
 import com.fitnessapp.tracker.data.remote.api.OpenMeteoApiService
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -57,7 +52,9 @@ object AppModule {
             AppDatabase.MIGRATION_10_11,
             AppDatabase.MIGRATION_11_12,
             AppDatabase.MIGRATION_12_13,
-            AppDatabase.MIGRATION_13_14
+            AppDatabase.MIGRATION_13_14,
+            AppDatabase.MIGRATION_14_15,
+            AppDatabase.MIGRATION_15_16
         )
         .build()
 
@@ -71,23 +68,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideChatMessageDao(db: AppDatabase): ChatMessageDao = db.chatMessageDao()
-
-    @Provides
-    @Singleton
-    fun provideChatSessionDao(db: AppDatabase): ChatSessionDao = db.chatSessionDao()
-
-    @Provides
-    @Singleton
     fun provideRoutineDao(db: AppDatabase): RoutineDao = db.routineDao()
-
-    @Provides
-    @Singleton
-    fun provideChallengeDao(db: AppDatabase): ChallengeDao = db.challengeDao()
-
-    @Provides
-    @Singleton
-    fun provideTrainingPlanDao(db: AppDatabase): TrainingPlanDao = db.trainingPlanDao()
 
     @Provides
     @Singleton
@@ -123,24 +104,10 @@ object AppModule {
         return OkHttpClient.Builder()
             .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)  // Long timeout for streaming
+            .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
-
-    @Provides
-    @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit =
-        Retrofit.Builder()
-            .baseUrl(AiCoachApiService.BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .build()
-
-    @Provides
-    @Singleton
-    fun provideAiCoachApiService(retrofit: Retrofit): AiCoachApiService =
-        retrofit.create(AiCoachApiService::class.java)
 
     @Provides
     @Singleton

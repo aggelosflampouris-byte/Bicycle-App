@@ -16,11 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsBike
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
-import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -28,15 +24,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.fitnessapp.tracker.data.local.entity.ActivityType
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.engine.PhysicsEngine
-import com.fitnessapp.tracker.theme.ChallengeGold
 import com.fitnessapp.tracker.theme.ElectricGreen
 import com.fitnessapp.tracker.theme.GlassBorder
 import com.fitnessapp.tracker.theme.NavyCard
@@ -44,17 +41,16 @@ import com.fitnessapp.tracker.theme.NavyLight
 import com.fitnessapp.tracker.theme.SpeedRed
 import com.fitnessapp.tracker.theme.TextPrimary
 import com.fitnessapp.tracker.theme.TextSecondary
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.fitnessapp.tracker.ui.util.icon
+import com.fitnessapp.tracker.util.DateFormats
+
 @Composable
 fun SessionCard(
     session: WorkoutSessionEntity,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy  HH:mm", Locale.getDefault())
-    val date = dateFormat.format(Date(session.startTime))
+    val date = remember(session.startTime) { DateFormats.formatSessionCard(session.startTime) }
 
     Card(
         modifier = Modifier
@@ -70,8 +66,6 @@ fun SessionCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val isGold = session.isChallengeCompletion
-            val bubbleColor = if (isGold) ChallengeGold else ElectricGreen
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -79,16 +73,10 @@ fun SessionCard(
                     .background(NavyLight),
                 contentAlignment = Alignment.Center
             ) {
-                val sessionIcon = when (session.activityType) {
-                    "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
-                    "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
-                    "CYCLING" -> Icons.AutoMirrored.Filled.DirectionsBike
-                    else -> Icons.Default.FitnessCenter
-                }
                 Icon(
-                    imageVector = sessionIcon,
+                    imageVector = ActivityType.fromString(session.activityType).icon,
                     contentDescription = null,
-                    tint = bubbleColor,
+                    tint = ElectricGreen,
                     modifier = Modifier.size(24.dp)
                 )
             }
