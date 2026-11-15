@@ -35,6 +35,8 @@ class GhostPacerEngine {
 
     /**
      * Initializes Ghost timeline from a historical workout's RoutePoint list.
+     * RoutePoint.timestamp is stored in Unix epoch milliseconds, so we anchor
+     * elapsedSeconds to points.first().timestamp.
      */
     fun loadFromSessionRoute(points: List<RoutePoint>) {
         if (points.size < 2) {
@@ -42,6 +44,7 @@ class GhostPacerEngine {
             return
         }
 
+        val startTimestampMs = points.first().timestamp
         var cumDist = 0.0
         val timeline = mutableListOf<GhostPoint>()
 
@@ -53,11 +56,12 @@ class GhostPacerEngine {
                 cumDist += d
             }
             val speed = PhysicsEngine.metersPerSecondToKmh(pt.speedMps)
+            val elapsedSec = max(0.0, (pt.timestamp - startTimestampMs) / 1000.0)
             timeline.add(
                 GhostPoint(
                     lat = pt.lat,
                     lng = pt.lng,
-                    elapsedSeconds = pt.timestamp.toDouble(),
+                    elapsedSeconds = elapsedSec,
                     cumulativeDistMeters = cumDist,
                     speedKmh = speed
                 )

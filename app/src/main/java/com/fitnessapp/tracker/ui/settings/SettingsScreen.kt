@@ -1,7 +1,11 @@
 package com.fitnessapp.tracker.ui.settings
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -38,22 +42,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitnessapp.tracker.BuildConfig
 import com.fitnessapp.tracker.data.local.CoachPersona
 import com.fitnessapp.tracker.data.local.ThemeMode
+import com.fitnessapp.tracker.service.OutdoorTrackingService
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.onboarding.OnboardingViewModel
-import com.fitnessapp.tracker.updater.UpdaterViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     onboardingViewModel: OnboardingViewModel = hiltViewModel(),
-    updaterViewModel: UpdaterViewModel = hiltViewModel(),
     onLogout: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val onboardingState by onboardingViewModel.uiState.collectAsStateWithLifecycle()
-    val updateState by updaterViewModel.uiState.collectAsStateWithLifecycle()
 
     var showPasswordDialog by remember { mutableStateOf(false) }
     var passwordMode by remember { mutableStateOf("EXPORT") } // EXPORT or IMPORT
@@ -77,10 +79,19 @@ fun SettingsScreen(
 
     var showSaveSuccessSnack by remember { mutableStateOf(false) }
     var showPasswordChangedSnack by remember { mutableStateOf(false) }
+    var showSmsDeniedSnack by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
-    var showInfoDialog by remember { mutableStateOf(false) }
+    var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val smsPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            showSmsDeniedSnack = true
+        }
+    }
 
     LaunchedEffect(showSaveSuccessSnack) {
         if (showSaveSuccessSnack) {
@@ -93,6 +104,16 @@ fun SettingsScreen(
         if (showPasswordChangedSnack) {
             snackbarHostState.showSnackbar("🔒 Password changed successfully!", duration = SnackbarDuration.Short)
             showPasswordChangedSnack = false
+        }
+    }
+
+    LaunchedEffect(showSmsDeniedSnack) {
+        if (showSmsDeniedSnack) {
+            snackbarHostState.showSnackbar(
+                "⚠️ SMS permission is required to dispatch Emergency SOS alerts.",
+                duration = SnackbarDuration.Long
+            )
+            showSmsDeniedSnack = false
         }
     }
 
@@ -110,7 +131,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Header
-            SettingsHeader(onInfoClick = { showInfoDialog = true })
+            SettingsHeader()
 
             // ── Personal Details ─────────────────────────────────────────────────
             SettingsSectionCard(
@@ -210,44 +231,12 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Features ────────────────────────────────────────────────────────
+            // ── Display ──────────────────────────────────────────────────────────
             SettingsSectionCard(
-                icon = Icons.Default.EmojiEvents,
-                title = "Features",
-                subtitle = "Enable or disable optional app features"
+                icon = Icons.Default.ScreenLockPortrait,
+                title = "Display",
+                subtitle = "Screen orientation preferences"
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Daily Challenges",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = "Receive automatically generated daily goals.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                    }
-                    Switch(
-                        checked = settingsState.challengesEnabled,
-                        onCheckedChange = { settingsViewModel.setChallengesEnabled(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = DeepNavy,
-                            checkedTrackColor = ElectricGreen,
-                            uncheckedThumbColor = TextSecondary,
-                            uncheckedTrackColor = NavyDarker
-                        )
-                    )
-                }
-
-                HorizontalDivider(color = GlassBorder, thickness = 0.5.dp)
-                
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -328,17 +317,32 @@ fun SettingsScreen(
 
                     HorizontalDivider(color = GlassBorder)
 
+                    SettingsToggleRow(
+                        title = "Voice Coaching",
+                        subtitle = "Speak live split & AI coach cues during workouts",
+                        checked = settingsState.voiceCoachingEnabled,
+                        onCheckedChange = settingsViewModel::setVoiceCoachingEnabled
+                    )
+
+                    SettingsToggleRow(
+                        title = "Digital Twin Smart Nudges",
+                        subtitle = "In-workout voice alerts for thermal stress, hydration & form fade",
+                        checked = settingsState.twinVoiceNudgesEnabled,
+                        enabled = settingsState.voiceCoachingEnabled,
+                        onCheckedChange = settingsViewModel::setTwinVoiceNudgesEnabled
+                    )
+
                 }
             }
 
-            // ── Rider Safety & Crash SOS ────────────────────────────────────────────────
+            // ── Outdoor Safety & Crash SOS ──────────────────────────────────────
             var contactNameInput by remember(settingsState.emergencyContactName) { mutableStateOf(settingsState.emergencyContactName) }
             var contactPhoneInput by remember(settingsState.emergencyContactPhone) { mutableStateOf(settingsState.emergencyContactPhone) }
             var isContactSaved by remember { mutableStateOf(false) }
 
             SettingsSectionCard(
                 icon = Icons.Default.HealthAndSafety,
-                title = "Rider Safety & Emergency SOS",
+                title = "Outdoor Safety & Emergency SOS",
                 subtitle = "Hardware crash impact detection & SOS distress beacon"
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -353,7 +357,12 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = settingsState.isCrashDetectionEnabled,
-                            onCheckedChange = { settingsViewModel.setCrashDetectionEnabled(it) },
+                            onCheckedChange = { enabled ->
+                                settingsViewModel.setCrashDetectionEnabled(enabled)
+                                if (enabled && ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+                                    smsPermissionLauncher.launch(Manifest.permission.SEND_SMS)
+                                }
+                            },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = DeepNavy,
                                 checkedTrackColor = ElectricGreen,
@@ -408,6 +417,11 @@ fun SettingsScreen(
                         onClick = {
                             settingsViewModel.setEmergencyContact(contactNameInput, contactPhoneInput)
                             isContactSaved = true
+                            if (contactPhoneInput.isNotBlank() &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                smsPermissionLauncher.launch(Manifest.permission.SEND_SMS)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth().height(44.dp),
                         shape = RoundedCornerShape(10.dp),
@@ -434,7 +448,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Button(
-                        onClick = { exportLauncher.launch("smart_cycling_backup.json") },
+                        onClick = { exportLauncher.launch("smart_track_backup.json") },
                         modifier = Modifier.weight(1f).height(48.dp),
                         enabled = !settingsState.isBackupRunning,
                         shape = RoundedCornerShape(12.dp),
@@ -458,49 +472,12 @@ fun SettingsScreen(
                     }
                 }
             }
-            // ── App Version & Updates ─────────────────────────────────────────────
+            // ── App Version & Sharing ─────────────────────────────────────────────
             SettingsSectionCard(
-                icon = Icons.Default.SystemUpdate,
+                icon = Icons.Default.Info,
                 title = "Smart Track v${BuildConfig.VERSION_NAME}",
-                subtitle = "Checks GitHub Releases for new versions"
+                subtitle = "Share the app release link"
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (updateState.isUpToDate) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.CheckCircle, null, tint = ElectricGreen, modifier = Modifier.size(18.dp))
-                            Text("Up to date", color = ElectricGreen, fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        Text("Tap to check for updates", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
-                    }
-
-                    Button(
-                        onClick = { updaterViewModel.checkForUpdates(silent = false) },
-                        enabled = !updateState.isChecking && !updateState.isDownloading,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ElectricGreen.copy(alpha = 0.15f),
-                            contentColor = ElectricGreen
-                        )
-                    ) {
-                        if (updateState.isChecking) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = ElectricGreen, strokeWidth = 2.dp)
-                            Spacer(Modifier.width(6.dp))
-                            Text("Checking…")
-                        } else {
-                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Check", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-                
-                // Share App Row
-                HorizontalDivider(color = GlassBorder, thickness = 0.5.dp)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -552,11 +529,7 @@ fun SettingsScreen(
 
                     // Log Out button
                     Button(
-                        onClick = {
-                            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-                            auth.signOut()
-                            onLogout()
-                        },
+                        onClick = { showLogoutConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -588,6 +561,44 @@ fun SettingsScreen(
             QrCodeDialog(
                 url = "https://github.com/aggelosflampouris-byte/Bicycle-App/releases/latest",
                 onDismiss = { showShareDialog = false }
+            )
+        }
+
+        if (showLogoutConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutConfirmDialog = false },
+                title = { Text("Log Out?") },
+                text = {
+                    Text("Logging out will stop any active tracking session and clear local cached data on this device.")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showLogoutConfirmDialog = false
+                            if (OutdoorTrackingService.trackingState.value.isTracking) {
+                                context.startService(
+                                    Intent(context, OutdoorTrackingService::class.java).apply {
+                                        action = OutdoorTrackingService.ACTION_DISCARD
+                                    }
+                                )
+                            } else {
+                                context.stopService(Intent(context, OutdoorTrackingService::class.java))
+                            }
+                            settingsViewModel.logout(onLogout)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SpeedRed, contentColor = Color.White)
+                    ) {
+                        Text("Log Out")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLogoutConfirmDialog = false }) {
+                        Text("Cancel", color = TextSecondary)
+                    }
+                },
+                containerColor = NavyDarker,
+                titleContentColor = TextPrimary,
+                textContentColor = TextSecondary
             )
         }
 
@@ -645,47 +656,26 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsHeader(onInfoClick: () -> Unit) {
+private fun SettingsHeader() {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(ElectricGreen),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Settings, null, tint = DeepNavy, modifier = Modifier.size(28.dp))
-            }
-            Column {
-                Text("Settings", style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                Text("Personalise your Smart Track experience",
-                    style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-            }
-        }
-        IconButton(
-            onClick = onInfoClick,
+        Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(52.dp)
                 .clip(CircleShape)
-                .background(NavyCard)
-                .border(1.dp, GlassBorder, CircleShape)
+                .background(ElectricGreen),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Info,
-                contentDescription = "App Features Guide",
-                tint = ElectricGreen,
-                modifier = Modifier.size(24.dp)
-            )
+            Icon(Icons.Default.Settings, null, tint = DeepNavy, modifier = Modifier.size(28.dp))
+        }
+        Column {
+            Text("Settings", style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text("Personalise your Smart Track experience",
+                style = MaterialTheme.typography.bodySmall, color = TextSecondary)
         }
     }
 }
@@ -934,6 +924,46 @@ fun QrCodeDialog(url: String, onDismiss: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = if (enabled) TextPrimary else TextDisabled
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (enabled) TextSecondary else TextDisabled
+            )
+        }
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = DeepNavy,
+                checkedTrackColor = ElectricGreen,
+                uncheckedThumbColor = TextSecondary,
+                uncheckedTrackColor = NavyDarker
+            )
+        )
     }
 }
 

@@ -10,9 +10,12 @@ import com.fitnessapp.tracker.data.local.dao.RoutineDao
 import com.fitnessapp.tracker.data.local.dao.ChallengeDao
 import com.fitnessapp.tracker.data.local.dao.PersonalRecordDao
 import com.fitnessapp.tracker.data.local.dao.TrainingPlanDao
+import com.fitnessapp.tracker.data.local.dao.TwinSnapshotDao
 import com.fitnessapp.tracker.data.local.dao.UserDao
+import com.fitnessapp.tracker.data.local.dao.WellnessCheckInDao
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
-import com.fitnessapp.tracker.data.remote.api.HfApiService
+import com.fitnessapp.tracker.data.remote.api.AiCoachApiService
+import com.fitnessapp.tracker.data.remote.api.OpenMeteoApiService
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import dagger.Module
@@ -52,7 +55,9 @@ object AppModule {
             AppDatabase.MIGRATION_8_9,
             AppDatabase.MIGRATION_9_10,
             AppDatabase.MIGRATION_10_11,
-            AppDatabase.MIGRATION_11_12
+            AppDatabase.MIGRATION_11_12,
+            AppDatabase.MIGRATION_12_13,
+            AppDatabase.MIGRATION_13_14
         )
         .build()
 
@@ -90,7 +95,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideSegmentDao(db: AppDatabase): com.fitnessapp.tracker.data.local.dao.SegmentDao = db.segmentDao()
+    fun provideWellnessCheckInDao(db: AppDatabase): WellnessCheckInDao = db.wellnessCheckInDao()
+
+    @Provides
+    @Singleton
+    fun provideTwinSnapshotDao(db: AppDatabase): TwinSnapshotDao = db.twinSnapshotDao()
 
     @Provides
     @Singleton
@@ -123,13 +132,23 @@ object AppModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit =
         Retrofit.Builder()
-            .baseUrl(HfApiService.BASE_URL)
+            .baseUrl(AiCoachApiService.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
 
     @Provides
     @Singleton
-    fun provideHfApiService(retrofit: Retrofit): HfApiService =
-        retrofit.create(HfApiService::class.java)
+    fun provideAiCoachApiService(retrofit: Retrofit): AiCoachApiService =
+        retrofit.create(AiCoachApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideOpenMeteoApiService(okHttpClient: OkHttpClient, gson: Gson): OpenMeteoApiService =
+        Retrofit.Builder()
+            .baseUrl(OpenMeteoApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+            .create(OpenMeteoApiService::class.java)
 }

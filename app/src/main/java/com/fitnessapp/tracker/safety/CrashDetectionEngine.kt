@@ -51,6 +51,9 @@ class CrashDetectionEngine(
     val crashState: StateFlow<CrashState> = _crashState.asStateFlow()
 
     private var countdownJob: Job? = null
+    private var impactEvaluationJob: Job? = null
+    private var sirenJob: Job? = null
+    private var resetJob: Job? = null
     private var toneGenerator: ToneGenerator? = null
     private var isMonitoring = false
 
@@ -97,7 +100,8 @@ class CrashDetectionEngine(
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event == null || event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
-        if (_crashState.value is CrashState.Countdown || _crashState.value is CrashState.SosDispatched) return
+        // Ignore spikes once an impact evaluation, countdown, or SOS dispatch is already active
+        if (_crashState.value !is CrashState.Idle) return
 
         val x = event.values[0]
         val y = event.values[1]
@@ -110,17 +114,19 @@ class CrashDetectionEngine(
             val now = System.currentTimeMillis()
             lastImpactTimeMs = now
             Log.w(TAG, "⚠️ High-G Impact Detected: ${"%.2f".format(gForce)}G! Checking immobility...")
+            resetJob?.cancel()
             _crashState.value = CrashState.ImpactDetected
 
-            // Monitor post-impact velocity
-            scope.launch {
-                delay(3000L) // Wait 3s to evaluate if rider stopped immediately
+            // Monitor post-impact velocity with a single tracked evaluation job
+            impactEvaluationJob?.cancel()
+            impactEvaluationJob = scope.launch {
+                delay(3000L) // Wait 3s to evaluate if user stopped immediately
                 if (currentSpeedKmh <= IMMOBILITY_SPEED_THRESHOLD_KMH && _crashState.value is CrashState.ImpactDetected) {
                     triggerCountdown()
                 } else if (_crashState.value is CrashState.ImpactDetected) {
-                    // False positive (bump on road while maintaining speed)
+                    // False positive (bump while maintaining speed)
                     _crashState.value = CrashState.Idle
-                    Log.d(TAG, "Rider still moving at $currentSpeedKmh km/h. Impact was a road bump.")
+                    Log.d(TAG, "User still moving at $currentSpeedKmh km/h. Impact was a false positive.")
                 }
             }
         }
@@ -129,6 +135,9 @@ class CrashDetectionEngine(
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     fun triggerCountdown() {
+        impactEvaluationJob?.cancel()
+        resetJob?.cancel()
+        sirenJob?.cancel()
         countdownJob?.cancel()
         _crashState.value = CrashState.Countdown(COUNTDOWN_TOTAL_SECONDS)
         startAlarmAudioAndVibration()
@@ -148,23 +157,27 @@ class CrashDetectionEngine(
     }
 
     fun cancelSos() {
+        impactEvaluationJob?.cancel()
         countdownJob?.cancel()
+        sirenJob?.cancel()
+        resetJob?.cancel()
         stopAlarmAudioAndVibration()
         _crashState.value = CrashState.Cancelled
-        scope.launch {
+        resetJob = scope.launch {
             delay(1500L)
-            _crashState.value = CrashState.Idle
+            if (_crashState.value is CrashState.Cancelled) {
+                _crashState.value = CrashState.Idle
+            }
         }
     }
 
     private fun dispatchSosBeacon() {
-        stopAlarmAudioAndVibration()
         _crashState.value = CrashState.SosDispatched(System.currentTimeMillis(), emergencyContactPhone)
         Log.e(TAG, "🚨 DISPATCHING EMERGENCY SOS BEACON to $emergencyContactPhone")
 
         val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
         val mapsUrl = "https://maps.google.com/?q=$currentLat,$currentLng"
-        val message = "🚨 EMERGENCY: Smart Track detected a bicycle crash at $timeStr. Coordinates: $currentLat, $currentLng. Live Map: $mapsUrl"
+        val message = "🚨 EMERGENCY: Smart Track detected a possible crash or fall at $timeStr. Coordinates: $currentLat, $currentLng. Live Map: $mapsUrl"
 
         if (emergencyContactPhone.isNotBlank()) {
             try {
@@ -183,13 +196,20 @@ class CrashDetectionEngine(
             Log.w(TAG, "No emergency contact phone number configured!")
         }
 
-        // Trigger persistent continuous alarm siren so nearby people can locate the rider
+        // Trigger persistent continuous alarm siren so nearby people can locate the user
         startContinuousSiren()
+    }
+
+    private fun ensureToneGenerator(): ToneGenerator? {
+        if (toneGenerator == null) {
+            toneGenerator = ToneGenerator(AudioManager.STREAM_ALARM, 100)
+        }
+        return toneGenerator
     }
 
     private fun startAlarmAudioAndVibration() {
         try {
-            toneGenerator = ToneGenerator(AudioManager.STREAM_ALARM, 100)
+            ensureToneGenerator()
             triggerVibration(1000L)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start tone generator", e)
@@ -198,7 +218,7 @@ class CrashDetectionEngine(
 
     private fun playCountdownBeep(secondsLeft: Int) {
         try {
-            toneGenerator?.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 300)
+            ensureToneGenerator()?.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 300)
             triggerVibration(300L)
         } catch (e: Exception) {
             Log.w(TAG, "Tone playback error: ${e.message}")
@@ -206,10 +226,15 @@ class CrashDetectionEngine(
     }
 
     private fun startContinuousSiren() {
-        scope.launch {
+        sirenJob?.cancel()
+        sirenJob = scope.launch {
             while (isActive && _crashState.value is CrashState.SosDispatched) {
-                toneGenerator?.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 800)
-                triggerVibration(600L)
+                try {
+                    ensureToneGenerator()?.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 800)
+                    triggerVibration(600L)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Siren playback error: ${e.message}")
+                }
                 delay(1200L)
             }
         }

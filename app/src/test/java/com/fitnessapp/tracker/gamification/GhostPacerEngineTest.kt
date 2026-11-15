@@ -9,12 +9,13 @@ class GhostPacerEngineTest {
     @Test
     fun testGhostPacerAheadWhenRiderIsFaster() {
         val engine = GhostPacerEngine()
+        val epochBaseMs = 1_700_000_000_000L
 
-        // 1000m reference route where ghost took 200 seconds (5 m/s = 18 km/h)
+        // 1000m reference route where ghost took 200 seconds (5 m/s = 18 km/h) using epoch ms
         val ghostRoute = listOf(
-            RoutePoint(lat = 37.9800, lng = 23.7200, alt = 10.0, timestamp = 0L, speedMps = 5.0),
-            RoutePoint(lat = 37.9845, lng = 23.7200, alt = 10.0, timestamp = 100L, speedMps = 5.0),
-            RoutePoint(lat = 37.9890, lng = 23.7200, alt = 10.0, timestamp = 200L, speedMps = 5.0)
+            RoutePoint(lat = 37.9800, lng = 23.7200, alt = 10.0, timestamp = epochBaseMs, speedMps = 5.0),
+            RoutePoint(lat = 37.9845, lng = 23.7200, alt = 10.0, timestamp = epochBaseMs + 100_000L, speedMps = 5.0),
+            RoutePoint(lat = 37.9890, lng = 23.7200, alt = 10.0, timestamp = epochBaseMs + 200_000L, speedMps = 5.0)
         )
         engine.loadFromSessionRoute(ghostRoute)
         assertTrue(engine.hasGhost)
@@ -26,15 +27,17 @@ class GhostPacerEngineTest {
         assertTrue("Rider should be ahead", state.isAhead)
         assertTrue("Time delta should be positive (~ +30s)", state.timeDeltaSeconds > 20.0)
         assertTrue("Distance delta should be positive", state.distanceDeltaMeters > 0.0)
+        assertEquals(200.0, state.totalGhostDurationSec, 0.1)
     }
 
     @Test
     fun testGhostPacerBehindWhenRiderIsSlower() {
         val engine = GhostPacerEngine()
+        val epochBaseMs = 1_700_000_000_000L
 
         val ghostRoute = listOf(
-            RoutePoint(lat = 37.9800, lng = 23.7200, alt = 10.0, timestamp = 0L, speedMps = 10.0),
-            RoutePoint(lat = 37.9890, lng = 23.7200, alt = 10.0, timestamp = 100L, speedMps = 10.0)
+            RoutePoint(lat = 37.9800, lng = 23.7200, alt = 10.0, timestamp = epochBaseMs, speedMps = 10.0),
+            RoutePoint(lat = 37.9890, lng = 23.7200, alt = 10.0, timestamp = epochBaseMs + 100_000L, speedMps = 10.0)
         )
         engine.loadFromSessionRoute(ghostRoute)
 

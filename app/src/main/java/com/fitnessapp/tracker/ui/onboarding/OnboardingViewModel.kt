@@ -60,13 +60,17 @@ class OnboardingViewModel @Inject constructor(
 
     fun saveWithDefaults(onComplete: () -> Unit) {
         val state = _uiState.value
-        val existing = userDao // we'll do upsert — id=0 means auto-assign or match existing
+        // Guard against invalid/zero numeric input so physics calculations remain positive
+        val validAge = (state.age.toIntOrNull()?.takeIf { it in 10..110 }) ?: 35
+        val validWeight = (state.weightKg.toFloatOrNull()?.takeIf { it in 25f..300f }) ?: 75f
+        val validHeight = (state.heightCm.toFloatOrNull()?.takeIf { it in 100f..240f }) ?: 175f
+
         val user = UserEntity(
-            name = state.name.ifBlank { "Cyclist" },
+            name = state.name.ifBlank { "Athlete" },
             gender = state.gender,
-            age = state.age.toIntOrNull() ?: 35,
-            weightKg = state.weightKg.toFloatOrNull() ?: 75f,
-            heightCm = state.heightCm.toFloatOrNull() ?: 175f
+            age = validAge,
+            weightKg = validWeight,
+            heightCm = validHeight
         )
         viewModelScope.launch {
             // upsert atomically handles both first-time insert and subsequent updates

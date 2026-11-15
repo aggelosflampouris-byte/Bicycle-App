@@ -10,7 +10,10 @@ interface WorkoutSessionDao {
     @Query("""
         SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
                elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
-               '' as routePointsJson, activityType, isChallengeCompletion
+               '' as routePointsJson, activityType, isChallengeCompletion,
+               rpe, wellnessFeel, avgCadenceSpm, gaitStabilityScore,
+               weatherTempC, weatherWindKmh, weatherHumidityPct,
+               environmentStressFactor, perceivedNotes
         FROM workout_sessions
         ORDER BY startTime DESC
     """)
@@ -19,7 +22,10 @@ interface WorkoutSessionDao {
     @Query("""
         SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
                elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
-               '' as routePointsJson, activityType, isChallengeCompletion
+               '' as routePointsJson, activityType, isChallengeCompletion,
+               rpe, wellnessFeel, avgCadenceSpm, gaitStabilityScore,
+               weatherTempC, weatherWindKmh, weatherHumidityPct,
+               environmentStressFactor, perceivedNotes
         FROM workout_sessions
         ORDER BY startTime DESC
         LIMIT :limit
@@ -29,13 +35,41 @@ interface WorkoutSessionDao {
     @Query("""
         SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
                elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
-               '' as routePointsJson, activityType, isChallengeCompletion
+               '' as routePointsJson, activityType, isChallengeCompletion,
+               rpe, wellnessFeel, avgCadenceSpm, gaitStabilityScore,
+               weatherTempC, weatherWindKmh, weatherHumidityPct,
+               environmentStressFactor, perceivedNotes
         FROM workout_sessions
         WHERE activityType = :activityType
         ORDER BY startTime DESC
         LIMIT :limit
     """)
     suspend fun getRecentSessionsByType(activityType: String, limit: Int = 10): List<WorkoutSessionEntity>
+
+    @Query("""
+        SELECT id, startTime, endTime, durationSeconds, totalDistanceMeters,
+               elevationGainMeters, avgSpeedKmh, caloriesBurned, wattsPerKg,
+               '' as routePointsJson, activityType, isChallengeCompletion,
+               rpe, wellnessFeel, avgCadenceSpm, gaitStabilityScore,
+               weatherTempC, weatherWindKmh, weatherHumidityPct,
+               environmentStressFactor, perceivedNotes
+        FROM workout_sessions
+        WHERE startTime >= :sinceTimestamp
+        ORDER BY startTime DESC
+    """)
+    fun getSessionsSinceFlow(sinceTimestamp: Long): Flow<List<WorkoutSessionEntity>>
+
+    @Query("""
+        UPDATE workout_sessions
+        SET rpe = :rpe, wellnessFeel = :wellnessFeel, perceivedNotes = :perceivedNotes
+        WHERE id = :sessionId
+    """)
+    suspend fun updatePostWorkoutFeedback(
+        sessionId: Long,
+        rpe: Int?,
+        wellnessFeel: Int?,
+        perceivedNotes: String
+    )
 
     @Query("SELECT * FROM workout_sessions ORDER BY startTime DESC")
     suspend fun getAllSessionsForBackup(): List<WorkoutSessionEntity>

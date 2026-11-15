@@ -2,11 +2,11 @@ package com.fitnessapp.tracker.data.remote.model
 
 import com.google.gson.annotations.SerializedName
 
-// ===== HF / OpenAI-COMPATIBLE REQUEST MODELS =====
+// ===== AI COACH / OPENAI-COMPATIBLE REQUEST MODELS =====
 
-data class HfChatRequest(
+data class AiChatRequest(
     val model: String,
-    val messages: List<HfMessage>,
+    val messages: List<AiChatMessage>,
     @SerializedName("max_tokens")
     val maxTokens: Int = 512,
     val temperature: Float = 0.7f,
@@ -14,27 +14,27 @@ data class HfChatRequest(
     val topP: Float = 0.9f
 )
 
-data class HfMessage(
+data class AiChatMessage(
     val role: String,   // "system" | "user" | "assistant"
     val content: String
 )
 
-// ===== HF / OpenAI-COMPATIBLE RESPONSE MODELS =====
+// ===== AI COACH / OPENAI-COMPATIBLE RESPONSE MODELS =====
 
-data class HfChatResponse(
+data class AiChatResponse(
     val id: String?,
-    val choices: List<HfChoice>?,
-    val error: HfError?
+    val choices: List<AiChatChoice>?,
+    val error: AiChatError?
 )
 
-data class HfChoice(
-    val message: HfMessage?,
+data class AiChatChoice(
+    val message: AiChatMessage?,
     @SerializedName("finish_reason")
     val finishReason: String?,
     val index: Int?
 )
 
-data class HfError(
+data class AiChatError(
     val message: String?,
     val type: String?,
     val code: String?

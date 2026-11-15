@@ -28,25 +28,20 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitnessapp.tracker.engine.PhysicsEngine
-import com.fitnessapp.tracker.service.CyclingTrackingService
-import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
+import com.fitnessapp.tracker.service.OutdoorTrackingService
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.chat.AiChatScreen
 import com.fitnessapp.tracker.ui.dashboard.DashboardScreen
-import com.fitnessapp.tracker.ui.dashboard.DashboardViewModel
-import com.fitnessapp.tracker.ui.dashboard.DashboardUiEvent
 import com.fitnessapp.tracker.ui.history.HistoryScreen
 import com.fitnessapp.tracker.ui.settings.SettingsScreen
-import com.fitnessapp.tracker.updater.UpdateDialog
-import com.fitnessapp.tracker.updater.UpdaterViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 enum class MainTab(val label: String, val icon: ImageVector) {
-    DASHBOARD("Home", Icons.AutoMirrored.Filled.DirectionsBike),
+    DASHBOARD("Home", Icons.Default.Home),
     AI_COACH("AI Coach", Icons.Default.Psychology),
-    CHALLENGES("Challenges", Icons.Default.EmojiEvents),
+    TWIN("Twin", Icons.Default.Insights),
     HISTORY("Activities", Icons.Default.Assessment),
     SETTINGS("Settings", Icons.Default.Settings)
 }
@@ -55,23 +50,15 @@ enum class MainTab(val label: String, val icon: ImageVector) {
 fun MainScreen(
     onStartWorkout: () -> Unit,
     onSessionClick: (Long) -> Unit,
-    onOpenSettings: () -> Unit,
-    onLogout: () -> Unit,
-    updaterViewModel: UpdaterViewModel = hiltViewModel(),
-    dashboardViewModel: DashboardViewModel = hiltViewModel()
+    onLogout: () -> Unit
 ) {
     val activityType = LocalActivityTheme.current
-    val coroutineScope = rememberCoroutineScope()
-    val context = androidx.compose.ui.platform.LocalContext.current
     val tabs = remember { MainTab.entries.toTypedArray() }
     var currentTab by remember { mutableStateOf(MainTab.DASHBOARD) }
 
-    val dashboardUiState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
-
     val isTracking by remember {
-        CyclingTrackingService.trackingState.map { it.isTracking }.distinctUntilChanged()
+        OutdoorTrackingService.trackingState.map { it.isTracking }.distinctUntilChanged()
     }.collectAsStateWithLifecycle(initialValue = false)
-    val updateState by updaterViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Fluid Back Handling: if not on Home tab, back button returns to Home smoothly
@@ -79,26 +66,18 @@ fun MainScreen(
         currentTab = MainTab.DASHBOARD
     }
 
-    // Show feedback snackbar for update check results
-    LaunchedEffect(updateState.userMessage) {
-        updateState.userMessage?.let { msg ->
-            snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
-            updaterViewModel.clearMessage()
-        }
-    }
-
     Scaffold(
         containerColor = DeepNavy,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Floating Active Ride Mini-Player Bar (Strava-style)
+                // Floating Active Workout Mini-Player Bar
                 AnimatedVisibility(
                     visible = isTracking,
                     enter = slideInVertically { it } + fadeIn(),
                     exit = slideOutVertically { it } + fadeOut()
                 ) {
-                    ActiveRideMiniBanner(
+                    ActiveWorkoutMiniBanner(
                         onClick = onStartWorkout
                     )
                 }
@@ -121,7 +100,8 @@ fun MainScreen(
                                     when (activityType) {
                                         "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
                                         "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
-                                        else -> Icons.AutoMirrored.Filled.DirectionsBike
+                                        "CYCLING" -> Icons.AutoMirrored.Filled.DirectionsBike
+                                        else -> Icons.Default.FitnessCenter
                                     }
                                 } else {
                                     tab.icon
@@ -182,6 +162,9 @@ fun MainScreen(
                                 onSessionClick = onSessionClick,
                                 onOpenSettings = {
                                     currentTab = MainTab.SETTINGS
+                                },
+                                onOpenTwin = {
+                                    currentTab = MainTab.TWIN
                                 }
                             )
                         }
@@ -196,8 +179,8 @@ fun MainScreen(
                             onStartWorkout = onStartWorkout
                         )
                     }
-                    MainTab.CHALLENGES -> {
-                        com.fitnessapp.tracker.ui.challenges.ChallengesScreen()
+                    MainTab.TWIN -> {
+                        com.fitnessapp.tracker.ui.twin.TwinScreen()
                     }
                     MainTab.SETTINGS -> {
                         SettingsScreen(
@@ -207,94 +190,16 @@ fun MainScreen(
                 }
                 } // End of SaveableStateProvider
             }
-
-            // In-App Update Dialog
-            if (updateState.showDialog && updateState.updateInfo != null) {
-                UpdateDialog(
-                    updateInfo = updateState.updateInfo!!,
-                    isDownloading = updateState.isDownloading,
-                    downloadProgress = updateState.downloadProgress,
-                    onConfirmUpdate = {
-                        updaterViewModel.startDownloadAndInstall(context)
-                    },
-                    onDismiss = { updaterViewModel.dismissDialog() }
-                )
-            }
-
-            // In-App New Challenge Dialog
-            val pendingChallenge = dashboardUiState.latestChallenge
-            if (dashboardUiState.showNewChallengeDialog && pendingChallenge != null) {
-                AlertDialog(
-                    onDismissRequest = { dashboardViewModel.onEvent(DashboardUiEvent.DismissChallenge) },
-                    containerColor = NavyCard,
-                    titleContentColor = TextPrimary,
-                    textContentColor = TextSecondary,
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.EmojiEvents,
-                                contentDescription = null,
-                                tint = ChallengeGold,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "🏅 New Challenge!",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    },
-                    text = {
-                        val metricLabel = when (pendingChallenge.metric) {
-                            ChallengeMetric.DISTANCE -> PhysicsEngine.formatDistance(pendingChallenge.targetValue)
-                            ChallengeMetric.SPEED    -> "${PhysicsEngine.formatSpeed(pendingChallenge.targetValue)} km/h"
-                            ChallengeMetric.CALORIES -> "${"%.0f".format(pendingChallenge.targetValue)} kcal"
-                        }
-                        Text(
-                            "A new ${pendingChallenge.period.name.lowercase()} " +
-                            "${pendingChallenge.activityType.lowercase()} challenge has arrived!\n\n" +
-                            "Goal: $metricLabel",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                dashboardViewModel.onEvent(DashboardUiEvent.RespondToChallenge(pendingChallenge, true))
-                                dashboardViewModel.onEvent(DashboardUiEvent.DismissChallenge)
-                                currentTab = MainTab.CHALLENGES
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ElectricGreen,
-                                contentColor = DeepNavy
-                            )
-                        ) {
-                            Text("Accept", fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = {
-                                dashboardViewModel.onEvent(DashboardUiEvent.RespondToChallenge(pendingChallenge, false))
-                                dashboardViewModel.onEvent(DashboardUiEvent.DismissChallenge)
-                            }
-                        ) {
-                            Text("Deny", color = SpeedRed)
-                        }
-                    }
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun ActiveRideMiniBanner(
+private fun ActiveWorkoutMiniBanner(
     onClick: () -> Unit
 ) {
-    val trackingState by CyclingTrackingService.trackingState.collectAsStateWithLifecycle()
-    val elapsedSeconds by CyclingTrackingService.elapsedSecondsFlow.collectAsStateWithLifecycle()
+    val trackingState by OutdoorTrackingService.trackingState.collectAsStateWithLifecycle()
+    val elapsedSeconds by OutdoorTrackingService.elapsedSecondsFlow.collectAsStateWithLifecycle()
     val activityType = LocalActivityTheme.current
 
     val speedKmh = trackingState.speedKmh
@@ -333,7 +238,7 @@ private fun ActiveRideMiniBanner(
                 )
                 Column {
                     Text(
-                        text = if (isPaused) "RIDE PAUSED" else "RIDE IN PROGRESS",
+                        text = if (isPaused) "WORKOUT PAUSED" else "WORKOUT IN PROGRESS",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = if (isPaused) WarningAmber else ElectricGreen
@@ -358,7 +263,8 @@ private fun ActiveRideMiniBanner(
                 val icon = when (activityType) {
                     "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
                     "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
-                    else -> Icons.AutoMirrored.Filled.DirectionsBike
+                    "CYCLING" -> Icons.AutoMirrored.Filled.DirectionsBike
+                    else -> Icons.Default.FitnessCenter
                 }
                 Icon(icon, contentDescription = "Active Workout", tint = ElectricGreen)
                 Icon(

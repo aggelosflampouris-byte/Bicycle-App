@@ -49,7 +49,7 @@ fun AiChatScreen(
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val trackingState by com.fitnessapp.tracker.service.CyclingTrackingService.trackingState.collectAsStateWithLifecycle()
+    val trackingState by com.fitnessapp.tracker.service.OutdoorTrackingService.trackingState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -104,7 +104,7 @@ fun AiChatScreen(
 
     LaunchedEffect(triggerAnalysis) {
         if (triggerAnalysis) {
-            viewModel.openSessionPicker()
+            viewModel.handlePostSummaryEntry()
         }
     }
 
@@ -268,14 +268,14 @@ fun AiChatScreen(
             }
         }
 
-        var showPreRideDialog by remember { mutableStateOf(false) }
+        var showPreWorkoutDialog by remember { mutableStateOf(false) }
 
-        if (showPreRideDialog) {
-            PreRideBriefingDialog(
-                onDismiss = { showPreRideDialog = false },
+        if (showPreWorkoutDialog) {
+            PreWorkoutBriefingDialog(
+                onDismiss = { showPreWorkoutDialog = false },
                 onSubmit = { dist, weather, temp, windSpeed, windDir ->
-                    showPreRideDialog = false
-                    viewModel.triggerPreRideBriefing(dist, weather, temp, windSpeed, windDir)
+                    showPreWorkoutDialog = false
+                    viewModel.triggerPreWorkoutBriefing(dist, weather, temp, windSpeed, windDir)
                 }
             )
         }
@@ -298,8 +298,8 @@ fun AiChatScreen(
                 border = BorderStroke(0.5.dp, VividCyan.copy(alpha = 0.5f))
             )
             SuggestionChip(
-                onClick = { showPreRideDialog = true },
-                label = { Text("🌦️ Pre-Ride & Nutrition Plan", style = MaterialTheme.typography.labelSmall) },
+                onClick = { showPreWorkoutDialog = true },
+                label = { Text("🌦️ Pre-Workout & Nutrition Plan", style = MaterialTheme.typography.labelSmall) },
                 colors = SuggestionChipDefaults.suggestionChipColors(
                     containerColor = NavyCard,
                     labelColor = ElectricGreen
@@ -357,7 +357,7 @@ fun AiChatScreen(
 }
 
 @Composable
-private fun PreRideBriefingDialog(
+private fun PreWorkoutBriefingDialog(
     onDismiss: () -> Unit,
     onSubmit: (distanceKm: Double, weather: String, tempC: Double, windSpeed: Double, windDir: String) -> Unit
 ) {
@@ -373,7 +373,7 @@ private fun PreRideBriefingDialog(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Default.Cloud, contentDescription = null, tint = ElectricGreen)
                 Text(
-                    text = "Pre-Ride Strategy Planner",
+                    text = "Pre-Workout Strategy Planner",
                     style = MaterialTheme.typography.titleLarge,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -511,7 +511,7 @@ private fun PersonalCoachBanner() {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Powered by Qwen2.5-Coder 32B • Context-aware coaching",
+                    text = "Context-aware outdoor workout coaching",
                     style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary
                 )

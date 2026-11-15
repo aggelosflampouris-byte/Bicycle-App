@@ -38,19 +38,23 @@ class SettingsRepository @Inject constructor(
     companion object {
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         private val ACTIVITY_TYPE_KEY = stringPreferencesKey("activity_type")
-        private val CHALLENGES_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("challenges_enabled")
         private val VOICE_COACHING_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("voice_coaching_enabled")
         private val LOCK_PORTRAIT_MODE_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("lock_portrait_mode")
         private val COACH_PERSONA_KEY = stringPreferencesKey("coach_persona")
         private val COACH_LANGUAGE_KEY = stringPreferencesKey("coach_language")
-        private val LAST_SEEN_VERSION_CODE_KEY = androidx.datastore.preferences.core.intPreferencesKey("last_seen_version_code")
         private val CRASH_DETECTION_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("crash_detection_enabled")
         private val EMERGENCY_CONTACT_NAME_KEY = stringPreferencesKey("emergency_contact_name")
         private val EMERGENCY_CONTACT_PHONE_KEY = stringPreferencesKey("emergency_contact_phone")
+        private val TWIN_VOICE_NUDGES_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("twin_voice_nudges_enabled")
+        private val CACHED_ENVIRONMENT_JSON_KEY = stringPreferencesKey("cached_environment_json")
     }
 
-    val lastSeenVersionCode: Flow<Int> = context.settingsDataStore.data.map { prefs ->
-        prefs[LAST_SEEN_VERSION_CODE_KEY] ?: 0
+    val isTwinVoiceNudgesEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[TWIN_VOICE_NUDGES_ENABLED_KEY] ?: true
+    }
+
+    val cachedEnvironmentJson: Flow<String?> = context.settingsDataStore.data.map { prefs ->
+        prefs[CACHED_ENVIRONMENT_JSON_KEY]
     }
 
     val isCrashDetectionEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
@@ -88,10 +92,6 @@ class SettingsRepository @Inject constructor(
         prefs[ACTIVITY_TYPE_KEY] ?: "CYCLING"
     }
 
-    val challengesEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
-        prefs[CHALLENGES_ENABLED_KEY] ?: true
-    }
-
     val isVoiceCoachingEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[VOICE_COACHING_ENABLED_KEY] ?: true
     }
@@ -120,12 +120,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun setChallengesEnabled(enabled: Boolean) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[CHALLENGES_ENABLED_KEY] = enabled
-        }
-    }
-
     suspend fun setVoiceCoachingEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[VOICE_COACHING_ENABLED_KEY] = enabled
@@ -150,12 +144,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun setLastSeenVersionCode(versionCode: Int) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[LAST_SEEN_VERSION_CODE_KEY] = versionCode
-        }
-    }
-
     suspend fun setCrashDetectionEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[CRASH_DETECTION_ENABLED_KEY] = enabled
@@ -166,6 +154,18 @@ class SettingsRepository @Inject constructor(
         context.settingsDataStore.edit { prefs ->
             prefs[EMERGENCY_CONTACT_NAME_KEY] = name.trim()
             prefs[EMERGENCY_CONTACT_PHONE_KEY] = phone.trim()
+        }
+    }
+
+    suspend fun setTwinVoiceNudgesEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[TWIN_VOICE_NUDGES_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun saveCachedEnvironmentJson(json: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[CACHED_ENVIRONMENT_JSON_KEY] = json
         }
     }
 }

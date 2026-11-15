@@ -4,9 +4,9 @@ import com.fitnessapp.tracker.BuildConfig
 import com.fitnessapp.tracker.data.local.CoachPersona
 import com.fitnessapp.tracker.data.local.entity.UserEntity
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
-import com.fitnessapp.tracker.data.remote.api.HfApiService
-import com.fitnessapp.tracker.data.remote.model.HfChatRequest
-import com.fitnessapp.tracker.data.remote.model.HfMessage
+import com.fitnessapp.tracker.data.remote.api.AiCoachApiService
+import com.fitnessapp.tracker.data.remote.model.AiChatMessage
+import com.fitnessapp.tracker.data.remote.model.AiChatRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -14,25 +14,25 @@ import kotlinx.coroutines.flow.flowOn
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.fitnessapp.tracker.data.local.entity.DailyPlan
+import com.fitnessapp.tracker.engine.PhysicsEngine
 import com.fitnessapp.tracker.ui.summary.LapSummary
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.Locale
 
 /**
- * Repository for Hugging Face AI interactions powered by Qwen 2.5 (27B Instruct).
- * Uses the OpenAI-compatible /v1/chat/completions endpoint.
+ * Repository for AI Coach interactions using the OpenAI-compatible /v1/chat/completions endpoint.
  */
 @Singleton
-class GeminiRepository @Inject constructor(
-    private val apiService: HfApiService
+class AiCoachRepository @Inject constructor(
+    private val apiService: AiCoachApiService
 ) {
 
     /**
-     * Resolve the HF token from BuildConfig.
+     * Resolve the AI Coach API token from BuildConfig.
      */
     private fun resolveApiKey(): String? {
-        val buildKey = BuildConfig.GEMINI_API_KEY.trim()
+        val buildKey = BuildConfig.AI_COACH_API_KEY.trim()
         if (buildKey.isNotBlank() && buildKey.startsWith("hf_")) return buildKey
         return null
     }
@@ -45,17 +45,34 @@ class GeminiRepository @Inject constructor(
         session: WorkoutSessionEntity?,
         activityType: String = "CYCLING",
         persona: CoachPersona = CoachPersona.SUPPORTIVE,
-        language: com.fitnessapp.tracker.data.local.CoachLanguage = com.fitnessapp.tracker.data.local.CoachLanguage.AUTO
+        language: com.fitnessapp.tracker.data.local.CoachLanguage = com.fitnessapp.tracker.data.local.CoachLanguage.AUTO,
+        twinState: com.fitnessapp.tracker.engine.DigitalTwinState? = null
     ): String {
         val distance = session?.let { "%.1f".format(it.totalDistanceMeters / 1000.0) } ?: "N/A"
         val speed = session?.let { "%.1f".format(it.avgSpeedKmh) } ?: "N/A"
-        val wattsPerKg = session?.let { "%.0f".format(it.wattsPerKg) } ?: "N/A"
+        val avgWatts = session?.let { "%.0f".format(PhysicsEngine.resolveTotalWatts(it.wattsPerKg, user.weightKg)) } ?: "N/A"
         val calories = session?.let { "%.0f".format(it.caloriesBurned) } ?: "N/A"
+        val rpeStr = session?.rpe?.let { ", RPE: $it/10" } ?: ""
+        val cadenceStr = session?.avgCadenceSpm?.let { ", Cadence: ${"%.0f".format(it)} spm" } ?: ""
+        val stabilityStr = session?.gaitStabilityScore?.let { ", Form Stability: ${"%.0f".format(it)}%" } ?: ""
+
+        val twinBlock = twinState?.let { twin ->
+            val checkInText = twin.latestCheckIn?.let { c ->
+                "Check-in Sleep ${c.sleepQuality}/5, Energy ${c.energyLevel}/5, Soreness ${c.muscleSoreness}/5, Stress ${c.stressLevel}/5, Hydration ${c.hydrationScore}/5."
+            } ?: "No recent wellness check-in logged."
+            val riskText = if (twin.riskFlags.isEmpty()) "None" else twin.riskFlags.joinToString("; ")
+            """
+            [DIGITAL TWIN STATE] Body Battery: ${twin.bodyBattery}%, Readiness: ${twin.readinessScore}/100 (${twin.recommendedIntensity.label}), ACWR: ${"%.2f".format(twin.acwr)} (${twin.acwrZone.label}), Today Strain: ${"%.0f".format(twin.todayStrain)} pts.
+            [OUTDOOR MICROCLIMATE] ${twin.environment.shortSummary()}, Feels-Like: ${"%.0f".format(twin.environment.apparentTemperatureC)}°C, UV: ${"%.1f".format(twin.environment.uvIndex)}, Env Stress Factor: x${"%.2f".format(twin.environmentStressFactor)}, Suggested Hydration: ${"%.2f".format(twin.hydrationRateLitersPerHour)} L/h.
+            [WELLNESS SIGNALS] $checkInText Active Risk Flags: $riskText.
+            """.trimIndent()
+        } ?: ""
 
         val activityName = when (activityType) {
             "WALKING" -> "walking"
             "JOGGING" -> "jogging"
-            else -> "cycling"
+            "CYCLING" -> "cycling"
+            else -> "outdoor exercise"
         }
 
         val personaInstructions = when (persona) {
@@ -90,7 +107,8 @@ class GeminiRepository @Inject constructor(
             $personaInstructions
 
             [USER BIOMETRICS] Gender: ${user.gender}, Age: ${user.age}, Height: ${"%.0f".format(user.heightCm)}cm, Weight: ${"%.0f".format(user.weightKg)}kg.
-            [LATEST SESSION] Distance: ${distance}km, Avg Speed: ${speed}km/h, Output: ${wattsPerKg} W, Energy: ${calories} kcal.
+            [LATEST SESSION] Distance: ${distance}km, Avg Speed: ${speed}km/h, Output: ${avgWatts} W, Energy: ${calories} kcal${rpeStr}${cadenceStr}${stabilityStr}.
+            $twinBlock
             
             [LANGUAGE & LOCALIZATION]
             - $languageInstruction
@@ -99,7 +117,7 @@ class GeminiRepository @Inject constructor(
             GUARDRAILS (STRICT):
             - You MUST refuse to answer ANY questions not related to $activityName, athletic fitness, nutrition, or athletic performance.
             - If asked off-topic questions, politely decline and steer the conversation back to fitness.
-            - DO NOT hallucinate features, ride data, or facts. Stick strictly to the data provided.
+            - DO NOT hallucinate features, workout data, or facts. Stick strictly to the data provided.
             - DO NOT recommend or mention other third-party tracking apps (e.g., Strava, Garmin Connect, Komoot). Recommend features of this app only.
             - Keep responses concise, impactful, and conversational. Avoid walls of raw text.
         """.trimIndent()
@@ -117,22 +135,22 @@ class GeminiRepository @Inject constructor(
         if (apiKey == null) {
             emit(
                 "⚠️ **No Hugging Face token configured.**\n\n" +
-                "The API token is missing from BuildConfig. Please configure a valid token in local.properties or Settings."
+                "The API token is missing from BuildConfig. Please configure AI_COACH_API_KEY or GEMINI_API_KEY in local.properties."
             )
             return@flow
         }
 
         val messages = buildList {
-            add(HfMessage(role = "system", content = systemPrompt))
+            add(AiChatMessage(role = "system", content = systemPrompt))
             history.forEach { (role, text) ->
                 val normalizedRole = if (role == "model") "assistant" else role
-                add(HfMessage(role = normalizedRole, content = text))
+                add(AiChatMessage(role = normalizedRole, content = text))
             }
-            add(HfMessage(role = "user", content = userMessage))
+            add(AiChatMessage(role = "user", content = userMessage))
         }
 
-        val request = HfChatRequest(
-            model = HfApiService.MODEL,
+        val request = AiChatRequest(
+            model = AiCoachApiService.MODEL,
             messages = messages,
             maxTokens = 600,
             temperature = 0.7f
@@ -203,9 +221,9 @@ class GeminiRepository @Inject constructor(
             ]
         """.trimIndent()
 
-        val request = HfChatRequest(
-            model = HfApiService.MODEL,
-            messages = listOf(HfMessage("system", systemPrompt)),
+        val request = AiChatRequest(
+            model = AiCoachApiService.MODEL,
+            messages = listOf(AiChatMessage("system", systemPrompt)),
             maxTokens = 950,
             temperature = 0.4f
         )
@@ -224,14 +242,15 @@ class GeminiRepository @Inject constructor(
     }
 
     /**
-     * Option 3: Tactical Post-Ride Debrief
+     * Option 3: Tactical Post-Workout Debrief
      */
     suspend fun generateTacticalDebrief(
         user: UserEntity,
         session: WorkoutSessionEntity,
         lapSummaries: List<LapSummary>?,
         persona: CoachPersona = CoachPersona.SUPPORTIVE,
-        language: com.fitnessapp.tracker.data.local.CoachLanguage = com.fitnessapp.tracker.data.local.CoachLanguage.AUTO
+        language: com.fitnessapp.tracker.data.local.CoachLanguage = com.fitnessapp.tracker.data.local.CoachLanguage.AUTO,
+        twinState: com.fitnessapp.tracker.engine.DigitalTwinState? = null
     ): String? {
         val apiKey = resolveApiKey() ?: return null
 
@@ -248,19 +267,19 @@ class GeminiRepository @Inject constructor(
             
             [SESSION DATA]
             $lapsInfo
-            [CALORIES & OUTPUT] Burned: ${"%.0f".format(session.caloriesBurned)} kcal, Average Power: ${"%.0f".format(session.wattsPerKg)} W.
+            [CALORIES & OUTPUT] Burned: ${"%.0f".format(session.caloriesBurned)} kcal, Average Power: ${"%.0f".format(PhysicsEngine.resolveTotalWatts(session.wattsPerKg, user.weightKg))} W.
             
             Analyze the workout tactics in concise bullet points:
             1. ⏱️ Pacing Consistency & Split Analysis (Did pace drop or stay steady?)
-            2. ⛰️ Elevation & Power Management
-            3. 💡 Tactical Improvements for Next Ride (Gear choice, cadence, pacing distribution)
+            2. ⛰️ Elevation & Effort Management
+            3. 💡 Tactical Improvements for Next Workout (Pacing distribution, effort control, recovery focus)
         """.trimIndent()
 
-        val request = HfChatRequest(
-            model = HfApiService.MODEL,
+        val request = AiChatRequest(
+            model = AiCoachApiService.MODEL,
             messages = listOf(
-                HfMessage("system", buildSystemPrompt(user, session, session.activityType, persona, language)),
-                HfMessage("user", prompt)
+                AiChatMessage("system", buildSystemPrompt(user, session, session.activityType, persona, language, twinState)),
+                AiChatMessage("user", prompt)
             ),
             maxTokens = 750,
             temperature = 0.5f

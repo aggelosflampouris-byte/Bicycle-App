@@ -54,7 +54,7 @@ class RecoveryEngine @Inject constructor() {
     /**
      * Calculates the estimated Training Stress Score (TSS) for a single workout session.
      */
-    fun calculateSessionTss(session: WorkoutSessionEntity): Double {
+    fun calculateSessionTss(session: WorkoutSessionEntity, userWeightKg: Float = 75f): Double {
         val durationHours = max(1.0, session.durationSeconds.toDouble()) / 3600.0
         val baselineSpeed = when (session.activityType) {
             "WALKING" -> 4.8
@@ -64,7 +64,8 @@ class RecoveryEngine @Inject constructor() {
         val speedRatio = (session.avgSpeedKmh / baselineSpeed).coerceIn(0.5, 2.5)
         val elevationFactor = (session.elevationGainMeters / 100.0) * 10.0
         val calorieFactor = (session.caloriesBurned / 500.0) * 12.0
-        val powerFactor = if (session.wattsPerKg > 0) (session.wattsPerKg / 2.5) * 15.0 else 0.0
+        val normalizedWKg = PhysicsEngine.resolveWattsPerKg(session.wattsPerKg, userWeightKg)
+        val powerFactor = if (normalizedWKg > 0) (normalizedWKg / 2.5) * 15.0 else 0.0
 
         val baseTss = (durationHours * 45.0 * speedRatio * speedRatio) + elevationFactor + calorieFactor + powerFactor
         return baseTss.coerceIn(5.0, 350.0)
@@ -79,14 +80,14 @@ class RecoveryEngine @Inject constructor() {
         user: UserEntity = UserEntity(),
         currentTimeMs: Long = System.currentTimeMillis()
     ): RecoveryAdvice {
-        val sessionTss = calculateSessionTss(targetSession)
+        val sessionTss = calculateSessionTss(targetSession, user.weightKg)
 
         // Calculate 7-day cumulative fatigue with exponential decay
         var cumulativeFatigue = sessionTss
         recentSessions.forEach { prev ->
             if (prev.id != targetSession.id && prev.startTime < targetSession.startTime) {
                 val elapsedHours = max(0.0, (targetSession.startTime - prev.startTime) / (1000.0 * 3600.0))
-                val prevTss = calculateSessionTss(prev)
+                val prevTss = calculateSessionTss(prev, user.weightKg)
                 // Half-life decay of ~48 hours
                 val decayedLoad = prevTss * exp(-elapsedHours / 48.0)
                 cumulativeFatigue += decayedLoad

@@ -8,7 +8,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import javax.inject.Inject
 
 @HiltAndroidApp
-class CyclingApp : Application(), Configuration.Provider {
+class SmartTrackApp : Application(), Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
@@ -22,10 +22,10 @@ class CyclingApp : Application(), Configuration.Provider {
         // Initialize osmdroid with compliant user agent (avoids OSM 403 Forbidden)
         OsmConfiguration.getInstance().apply {
             load(
-                this@CyclingApp,
+                this@SmartTrackApp,
                 getSharedPreferences("osmdroid", MODE_PRIVATE)
             )
-            userAgentValue = "com.fitnessapp.tracker/1.0 (aggelosflampouris)"
+            userAgentValue = "com.fitnessapp.tracker/1.0 (SmartTrack)"
         }
     }
 }

@@ -19,9 +19,9 @@ object GpxExporter {
 
         val sb = java.lang.StringBuilder()
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-        sb.append("<gpx version=\"1.1\" creator=\"VeloTrack\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
+        sb.append("<gpx version=\"1.1\" creator=\"Smart Track\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
         sb.append("  <trk>\n")
-        sb.append("    <name>VeloTrack ${session.activityType} Session</name>\n")
+        sb.append("    <name>Smart Track ${session.activityType} Session</name>\n")
         
         // Group points by lap to support multiple track segments (trkseg)
         val laps = routePoints.groupBy { it.lap }

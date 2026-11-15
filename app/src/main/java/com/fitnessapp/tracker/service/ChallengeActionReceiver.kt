@@ -40,8 +40,8 @@ class ChallengeActionReceiver : BroadcastReceiver() {
                         IntentActions.CANCEL_CHALLENGE -> {
                             challengeDao.updateChallenge(challenge.copy(status = ChallengeStatus.CANCELLED))
                             // Also notify the active service to drop it
-                            val stopChallengeIntent = Intent(context, CyclingTrackingService::class.java).apply {
-                                action = CyclingTrackingService.ACTION_CANCEL_CHALLENGE
+                            val stopChallengeIntent = Intent(context, OutdoorTrackingService::class.java).apply {
+                                action = OutdoorTrackingService.ACTION_CANCEL_CHALLENGE
                             }
                             context.startService(stopChallengeIntent)
                         }

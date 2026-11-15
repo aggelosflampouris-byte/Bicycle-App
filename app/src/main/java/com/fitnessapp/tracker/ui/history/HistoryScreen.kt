@@ -98,7 +98,8 @@ fun HistoryScreen(
                     text = when (activityType) {
                         "WALKING" -> "Walks"
                         "JOGGING" -> "Jogs"
-                        else -> "Rides"
+                        "CYCLING" -> "Rides"
+                        else -> "Workouts"
                     },
                     color = if (listSelected) ElectricGreen else TextSecondary,
                     fontWeight = if (listSelected) FontWeight.Bold else FontWeight.Normal,
@@ -268,13 +269,15 @@ fun HistoryScreen(
                                 when (activityType) {
                                     "WALKING" -> "No recorded walks yet"
                                     "JOGGING" -> "No recorded jogs yet"
-                                    else -> "No recorded rides yet"
+                                    "CYCLING" -> "No recorded rides yet"
+                                    else -> "No recorded workouts yet"
                                 }
                             } else {
                                 when (activityType) {
                                     "WALKING" -> "No walks match this filter"
                                     "JOGGING" -> "No jogs match this filter"
-                                    else -> "No rides match this filter"
+                                    "CYCLING" -> "No rides match this filter"
+                                    else -> "No workouts match this filter"
                                 }
                             },
                             style = MaterialTheme.typography.titleMedium,
@@ -285,7 +288,8 @@ fun HistoryScreen(
                             text = when (activityType) {
                                 "WALKING" -> "Record your walking sessions to see detailed stats here"
                                 "JOGGING" -> "Record your jogging sessions to see detailed stats here"
-                                else -> "Record your cycling sessions to see detailed stats here"
+                                "CYCLING" -> "Record your cycling sessions to see detailed stats here"
+                                else -> "Record your outdoor workouts to see detailed stats here"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
@@ -304,7 +308,8 @@ fun HistoryScreen(
                             val buttonText = when (activityType) {
                                 "WALKING" -> "Start a Walk"
                                 "JOGGING" -> "Start a Jog"
-                                else -> "Start a Ride"
+                                "CYCLING" -> "Start a Ride"
+                                else -> "Start Workout"
                             }
                             Text(buttonText, fontWeight = FontWeight.Bold)
                         }

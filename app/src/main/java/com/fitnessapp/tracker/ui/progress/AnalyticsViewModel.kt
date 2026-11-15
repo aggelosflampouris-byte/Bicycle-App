@@ -2,8 +2,10 @@ package com.fitnessapp.tracker.ui.progress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fitnessapp.tracker.data.local.dao.UserDao
 import com.fitnessapp.tracker.data.local.dao.WorkoutSessionDao
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
+import com.fitnessapp.tracker.engine.DigitalTwinEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -11,7 +13,7 @@ import java.util.*
 import javax.inject.Inject
 
 enum class TimeFilter { DAILY, WEEKLY, MONTHLY }
-enum class MetricFilter { DISTANCE, SPEED, CALORIES }
+enum class MetricFilter { DISTANCE, SPEED, CALORIES, STRAIN }
 enum class ChartType { BAR, LINE, AREA }
 
 data class ChartBarData(
@@ -30,21 +32,32 @@ data class AnalyticsUiState(
     val speedDiffPercent: Double? = null,
     val totalCalories: Double = 0.0,
     val caloriesDiffPercent: Double? = null,
+    val totalStrain: Double = 0.0,
+    val strainDiffPercent: Double? = null,
     val isLoading: Boolean = true
 )
 
 @HiltViewModel
 class AnalyticsViewModel @Inject constructor(
-    private val sessionDao: WorkoutSessionDao
+    private val sessionDao: WorkoutSessionDao,
+    private val userDao: UserDao,
+    private val digitalTwinEngine: DigitalTwinEngine
 ) : ViewModel() {
 
     private val _filter = MutableStateFlow(TimeFilter.WEEKLY)
     private val _metric = MutableStateFlow(MetricFilter.DISTANCE)
     private val _chartType = MutableStateFlow(ChartType.BAR)
     private val _sessions = MutableStateFlow<List<WorkoutSessionEntity>>(emptyList())
-    
-    val uiState: StateFlow<AnalyticsUiState> = combine(_filter, _metric, _chartType, _sessions) { filter, metric, chartType, sessions ->
-        processData(filter, metric, chartType, sessions)
+    private val _userWeightKg = userDao.getUserFlow().map { it?.weightKg ?: 75f }
+
+    val uiState: StateFlow<AnalyticsUiState> = combine(
+        _filter,
+        _metric,
+        _chartType,
+        _sessions,
+        _userWeightKg
+    ) { filter, metric, chartType, sessions, weightKg ->
+        processData(filter, metric, chartType, sessions, weightKg)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -79,8 +92,19 @@ class AnalyticsViewModel @Inject constructor(
         _chartType.value = chartType
     }
 
-    private fun processData(filter: TimeFilter, metric: MetricFilter, chartType: ChartType, sessions: List<WorkoutSessionEntity>): AnalyticsUiState {
-        if (sessions.isEmpty()) return AnalyticsUiState(isLoading = false)
+    private fun processData(
+        filter: TimeFilter,
+        metric: MetricFilter,
+        chartType: ChartType,
+        sessions: List<WorkoutSessionEntity>,
+        userWeightKg: Float
+    ): AnalyticsUiState {
+        if (sessions.isEmpty()) return AnalyticsUiState(
+            selectedFilter = filter,
+            selectedMetric = metric,
+            selectedChartType = chartType,
+            isLoading = false
+        )
 
         val cal = Calendar.getInstance()
         val now = System.currentTimeMillis()
@@ -143,19 +167,22 @@ class AnalyticsViewModel @Inject constructor(
         val currentDist = currentPeriodSessions.sumOf { it.totalDistanceMeters } / 1000.0
         val currentCals = currentPeriodSessions.sumOf { it.caloriesBurned }
         val currentSpeed = if (currentPeriodSessions.isNotEmpty()) currentPeriodSessions.map { it.avgSpeedKmh }.average() else 0.0
+        val currentStrain = currentPeriodSessions.sumOf { digitalTwinEngine.calculateSessionTwinStrain(it, userWeightKg) }
 
         // Calculate totals for previous period
         val prevDist = previousPeriodSessions.sumOf { it.totalDistanceMeters } / 1000.0
         val prevCals = previousPeriodSessions.sumOf { it.caloriesBurned }
         val prevSpeed = if (previousPeriodSessions.isNotEmpty()) previousPeriodSessions.map { it.avgSpeedKmh }.average() else 0.0
+        val prevStrain = previousPeriodSessions.sumOf { digitalTwinEngine.calculateSessionTwinStrain(it, userWeightKg) }
 
         // Diff percentages
         val distDiff = calculateDiff(currentDist, prevDist)
         val speedDiff = calculateDiff(currentSpeed, prevSpeed)
         val calsDiff = calculateDiff(currentCals, prevCals)
+        val strainDiff = calculateDiff(currentStrain, prevStrain)
 
         // Build chart data
-        val chartData = buildChartData(filter, metric, currentPeriodSessions)
+        val chartData = buildChartData(filter, metric, currentPeriodSessions, userWeightKg)
 
         return AnalyticsUiState(
             selectedFilter = filter,
@@ -168,8 +195,21 @@ class AnalyticsViewModel @Inject constructor(
             speedDiffPercent = speedDiff,
             totalCalories = currentCals,
             caloriesDiffPercent = calsDiff,
+            totalStrain = currentStrain,
+            strainDiffPercent = strainDiff,
             isLoading = false
         )
+    }
+
+    private fun sessionMetricValue(
+        session: WorkoutSessionEntity,
+        metric: MetricFilter,
+        userWeightKg: Float
+    ): Double = when (metric) {
+        MetricFilter.DISTANCE -> session.totalDistanceMeters / 1000.0
+        MetricFilter.SPEED -> session.avgSpeedKmh
+        MetricFilter.CALORIES -> session.caloriesBurned
+        MetricFilter.STRAIN -> digitalTwinEngine.calculateSessionTwinStrain(session, userWeightKg)
     }
 
     private fun calculateDiff(current: Double, previous: Double): Double? {
@@ -177,7 +217,12 @@ class AnalyticsViewModel @Inject constructor(
         return ((current - previous) / previous) * 100.0
     }
 
-    private fun buildChartData(filter: TimeFilter, metric: MetricFilter, sessions: List<WorkoutSessionEntity>): List<ChartBarData> {
+    private fun buildChartData(
+        filter: TimeFilter,
+        metric: MetricFilter,
+        sessions: List<WorkoutSessionEntity>,
+        userWeightKg: Float
+    ): List<ChartBarData> {
         val cal = Calendar.getInstance()
         val dataMap = mutableMapOf<String, Double>()
         val countMap = mutableMapOf<String, Int>()
@@ -197,11 +242,7 @@ class AnalyticsViewModel @Inject constructor(
                 sessions.forEach {
                     val label = format.format(Date(it.startTime))
                     if (dataMap.containsKey(label)) {
-                        val valueToAdd = when (metric) {
-                            MetricFilter.DISTANCE -> it.totalDistanceMeters / 1000.0
-                            MetricFilter.SPEED -> it.avgSpeedKmh
-                            MetricFilter.CALORIES -> it.caloriesBurned
-                        }
+                        val valueToAdd = sessionMetricValue(it, metric, userWeightKg)
                         dataMap[label] = dataMap[label]!! + valueToAdd
                         countMap[label] = countMap[label]!! + 1
                     }
@@ -220,11 +261,7 @@ class AnalyticsViewModel @Inject constructor(
                 sessions.forEach {
                     val label = "W${format.format(Date(it.startTime))}"
                     if (dataMap.containsKey(label)) {
-                        val valueToAdd = when (metric) {
-                            MetricFilter.DISTANCE -> it.totalDistanceMeters / 1000.0
-                            MetricFilter.SPEED -> it.avgSpeedKmh
-                            MetricFilter.CALORIES -> it.caloriesBurned
-                        }
+                        val valueToAdd = sessionMetricValue(it, metric, userWeightKg)
                         dataMap[label] = dataMap[label]!! + valueToAdd
                         countMap[label] = countMap[label]!! + 1
                     }
@@ -243,11 +280,7 @@ class AnalyticsViewModel @Inject constructor(
                 sessions.forEach {
                     val label = format.format(Date(it.startTime))
                     if (dataMap.containsKey(label)) {
-                        val valueToAdd = when (metric) {
-                            MetricFilter.DISTANCE -> it.totalDistanceMeters / 1000.0
-                            MetricFilter.SPEED -> it.avgSpeedKmh
-                            MetricFilter.CALORIES -> it.caloriesBurned
-                        }
+                        val valueToAdd = sessionMetricValue(it, metric, userWeightKg)
                         dataMap[label] = dataMap[label]!! + valueToAdd
                         countMap[label] = countMap[label]!! + 1
                     }

@@ -1,5 +1,6 @@
 package com.fitnessapp.tracker.ui.chat
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitnessapp.tracker.data.local.dao.ChatMessageDao
@@ -10,9 +11,14 @@ import com.fitnessapp.tracker.data.local.entity.ChatSessionEntity
 import com.fitnessapp.tracker.data.local.entity.UserEntity
 import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
 import com.fitnessapp.tracker.data.local.dao.ChatSessionDao
+import com.fitnessapp.tracker.data.local.dao.WellnessCheckInDao
 import com.fitnessapp.tracker.data.local.SettingsRepository
-import com.fitnessapp.tracker.data.remote.GeminiRepository
+import com.fitnessapp.tracker.data.remote.AiCoachRepository
+import com.fitnessapp.tracker.data.remote.EnvironmentContextRepository
+import com.fitnessapp.tracker.engine.DigitalTwinEngine
+import com.fitnessapp.tracker.engine.DigitalTwinState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -42,16 +48,24 @@ data class ChatUiState(
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val geminiRepository: GeminiRepository,
+    private val aiCoachRepository: AiCoachRepository,
     private val userDao: UserDao,
     private val sessionDao: WorkoutSessionDao,
     private val chatDao: ChatMessageDao,
     private val chatSessionDao: ChatSessionDao,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val wellnessCheckInDao: WellnessCheckInDao,
+    private val environmentContextRepository: EnvironmentContextRepository,
+    private val digitalTwinEngine: DigitalTwinEngine,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+
+    private val targetSessionId: Long = savedStateHandle.get<Long>("sessionId") ?: -1L
+    private val contextReady = CompletableDeferred<Unit>()
+    private var hasHandledEntryTrigger = false
 
     private var currentUser: UserEntity = UserEntity()
     private var recentSession: WorkoutSessionEntity? = null
@@ -61,22 +75,35 @@ class ChatViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             currentUser = userDao.getUser() ?: UserEntity()
-            recentSession = sessionDao.getRecentSessions(1).firstOrNull()
             currentActivityType = settingsRepository.activityType.first()
+            recentSession = if (targetSessionId > 0) {
+                sessionDao.getSessionById(targetSessionId) ?: sessionDao.getRecentSessions(1).firstOrNull()
+            } else {
+                sessionDao.getRecentSessions(1).firstOrNull()
+            }
+            if (targetSessionId > 0 && recentSession != null) {
+                currentActivityType = recentSession!!.activityType
+            }
+            contextReady.complete(Unit)
 
             launch {
-                settingsRepository.activityType.flatMapLatest { type ->
-                    currentActivityType = type
-                    // Reset active chat when switching modes
-                    _uiState.update { it.copy(activeSessionId = null, messages = emptyList()) }
-                    chatSessionDao.getSessionsByActivity(type)
-                }.collect { sessions ->
-                    _uiState.update { it.copy(sessions = sessions) }
-                    
-                    if (_uiState.value.activeSessionId == null && _uiState.value.messages.isEmpty()) {
-                        createNewChatSession()
+                settingsRepository.activityType
+                    .distinctUntilChanged()
+                    .flatMapLatest { type ->
+                        // Only reset chat when user switches sport mode after initial load (or without a targeted summary session).
+                        val keepTargetSession = targetSessionId > 0 && hasHandledEntryTrigger
+                        if (!keepTargetSession && type != currentActivityType) {
+                            currentActivityType = type
+                            _uiState.update { it.copy(activeSessionId = null, messages = emptyList()) }
+                        }
+                        chatSessionDao.getSessionsByActivity(currentActivityType)
+                    }.collect { sessions ->
+                        _uiState.update { it.copy(sessions = sessions) }
+
+                        if (_uiState.value.activeSessionId == null && _uiState.value.messages.isEmpty()) {
+                            createNewChatSession()
+                        }
                     }
-                }
             }
 
             launch {
@@ -118,7 +145,8 @@ class ChatViewModel @Inject constructor(
             val activityName = when (currentActivityType) {
                 "WALKING" -> "walking"
                 "JOGGING" -> "jogging"
-                else -> "cycling"
+                "CYCLING" -> "cycling"
+                else -> "outdoor fitness"
             }
             val greeting = "👋 Hey ${currentUser.name}! I'm your AI Coach, here to help you improve your $activityName performance. " +
                 "I've analyzed your recent session. Ask me anything about your performance!"
@@ -193,11 +221,19 @@ class ChatViewModel @Inject constructor(
 
             val persona = _uiState.value.coachPersona
             val language = _uiState.value.coachLanguage
-            val systemPrompt = geminiRepository.buildSystemPrompt(currentUser, recentSession, currentActivityType, persona, language)
+            val twinState = buildCurrentTwinState()
+            val systemPrompt = aiCoachRepository.buildSystemPrompt(
+                user = currentUser,
+                session = recentSession,
+                activityType = currentActivityType,
+                persona = persona,
+                language = language,
+                twinState = twinState
+            )
 
             try {
                 var responseText = ""
-                geminiRepository.streamChat(
+                aiCoachRepository.streamChat(
                     userMessage = userText,
                     systemPrompt = systemPrompt,
                     history = history
@@ -248,7 +284,7 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun triggerPreRideBriefing(
+    fun triggerPreWorkoutBriefing(
         targetDistanceKm: Double,
         weatherCondition: String,
         tempC: Double,
@@ -257,7 +293,7 @@ class ChatViewModel @Inject constructor(
     ) {
         if (_uiState.value.isLoading) return
         viewModelScope.launch {
-            val prompt = "🌦️ Pre-Ride Briefing Request: Target distance is ${"%.1f".format(targetDistanceKm)} km. Weather is $weatherCondition, ${"%.0f".format(tempC)}°C, wind ${"%.1f".format(windSpeedKmh)} km/h from $windDirection. Give me a pacing and nutrition/hydration strategy."
+            val prompt = "🌦️ Pre-Workout Briefing Request: Target distance is ${"%.1f".format(targetDistanceKm)} km. Weather is $weatherCondition, ${"%.0f".format(tempC)}°C, wind ${"%.1f".format(windSpeedKmh)} km/h from $windDirection. Give me a pacing and nutrition/hydration strategy."
             sendMessage(prompt)
         }
     }
@@ -280,12 +316,39 @@ class ChatViewModel @Inject constructor(
                 val activityName = when (currentActivityType) {
                     "WALKING" -> "walk"
                     "JOGGING" -> "run"
-                    else -> "ride"
+                    "CYCLING" -> "ride"
+                    else -> "workout"
                 }
                 sendMessage("I don't have any saved $activityName history yet. What should I focus on for my first $activityName?")
             } else {
                 _uiState.update { it.copy(availableSessions = sessions, showSessionPicker = true) }
             }
+        }
+    }
+
+    fun handlePostSummaryEntry() {
+        if (hasHandledEntryTrigger) return
+        hasHandledEntryTrigger = true
+        viewModelScope.launch {
+            contextReady.await()
+            if (targetSessionId > 0) {
+                val targetSession = sessionDao.getSessionById(targetSessionId) ?: recentSession
+                if (targetSession != null) {
+                    recentSession = targetSession
+                    currentActivityType = targetSession.activityType
+                    val distKm = "%.2f".format(targetSession.totalDistanceMeters / 1000.0)
+                    val avgSpeed = "%.1f".format(targetSession.avgSpeedKmh)
+                    val elev = "%.0f".format(targetSession.elevationGainMeters)
+                    val calories = "%.0f".format(targetSession.caloriesBurned)
+                    sendMessage(
+                        "Please analyze my ${targetSession.activityType.lowercase()} workout " +
+                            "(${distKm} km, avg ${avgSpeed} km/h, +${elev} m elevation gain, ${calories} kcal burned) " +
+                            "and give me actionable feedback and recovery tips."
+                    )
+                    return@launch
+                }
+            }
+            openSessionPicker()
         }
     }
 
@@ -305,7 +368,8 @@ class ChatViewModel @Inject constructor(
             val activityName = when (currentActivityType) {
                 "WALKING" -> "walk"
                 "JOGGING" -> "run"
-                else -> "ride"
+                "CYCLING" -> "ride"
+                else -> "workout"
             }
 
             val sb = java.lang.StringBuilder()
@@ -318,6 +382,23 @@ class ChatViewModel @Inject constructor(
             }
 
             sendMessage(sb.toString().trim())
+        }
+    }
+
+    private suspend fun buildCurrentTwinState(): DigitalTwinState? {
+        return try {
+            val allSessions = sessionDao.getRecentSessions(40)
+            val latestCheckIn = wellnessCheckInDao.getRecentCheckIns(1).firstOrNull()
+            val env = environmentContextRepository.getEnvironmentContext(forceRefresh = false)
+            digitalTwinEngine.computeTwinState(
+                sessions = allSessions,
+                user = currentUser,
+                latestCheckIn = latestCheckIn,
+                environment = env,
+                preferredActivityType = currentActivityType
+            )
+        } catch (_: Exception) {
+            null
         }
     }
 

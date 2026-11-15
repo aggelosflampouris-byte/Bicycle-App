@@ -16,9 +16,6 @@ object NotificationHelper {
     const val CHANNEL_ID = "cycling_tracker_channel"
     const val NOTIFICATION_ID = 1001
 
-    const val UPDATE_CHANNEL_ID = "update_channel"
-    const val UPDATE_NOTIFICATION_ID = 2002
-
     const val CHALLENGE_CHANNEL_ID = "challenge_channel"
     const val CHALLENGE_NOTIFICATION_ID = 3003
 
@@ -32,19 +29,11 @@ object NotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val trackingChannel = NotificationChannel(
                 CHANNEL_ID,
-                "Cycling Tracker",
+                "Workout Tracker",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Live GPS tracking notification"
                 setShowBadge(false)
-            }
-            
-            val updateChannel = NotificationChannel(
-                UPDATE_CHANNEL_ID,
-                "App Updates",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Notifications for new app versions"
             }
             
             val challengeChannel = NotificationChannel(
@@ -52,7 +41,7 @@ object NotificationHelper {
                 "Challenges",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Daily fitness challenges"
+                description = "Fitness challenges"
             }
 
             val reminderChannel = NotificationChannel(
@@ -73,7 +62,6 @@ object NotificationHelper {
             
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(trackingChannel)
-            manager.createNotificationChannel(updateChannel)
             manager.createNotificationChannel(challengeChannel)
             manager.createNotificationChannel(reminderChannel)
             manager.createNotificationChannel(routineChannel)
@@ -91,7 +79,7 @@ object NotificationHelper {
     ): Notification {
         val intent = Intent(
             Intent.ACTION_VIEW,
-            android.net.Uri.parse("smartcyclingtracker://live_tracking"),
+            android.net.Uri.parse("smarttrack://live_tracking"),
             context,
             MainActivity::class.java
         ).apply {
@@ -102,24 +90,24 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val pauseIntent = Intent(context, CyclingTrackingService::class.java).apply { 
-            action = CyclingTrackingService.ACTION_TOGGLE_PAUSE 
+        val pauseIntent = Intent(context, OutdoorTrackingService::class.java).apply { 
+            action = OutdoorTrackingService.ACTION_TOGGLE_PAUSE 
         }
         val pausePendingIntent = PendingIntent.getService(
             context, 1, pauseIntent, 
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val lapIntent = Intent(context, CyclingTrackingService::class.java).apply { 
-            action = CyclingTrackingService.ACTION_LAP 
+        val lapIntent = Intent(context, OutdoorTrackingService::class.java).apply { 
+            action = OutdoorTrackingService.ACTION_LAP 
         }
         val lapPendingIntent = PendingIntent.getService(
             context, 2, lapIntent, 
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val finishIntent = Intent(context, CyclingTrackingService::class.java).apply { 
-            action = CyclingTrackingService.ACTION_STOP 
+        val finishIntent = Intent(context, OutdoorTrackingService::class.java).apply { 
+            action = OutdoorTrackingService.ACTION_STOP 
         }
         val finishPendingIntent = PendingIntent.getService(
             context, 3, finishIntent, 
@@ -192,29 +180,6 @@ object NotificationHelper {
         }
 
         return builder.build()
-    }
-
-    fun showUpdateNotification(context: Context, latestVersion: String) {
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
-            .setContentTitle("Update Available")
-            .setContentText("Smart Track version $latestVersion is ready to install.")
-            .setSmallIcon(android.R.drawable.stat_sys_download_done) // built-in icon
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-
-        val manager = context.getSystemService(NotificationManager::class.java)
-        // If POST_NOTIFICATIONS is denied on Android 13+, this will gracefully be ignored by the system
-        manager.notify(UPDATE_NOTIFICATION_ID, notification)
     }
 
     fun showNewChallengeNotification(context: Context, id: Long, challenge: com.fitnessapp.tracker.data.local.entity.ChallengeEntity) {

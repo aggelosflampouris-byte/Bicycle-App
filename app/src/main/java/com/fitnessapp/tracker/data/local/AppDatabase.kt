@@ -18,10 +18,11 @@ import com.fitnessapp.tracker.data.local.entity.RoutineEntity
 import com.fitnessapp.tracker.data.local.entity.ChallengeEntity
 import com.fitnessapp.tracker.data.local.entity.TrainingPlanEntity
 import com.fitnessapp.tracker.data.local.entity.PersonalRecordEntity
+import com.fitnessapp.tracker.data.local.entity.TwinSnapshotEntity
+import com.fitnessapp.tracker.data.local.entity.WellnessCheckInEntity
 import com.fitnessapp.tracker.data.local.dao.PersonalRecordDao
-import com.fitnessapp.tracker.data.local.entity.SegmentEntity
-import com.fitnessapp.tracker.data.local.entity.SegmentEffortEntity
-import com.fitnessapp.tracker.data.local.dao.SegmentDao
+import com.fitnessapp.tracker.data.local.dao.TwinSnapshotDao
+import com.fitnessapp.tracker.data.local.dao.WellnessCheckInDao
 
 @Database(
     entities = [
@@ -33,13 +34,18 @@ import com.fitnessapp.tracker.data.local.dao.SegmentDao
         ChallengeEntity::class,
         TrainingPlanEntity::class,
         PersonalRecordEntity::class,
-        SegmentEntity::class,
-        SegmentEffortEntity::class
+        WellnessCheckInEntity::class,
+        TwinSnapshotEntity::class
     ],
-    version = 12,
+    version = 14,
     exportSchema = false
 )
-@TypeConverters(ChallengeTypeConverters::class, RoutineTypeConverters::class, PersonalRecordTypeConverters::class)
+@TypeConverters(
+    ChallengeTypeConverters::class,
+    RoutineTypeConverters::class,
+    PersonalRecordTypeConverters::class,
+    TwinTypeConverters::class
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
@@ -49,7 +55,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun challengeDao(): ChallengeDao
     abstract fun trainingPlanDao(): TrainingPlanDao
     abstract fun personalRecordDao(): PersonalRecordDao
-    abstract fun segmentDao(): SegmentDao
+    abstract fun wellnessCheckInDao(): WellnessCheckInDao
+    abstract fun twinSnapshotDao(): TwinSnapshotDao
 
     companion object {
         const val DATABASE_NAME = "cycling_tracker.db"
@@ -188,6 +195,33 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 database.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_segment_efforts_sessionId` ON `segment_efforts` (`sessionId`)"
+                )
+            }
+        }
+
+        val MIGRATION_12_13 = object : androidx.room.migration.Migration(12, 13) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL("DROP TABLE IF EXISTS `segment_efforts`")
+                database.execSQL("DROP TABLE IF EXISTS `segments`")
+            }
+        }
+
+        val MIGRATION_13_14 = object : androidx.room.migration.Migration(13, 14) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `rpe` INTEGER")
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `wellnessFeel` INTEGER")
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `avgCadenceSpm` REAL")
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `gaitStabilityScore` REAL")
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `weatherTempC` REAL")
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `weatherWindKmh` REAL")
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `weatherHumidityPct` REAL")
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `environmentStressFactor` REAL NOT NULL DEFAULT 1.0")
+                database.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `perceivedNotes` TEXT NOT NULL DEFAULT ''")
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `wellness_check_ins` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestampMs` INTEGER NOT NULL, `type` TEXT NOT NULL, `sleepQuality` INTEGER NOT NULL, `energyLevel` INTEGER NOT NULL, `muscleSoreness` INTEGER NOT NULL, `stressLevel` INTEGER NOT NULL, `hydrationScore` INTEGER NOT NULL, `notes` TEXT NOT NULL)"
+                )
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `twin_snapshots` (`dateKey` TEXT NOT NULL, `updatedAtMs` INTEGER NOT NULL, `readinessScore` INTEGER NOT NULL, `bodyBattery` INTEGER NOT NULL, `acuteLoad` REAL NOT NULL, `chronicLoad` REAL NOT NULL, `acwr` REAL NOT NULL, `strainScore` REAL NOT NULL, `recommendedIntensity` TEXT NOT NULL, `weatherTempC` REAL, `windSpeedKmh` REAL, `humidityPct` REAL, `uvIndex` REAL, PRIMARY KEY(`dateKey`))"
                 )
             }
         }

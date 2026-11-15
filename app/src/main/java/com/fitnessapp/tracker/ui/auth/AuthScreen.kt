@@ -12,8 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
@@ -35,8 +35,8 @@ import com.fitnessapp.tracker.theme.*
 
 @Composable
 fun AuthScreen(
-    onLoginSuccess: () -> Unit,
-    onSignUpSuccess: () -> Unit,
+    onLoginSuccess: (Boolean) -> Unit,
+    onSignUpSuccess: (Boolean) -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -72,7 +72,7 @@ fun AuthScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.DirectionsBike,
+                    imageVector = Icons.Default.FitnessCenter,
                     contentDescription = null,
                     tint = DeepNavy,
                     modifier = Modifier.size(44.dp)

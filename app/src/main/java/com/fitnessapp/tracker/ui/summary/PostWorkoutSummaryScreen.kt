@@ -126,12 +126,17 @@ fun PostWorkoutSummaryScreen(
                 uiState.session != null -> {
                     SummaryContent(
                         session = uiState.session!!,
+                        user = uiState.user,
                         context = context,
                         isGeneratingDebrief = uiState.isGeneratingDebrief,
                         tacticalDebrief = uiState.tacticalDebrief,
                         newAchievements = uiState.newAchievements,
                         recoveryAdvice = uiState.recoveryAdvice,
-                        onGenerateDebrief = { viewModel.generateTacticalDebrief(null) },
+                        twinStrain = uiState.twinStrain,
+                        isSavingFeedback = uiState.isSavingFeedback,
+                        feedbackSaved = uiState.feedbackSaved,
+                        onSaveFeedback = viewModel::savePostWorkoutFeedback,
+                        onGenerateDebrief = { laps -> viewModel.generateTacticalDebrief(laps) },
                         onAskPersonalCoach = onAskPersonalCoach,
                         onBack = onBack
                     )
@@ -151,12 +156,17 @@ fun PostWorkoutSummaryScreen(
 @Composable
 private fun SummaryContent(
     session: WorkoutSessionEntity,
+    user: com.fitnessapp.tracker.data.local.entity.UserEntity,
     context: Context,
     isGeneratingDebrief: Boolean,
     tacticalDebrief: String?,
     newAchievements: List<com.fitnessapp.tracker.engine.PersonalRecordAchievement>,
     recoveryAdvice: com.fitnessapp.tracker.engine.RecoveryAdvice?,
-    onGenerateDebrief: () -> Unit,
+    twinStrain: Double?,
+    isSavingFeedback: Boolean,
+    feedbackSaved: Boolean,
+    onSaveFeedback: (Int, Int, String) -> Unit,
+    onGenerateDebrief: (List<LapSummary>?) -> Unit,
     onAskPersonalCoach: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -272,7 +282,7 @@ private fun SummaryContent(
                 IconButton(
                     onClick = {
                         val dateStr = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date(session.startTime))
-                        gpxExportLauncher.launch("VeloTrack_${session.activityType}_$dateStr.gpx")
+                        gpxExportLauncher.launch("SmartTrack_${session.activityType}_$dateStr.gpx")
                     },
                     modifier = Modifier
                         .padding(16.dp)
@@ -478,10 +488,51 @@ private fun SummaryContent(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.ElectricBolt,
                     label = "Avg Power",
-                    value = "${"%.0f".format(session.wattsPerKg)} W",
+                    value = "${"%.0f".format(PhysicsEngine.resolveTotalWatts(session.wattsPerKg, user.weightKg))} W",
                     tint = WarningAmber
                 )
-                Spacer(modifier = Modifier.weight(1f))
+                SummaryStatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Insights,
+                    label = "Twin Strain",
+                    value = twinStrain?.let { "%.0f".format(it) } ?: "—",
+                    tint = ElectricGreen
+                )
+            }
+
+            if (session.weatherTempC != null || session.gaitStabilityScore != null || session.avgCadenceSpm != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (session.weatherTempC != null) {
+                        val windTxt = session.weatherWindKmh?.let { " • %.0f km/h".format(it) } ?: ""
+                        SummaryStatCard(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Default.WbSunny,
+                            label = "Outdoor Env",
+                            value = "${"%.0f".format(session.weatherTempC)}°C$windTxt",
+                            tint = VividCyan
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+
+                    val formValue = when {
+                        session.gaitStabilityScore != null && session.avgCadenceSpm != null ->
+                            "${"%.0f".format(session.gaitStabilityScore)}% • ${"%.0f".format(session.avgCadenceSpm)} spm"
+                        session.gaitStabilityScore != null -> "${"%.0f".format(session.gaitStabilityScore)}%"
+                        session.avgCadenceSpm != null -> "${"%.0f".format(session.avgCadenceSpm)} spm"
+                        else -> "—"
+                    }
+                    SummaryStatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.Sensors,
+                        label = "Form / Cadence",
+                        value = formValue,
+                        tint = ElectricGreen
+                    )
+                }
             }
 
             // ── Lap Details Table (only when 2+ laps) ────────────────────────
@@ -563,7 +614,7 @@ private fun SummaryContent(
 
                         if (tacticalDebrief == null && !isGeneratingDebrief) {
                             Button(
-                                onClick = onGenerateDebrief,
+                                onClick = { onGenerateDebrief(lapSummaries.takeIf { it.size >= 2 }) },
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = VividCyan.copy(alpha = 0.15f),
@@ -587,7 +638,7 @@ private fun SummaryContent(
                                 strokeWidth = 2.dp
                             )
                             Text(
-                                text = "Qwen is analyzing pace splits and elevation...",
+                                text = "AI Coach is analyzing pace splits and elevation...",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary
                             )
@@ -605,6 +656,16 @@ private fun SummaryContent(
                     }
                 }
             }
+
+            // ── Digital Twin Subjective Check-In Card ────────────────────────
+            PostWorkoutTwinCheckInCard(
+                initialRpe = session.rpe ?: 5,
+                initialFeel = session.wellnessFeel ?: 4,
+                initialNotes = session.perceivedNotes,
+                isSaving = isSavingFeedback,
+                feedbackSaved = feedbackSaved,
+                onSaveFeedback = onSaveFeedback
+            )
 
             // ── Smart Recovery & Sleep Advisor Card ──────────────────────────
             recoveryAdvice?.let { recovery ->
@@ -1131,4 +1192,144 @@ private fun SmartRecoveryAdvisorCard(
         }
     }
 }
+
+@Composable
+private fun PostWorkoutTwinCheckInCard(
+    initialRpe: Int,
+    initialFeel: Int,
+    initialNotes: String,
+    isSaving: Boolean,
+    feedbackSaved: Boolean,
+    onSaveFeedback: (Int, Int, String) -> Unit
+) {
+    var selectedRpe by remember(initialRpe) { mutableIntStateOf(initialRpe) }
+    var selectedFeel by remember(initialFeel) { mutableIntStateOf(initialFeel) }
+    var notesText by remember(initialNotes) { mutableStateOf(initialNotes) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NavyCard),
+        border = BorderStroke(1.dp, if (feedbackSaved) ElectricGreen.copy(alpha = 0.7f) else GlassBorder)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.FavoriteBorder, contentDescription = null, tint = ElectricGreen, modifier = Modifier.size(20.dp))
+                    Text(
+                        text = "How Did Your Body Feel?",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                }
+                if (feedbackSaved) {
+                    Text(
+                        text = "Synced",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = ElectricGreen
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Session Effort (RPE): $selectedRpe / 10",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary
+                )
+                Slider(
+                    value = selectedRpe.toFloat(),
+                    onValueChange = { selectedRpe = kotlin.math.round(it).toInt().coerceIn(1, 10) },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                    colors = SliderDefaults.colors(
+                        thumbColor = ElectricGreen,
+                        activeTrackColor = ElectricGreen,
+                        inactiveTrackColor = NavyDarker
+                    )
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Post-Workout Wellness Feel",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary
+                )
+                val feelLabels = listOf(
+                    1 to "Drained",
+                    2 to "Heavy",
+                    3 to "Steady",
+                    4 to "Strong",
+                    5 to "Primed"
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    feelLabels.forEach { (feelScore, label) ->
+                        val active = selectedFeel == feelScore
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedFeel = feelScore },
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (active) VividCyan.copy(alpha = 0.2f) else DeepNavy,
+                            border = BorderStroke(1.dp, if (active) VividCyan else GlassBorder)
+                        ) {
+                            Text(
+                                text = label,
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                color = if (active) VividCyan else TextSecondary,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = notesText,
+                onValueChange = { notesText = it },
+                label = { Text("Quick body / terrain note (optional)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ElectricGreen,
+                    unfocusedBorderColor = GlassBorder,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                )
+            )
+
+            Button(
+                onClick = { onSaveFeedback(selectedRpe, selectedFeel, notesText) },
+                enabled = !isSaving,
+                modifier = Modifier.fillMaxWidth().height(46.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ElectricGreen, contentColor = DeepNavy)
+            ) {
+                Text(
+                    text = if (isSaving) "Updating Twin..." else if (feedbackSaved) "Update Twin Feedback" else "Save Check-In to Digital Twin",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
 

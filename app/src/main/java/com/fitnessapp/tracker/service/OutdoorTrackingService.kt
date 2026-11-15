@@ -50,7 +50,15 @@ data class TrackingState(
     val liveClimb: com.fitnessapp.tracker.navigation.LiveClimbInfo? = null,
     val offRouteStatus: com.fitnessapp.tracker.navigation.OffRouteStatus? = null,
     val ghostPacerState: com.fitnessapp.tracker.gamification.GhostPacerState = com.fitnessapp.tracker.gamification.GhostPacerState(),
-    val liveSegmentStatus: com.fitnessapp.tracker.gamification.LiveSegmentStatus = com.fitnessapp.tracker.gamification.LiveSegmentStatus()
+    val liveCadenceSpm: Double = 0.0,
+    val avgCadenceSpm: Double? = null,
+    val gaitStabilityScore: Double? = null,
+    val ambientLux: Float? = null,
+    val isLowLightWarning: Boolean = false,
+    val currentWeatherSummary: String? = null,
+    val environmentSnapshot: com.fitnessapp.tracker.data.remote.EnvironmentSnapshot? = null,
+    val activeTwinNudge: String? = null,
+    val liveRpeTag: Int? = null
 )
 
 /**
@@ -62,15 +70,20 @@ data class TrackingState(
  * - Zero-crash policy with structured error handling
  */
 @AndroidEntryPoint
-class CyclingTrackingService : Service() {
+class OutdoorTrackingService : Service() {
 
     @Inject lateinit var workoutSessionDao: WorkoutSessionDao
     @Inject lateinit var challengeDao: com.fitnessapp.tracker.data.local.dao.ChallengeDao
-    @Inject lateinit var segmentDao: com.fitnessapp.tracker.data.local.dao.SegmentDao
     @Inject lateinit var settingsRepository: com.fitnessapp.tracker.data.local.SettingsRepository
     @Inject lateinit var gson: Gson
     @Inject lateinit var firestoreRepository: com.fitnessapp.tracker.data.remote.FirestoreRepository
     @Inject lateinit var routeCryptoManager: com.fitnessapp.tracker.util.RouteCryptoManager
+    @Inject lateinit var personalRecordEngine: com.fitnessapp.tracker.engine.PersonalRecordEngine
+    @Inject lateinit var environmentContextRepository: com.fitnessapp.tracker.data.remote.EnvironmentContextRepository
+    @Inject lateinit var digitalTwinEngine: com.fitnessapp.tracker.engine.DigitalTwinEngine
+    @Inject lateinit var twinSnapshotDao: com.fitnessapp.tracker.data.local.dao.TwinSnapshotDao
+    @Inject lateinit var wellnessCheckInDao: com.fitnessapp.tracker.data.local.dao.WellnessCheckInDao
+    @Inject lateinit var userDao: com.fitnessapp.tracker.data.local.dao.UserDao
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
@@ -111,7 +124,7 @@ class CyclingTrackingService : Service() {
     private val AUTO_PAUSE_DISTANCE_M = 2.0
 
     companion object {
-        private const val TAG = "CyclingService"
+        private const val TAG = "OutdoorTrackingService"
 
         // StateFlow for UI binding
         private val _trackingState = MutableStateFlow(TrackingState())
@@ -129,11 +142,16 @@ class CyclingTrackingService : Service() {
         private val _elapsedSecondsFlow = MutableStateFlow(0L)
         val elapsedSecondsFlow: StateFlow<Long> = _elapsedSecondsFlow
 
-        private var instance: CyclingTrackingService? = null
+        private var instance: OutdoorTrackingService? = null
 
-        fun setGpxRoute(route: com.fitnessapp.tracker.navigation.GpxRoute?) {
+        fun setGpxRoute(route: com.fitnessapp.tracker.navigation.GpxRoute?, activityType: String = _trackingState.value.activityType) {
             if (route != null) {
-                instance?.ghostPacerEngine?.loadFromGpx(route, targetAvgSpeedKmh = 25.0)
+                val targetSpeedKmh = when (activityType) {
+                    "WALKING" -> 5.0
+                    "JOGGING" -> 9.5
+                    else -> 22.0
+                }
+                instance?.ghostPacerEngine?.loadFromGpx(route, targetAvgSpeedKmh = targetSpeedKmh)
             } else {
                 instance?.ghostPacerEngine?.clear()
             }
@@ -160,6 +178,15 @@ class CyclingTrackingService : Service() {
             instance?.crashDetectionEngine?.triggerCountdown()
         }
 
+        fun setLiveRpe(rpe: Int?) {
+            val clamped = rpe?.coerceIn(1, 10)
+            _trackingState.value = _trackingState.value.copy(liveRpeTag = clamped)
+        }
+
+        fun dismissTwinNudge() {
+            _trackingState.value = _trackingState.value.copy(activeTwinNudge = null)
+        }
+
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_PAUSE = "ACTION_PAUSE"
@@ -177,11 +204,15 @@ class CyclingTrackingService : Service() {
     }
 
     private lateinit var crashDetectionEngine: com.fitnessapp.tracker.safety.CrashDetectionEngine
+    private lateinit var sensorCollector: com.fitnessapp.tracker.sensor.WorkoutSensorCollector
     private val ghostPacerEngine = com.fitnessapp.tracker.gamification.GhostPacerEngine()
-    private val segmentEngine = com.fitnessapp.tracker.gamification.SegmentEngine()
-    private var availableSegments = listOf<com.fitnessapp.tracker.data.local.entity.SegmentEntity>()
     private var isCrashDetectionEnabled = true
+    private var isTwinVoiceNudgesEnabled = true
     private var lastOffRouteAlertTime = 0L
+    private var lastHydrationNudgeSec = 0L
+    private var hasFetchedInitialEnvWithFix = false
+    private var hasAnnouncedLowLight = false
+    private var hasAnnouncedStabilityDrift = false
 
     override fun onCreate() {
         super.onCreate()
@@ -190,9 +221,27 @@ class CyclingTrackingService : Service() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         ttsManager = com.fitnessapp.tracker.util.TtsManager(this)
         crashDetectionEngine = com.fitnessapp.tracker.safety.CrashDetectionEngine(this, serviceScope)
-        
+        sensorCollector = com.fitnessapp.tracker.sensor.WorkoutSensorCollector(this)
+
         serviceScope.launch {
-            availableSegments = segmentDao.getAllSegmentsList()
+            settingsRepository.isTwinVoiceNudgesEnabled.collect { enabled ->
+                isTwinVoiceNudgesEnabled = enabled
+            }
+        }
+
+        serviceScope.launch {
+            sensorCollector.telemetry.collect { sensor ->
+                if (_trackingState.value.isTracking) {
+                    _trackingState.value = _trackingState.value.copy(
+                        liveCadenceSpm = sensor.cadenceSpm,
+                        avgCadenceSpm = sensor.avgCadenceSpm,
+                        gaitStabilityScore = sensor.gaitStabilityScore,
+                        ambientLux = sensor.ambientLux,
+                        isLowLightWarning = sensor.isLowLight
+                    )
+                    evaluateSensorTwinNudges(sensor)
+                }
+            }
         }
         
         serviceScope.launch {
@@ -312,14 +361,27 @@ class CyclingTrackingService : Service() {
         _elapsedSecondsFlow.value = 0L
         lastLocation = null
         lastAnnouncedKm = 0
+        lastHydrationNudgeSec = 0L
+        hasFetchedInitialEnvWithFix = false
+        hasAnnouncedLowLight = false
+        hasAnnouncedStabilityDrift = false
         routePoints.clear()
         _routePointsFlow.value = emptyList()
 
         _trackingState.value = TrackingState(isTracking = true, activityType = activityType, activeGpxRoute = _trackingState.value.activeGpxRoute)
 
         acquireWakeLock()
+        sensorCollector.startMonitoring(activityType)
         if (isCrashDetectionEnabled) {
             crashDetectionEngine.startMonitoring()
+        }
+
+        serviceScope.launch {
+            val env = environmentContextRepository.getEnvironmentContext()
+            _trackingState.value = _trackingState.value.copy(
+                environmentSnapshot = env,
+                currentWeatherSummary = env.shortSummary()
+            )
         }
         
         serviceScope.launch {
@@ -342,10 +404,11 @@ class CyclingTrackingService : Service() {
                     elapsedSeconds++
                     // ONLY update the elapsedSecondsFlow to prevent heavy TrackingState recompositions
                     _elapsedSecondsFlow.value = elapsedSeconds
-                }
-                // Throttle notification updates to every 3 seconds to reduce IPC overhead & battery drain
-                if (elapsedSeconds % 3 == 0L || _trackingState.value.isPaused) {
-                    updateNotification()
+                    // Throttle notification updates to every 3 seconds to reduce IPC overhead & battery drain
+                    if (elapsedSeconds % 3 == 0L) {
+                        updateNotification()
+                    }
+                    evaluateTimedTwinNudges()
                 }
             }
         }
@@ -420,7 +483,7 @@ class CyclingTrackingService : Service() {
         // ── Drift & Auto-Pause Detection ─────────────────────────────────────
         // Doppler speed is highly resistant to drift. If reported, we trust it.
         // Require BOTH hardware speed AND displacement to be low before marking stationary.
-        // This prevents false auto-pauses caused by momentary GPS speed dips mid-ride.
+        // This prevents false auto-pauses caused by momentary GPS speed dips mid-workout.
         val hasHardwareSpeed = speedMps > 0.0
         val isEffectivelyStationary = if (hasHardwareSpeed) {
             // Match the fallback threshold: < 3.6 km/h on both sensors
@@ -446,6 +509,7 @@ class CyclingTrackingService : Service() {
             if (stationaryCounter >= AUTO_PAUSE_SECONDS && !_trackingState.value.isPaused) {
                 _trackingState.value = _trackingState.value.copy(isPaused = true, speedKmh = 0.0)
                 Log.d(TAG, "Auto-paused (Stationary)")
+                updateNotification()
                 releaseWakeLock()
             }
             // Always advance lastLocation during stationary frames so that when movement
@@ -456,6 +520,7 @@ class CyclingTrackingService : Service() {
             if (_trackingState.value.isPaused) {
                 _trackingState.value = _trackingState.value.copy(isPaused = false)
                 Log.d(TAG, "Auto-resumed (Moving)")
+                updateNotification()
                 acquireWakeLock()
             }
             stationaryCounter = 0
@@ -490,6 +555,17 @@ class CyclingTrackingService : Service() {
         // Crash Detection Telemetry
         crashDetectionEngine.updateTelemetry(speedKmh, lat, lng)
 
+        if (!hasFetchedInitialEnvWithFix) {
+            hasFetchedInitialEnvWithFix = true
+            serviceScope.launch {
+                val env = environmentContextRepository.getEnvironmentContext(lat, lng)
+                _trackingState.value = _trackingState.value.copy(
+                    environmentSnapshot = env,
+                    currentWeatherSummary = env.shortSummary()
+                )
+            }
+        }
+
         // GPX Navigation & ClimbPro Evaluation
         val route = _trackingState.value.activeGpxRoute
         var liveClimbInfo: com.fitnessapp.tracker.navigation.LiveClimbInfo? = null
@@ -515,13 +591,6 @@ class CyclingTrackingService : Service() {
             ghostState = ghostPacerEngine.evaluate(totalDistanceMeters, elapsedSeconds)
         }
 
-        // Live Segments Evaluation
-        val segStatus = segmentEngine.evaluateLive(lat, lng, speedMps, elapsedSeconds, totalDistanceMeters, availableSegments)
-        if (segStatus.completedEffort != null && isVoiceCoachingEnabled) {
-            val sec = segStatus.completedEffort.elapsedSeconds
-            ttsManager.speak("Segment completed in $sec seconds!")
-        }
-
         // ── Update UI State ──────────────────────────────────────────────────
         _trackingState.value = _trackingState.value.copy(
             speedKmh = speedKmh,
@@ -533,8 +602,7 @@ class CyclingTrackingService : Service() {
             elevationGainMeters = elevationGainMeters,
             liveClimb = liveClimbInfo,
             offRouteStatus = offRoute,
-            ghostPacerState = ghostState,
-            liveSegmentStatus = segStatus
+            ghostPacerState = ghostState
         )
 
         // Check for 1km milestone announcement
@@ -551,7 +619,7 @@ class CyclingTrackingService : Service() {
     private fun updateNotification() {
         try {
             val notif = NotificationHelper.buildTrackingNotification(
-                this@CyclingTrackingService,
+                this@OutdoorTrackingService,
                 _trackingState.value.speedKmh,
                 totalDistanceMeters,
                 elapsedSeconds,
@@ -568,6 +636,10 @@ class CyclingTrackingService : Service() {
 
     private fun stopTracking(save: Boolean = true) {
         timerJob?.cancel()
+        sensorCollector.stopMonitoring()
+        val finalSensorTelemetry = sensorCollector.telemetry.value
+        val finalEnv = _trackingState.value.environmentSnapshot
+        val finalRpe = _trackingState.value.liveRpeTag
         try {
             fusedLocationClient.removeLocationUpdates(locationCallback)
         } catch (e: Exception) {
@@ -577,7 +649,7 @@ class CyclingTrackingService : Service() {
         if (!save) {
             _trackingState.value = TrackingState(isTracking = false)
             stopForeground(STOP_FOREGROUND_REMOVE)
-            wakeLock?.release()
+            releaseWakeLock()
             wakeLock = null
             stopSelf()
             return
@@ -592,7 +664,11 @@ class CyclingTrackingService : Service() {
 
                 val profile = currentUserProfile
                 val calories = PhysicsEngine.calculateCalories(profile, elapsedSeconds, avgSpeed, activityType)
-                val wattsPerKg = PhysicsEngine.calculateWatts(avgSpeed, profile, activityType)
+                val wattsPerKg = PhysicsEngine.calculateWattsPerKg(avgSpeed, profile, activityType)
+                val envFactor = finalEnv?.let { digitalTwinEngine.calculateEnvironmentStressFactor(it) } ?: 1.0
+                val elevationDelta = finalSensorTelemetry.barometricElevationDeltaM?.takeIf {
+                    elevationGainMeters <= 0.0 && it > 2.0
+                } ?: elevationGainMeters
                 val routeJson = gson.toJson(routePoints)
                 
                 var isChallengeCompletion = false
@@ -614,7 +690,7 @@ class CyclingTrackingService : Service() {
                             completedAt = System.currentTimeMillis()
                         )
                         challengeDao.updateChallenge(updatedChallenge)
-                        NotificationHelper.showChallengeCompletedNotification(this@CyclingTrackingService, updatedChallenge)
+                        NotificationHelper.showChallengeCompletedNotification(this@OutdoorTrackingService, updatedChallenge)
                     } else {
                         val updatedChallenge = activeChallenge.copy(
                             currentProgress = newProgress
@@ -629,19 +705,32 @@ class CyclingTrackingService : Service() {
                     endTime = System.currentTimeMillis(),
                     durationSeconds = elapsedSeconds,
                     totalDistanceMeters = totalDistanceMeters,
-                    elevationGainMeters = elevationGainMeters,
+                    elevationGainMeters = elevationDelta,
                     avgSpeedKmh = avgSpeed,
                     caloriesBurned = calories,
                     wattsPerKg = wattsPerKg,
                     routePointsJson = encryptedRouteJson,
                     activityType = activityType,
-                    isChallengeCompletion = isChallengeCompletion
+                    isChallengeCompletion = isChallengeCompletion,
+                    rpe = finalRpe,
+                    avgCadenceSpm = finalSensorTelemetry.avgCadenceSpm,
+                    gaitStabilityScore = finalSensorTelemetry.gaitStabilityScore,
+                    weatherTempC = finalEnv?.temperatureC,
+                    weatherWindKmh = finalEnv?.windSpeedKmh,
+                    weatherHumidityPct = finalEnv?.humidityPct,
+                    environmentStressFactor = envFactor
                 )
                 savedId = workoutSessionDao.insertSession(session)
-                
-                // Evaluate segment efforts for this completed session
-                if (savedId > 0 && availableSegments.isNotEmpty()) {
-                    segmentEngine.evaluateSession(savedId, routePoints.toList(), availableSegments, segmentDao)
+
+                // Evaluate PRs and update daily Digital Twin snapshot on save.
+                if (savedId > 0) {
+                    personalRecordEngine.evaluateAndSaveRecords(session.copy(id = savedId), routePoints)
+                    val recent = workoutSessionDao.getRecentSessions(40)
+                    val storedUser = userDao.getUser() ?: profile
+                    val checkIn = wellnessCheckInDao.getRecentCheckIns(1).firstOrNull()
+                    val env = finalEnv ?: environmentContextRepository.getEnvironmentContext()
+                    val twin = digitalTwinEngine.computeTwinState(recent, storedUser, checkIn, env, activityType)
+                    twinSnapshotDao.upsertSnapshot(digitalTwinEngine.toSnapshotEntity(twin))
                 }
 
                 // Schedule 2-day inactivity reminder
@@ -671,7 +760,7 @@ class CyclingTrackingService : Service() {
                         lastSavedSessionId = if (savedId > 0) savedId else null
                     )
                     stopForeground(STOP_FOREGROUND_REMOVE)
-                    wakeLock?.release()
+                    releaseWakeLock()
                     wakeLock = null
                     stopSelf()
                 }
@@ -682,7 +771,7 @@ class CyclingTrackingService : Service() {
     private fun acquireWakeLock() {
         if (wakeLock == null) {
             val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CyclingService::WakeLock")
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OutdoorTrackingService::WakeLock")
         }
         if (wakeLock?.isHeld == false) {
             wakeLock?.acquire(4 * 60 * 60 * 1000L) // 4 hours max
@@ -697,10 +786,46 @@ class CyclingTrackingService : Service() {
         }
     }
 
+    private fun evaluateSensorTwinNudges(sensor: com.fitnessapp.tracker.sensor.LiveSensorTelemetry) {
+        if (sensor.isLowLight && !hasAnnouncedLowLight && elapsedSeconds >= 60L) {
+            hasAnnouncedLowLight = true
+            emitTwinNudge("Low light detected — check path visibility and lights.")
+            return
+        }
+        val stability = sensor.gaitStabilityScore
+        if (stability != null && stability < 62.0 && !hasAnnouncedStabilityDrift && elapsedSeconds >= 600L) {
+            hasAnnouncedStabilityDrift = true
+            emitTwinNudge("Form stability drifting — ease pace slightly and keep steady rhythm.")
+        }
+    }
+
+    private fun evaluateTimedTwinNudges() {
+        val env = _trackingState.value.environmentSnapshot ?: return
+        val intervalSec = when {
+            env.apparentTemperatureC >= 30.0 -> 720L
+            env.apparentTemperatureC >= 25.0 -> 900L
+            else -> 1200L
+        }
+        if (elapsedSeconds - lastHydrationNudgeSec >= intervalSec && elapsedSeconds >= 600L) {
+            lastHydrationNudgeSec = elapsedSeconds
+            val rateL = digitalTwinEngine.calculateHydrationRateLitersPerHour(env, weightKg, _trackingState.value.liveRpeTag ?: 6)
+            val sipMl = ((rateL * (intervalSec / 3600.0)) * 1000.0).toInt().coerceIn(100, 350)
+            emitTwinNudge("Hydration check: sip ~${sipMl} mL (${env.shortSummary()}).")
+        }
+    }
+
+    private fun emitTwinNudge(message: String) {
+        _trackingState.value = _trackingState.value.copy(activeTwinNudge = message)
+        if (isVoiceCoachingEnabled && isTwinVoiceNudgesEnabled && ::ttsManager.isInitialized) {
+            ttsManager.speak(message)
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         instance = null
         crashDetectionEngine.stopMonitoring()
+        sensorCollector.stopMonitoring()
         serviceScope.cancel()
         try {
             fusedLocationClient.removeLocationUpdates(locationCallback)

@@ -18,17 +18,19 @@ android {
         versionName = "1.1.159"
 
         // API key is read from local.properties (gitignored — never committed)
-        // or from the GEMINI_API_KEY environment variable (GitHub Actions Secret).
+        // or from AI_COACH_API_KEY / GEMINI_API_KEY environment variables.
         // The file is safe: local.properties is in .gitignore by default.
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
             localProperties.load(localPropertiesFile.inputStream())
         }
-        val apiKey = localProperties.getProperty("GEMINI_API_KEY")
+        val apiKey = localProperties.getProperty("AI_COACH_API_KEY")
+            ?: System.getenv("AI_COACH_API_KEY")
+            ?: localProperties.getProperty("GEMINI_API_KEY")
             ?: System.getenv("GEMINI_API_KEY")
             ?: ""
-        buildConfigField("String", "GEMINI_API_KEY", "\"$apiKey\"")
+        buildConfigField("String", "AI_COACH_API_KEY", "\"$apiKey\"")
     }
 
     signingConfigs {

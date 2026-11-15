@@ -15,5 +15,5 @@ data class UserEntity(
     val age: Int = 35,                   // Default 35 years
     val weightKg: Float = 75f,           // Default 75 kg
     val heightCm: Float = 175f,          // Default 175 cm
-    val name: String = "Cyclist"
+    val name: String = "Athlete"
 )

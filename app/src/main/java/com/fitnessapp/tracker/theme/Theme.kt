@@ -68,7 +68,7 @@ val LightColorScheme: ColorScheme
 )
 
 @Composable
-fun SmartCyclingTrackerTheme(
+fun SmartTrackTheme(
     darkTheme: Boolean = true, // Default dark for outdoor readability
     content: @Composable () -> Unit
 ) {

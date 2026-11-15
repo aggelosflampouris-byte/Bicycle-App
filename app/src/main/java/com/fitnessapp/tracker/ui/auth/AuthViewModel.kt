@@ -2,6 +2,7 @@ package com.fitnessapp.tracker.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fitnessapp.tracker.data.local.dao.UserDao
 import com.fitnessapp.tracker.data.remote.AuthRepository
 import com.fitnessapp.tracker.data.remote.FirestoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,7 +15,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val firestoreRepository: FirestoreRepository
+    private val firestoreRepository: FirestoreRepository,
+    private val userDao: UserDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -47,12 +49,12 @@ class AuthViewModel @Inject constructor(
 
     /**
      * Authenticates the user.
-     * @param onLoginSuccess called when an existing user signs in successfully.
-     * @param onSignUpSuccess called when a new user registers successfully (→ Onboarding).
+     * @param onLoginSuccess called when an existing user signs in successfully (passes whether a local/restored profile exists).
+     * @param onSignUpSuccess called when a new user registers successfully (passes whether onboarding was already completed).
      */
     fun authenticate(
-        onLoginSuccess: () -> Unit,
-        onSignUpSuccess: () -> Unit
+        onLoginSuccess: (Boolean) -> Unit,
+        onSignUpSuccess: (Boolean) -> Unit
     ) {
         val state = _uiState.value
         val email = state.email.trim()
@@ -90,9 +92,13 @@ class AuthViewModel @Inject constructor(
             result.onSuccess {
                 if (state.isLogin) {
                     firestoreRepository.pullAndRestoreUserData()
+                } else {
+                    // Sync pre-auth onboarding profile to the newly created Firebase account if present
+                    userDao.getUser()?.let { firestoreRepository.syncUserProfile(it) }
                 }
+                val hasProfile = userDao.getUser() != null
                 _uiState.value = _uiState.value.copy(isLoading = false, error = null)
-                if (state.isLogin) onLoginSuccess() else onSignUpSuccess()
+                if (state.isLogin) onLoginSuccess(hasProfile) else onSignUpSuccess(hasProfile)
             }.onFailure {
                 val isEmailInUse = it is FirebaseAuthUserCollisionException || 
                     it.localizedMessage?.contains("email address is already in use", ignoreCase = true) == true

@@ -37,9 +37,7 @@ import com.fitnessapp.tracker.data.local.entity.DailyPlan
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
-import com.fitnessapp.tracker.service.CyclingTrackingService
-import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
-import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
+import com.fitnessapp.tracker.service.OutdoorTrackingService
 import com.fitnessapp.tracker.data.local.entity.RoutineInterval
 import com.fitnessapp.tracker.data.local.entity.RoutineMetric
 import android.widget.Toast
@@ -49,16 +47,38 @@ fun DashboardScreen(
     onStartWorkout: () -> Unit,
     onSessionClick: (Long) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenTwin: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val trackingState by CyclingTrackingService.trackingState.collectAsStateWithLifecycle()
+    val trackingState by OutdoorTrackingService.trackingState.collectAsStateWithLifecycle()
     val isTracking = trackingState.isTracking
     val context = androidx.compose.ui.platform.LocalContext.current
     val activityType = LocalActivityTheme.current
     var showRoutineConfig by remember { mutableStateOf(false) }
+    var showQuickCheckIn by remember { mutableStateOf(false) }
     var sessionToDelete by remember { mutableStateOf<Long?>(null) }
 
+
+    if (showQuickCheckIn) {
+        PreWorkoutCheckInDialog(
+            latestCheckIn = uiState.twinState?.latestCheckIn,
+            onDismiss = { showQuickCheckIn = false },
+            onSubmit = { sleep, energy, soreness, stress, hydration ->
+                viewModel.onEvent(
+                    DashboardUiEvent.SubmitWellnessCheckIn(
+                        sleepQuality = sleep,
+                        energyLevel = energy,
+                        muscleSoreness = soreness,
+                        stressLevel = stress,
+                        hydrationScore = hydration
+                    )
+                )
+                showQuickCheckIn = false
+                Toast.makeText(context, "Digital Twin calibrated", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
 
     if (sessionToDelete != null) {
         com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog(
@@ -94,18 +114,8 @@ fun DashboardScreen(
                     userName = uiState.user.name,
                     activityType = activityType,
                     onSwitchActivity = {
-                        val activeChallenge = uiState.latestChallenge
-                        val isChallengeActive = activeChallenge != null &&
-                            (activeChallenge.status == ChallengeStatus.ACCEPTED || activeChallenge.status == ChallengeStatus.ACTIVE)
-
                         if (isTracking) {
                             Toast.makeText(context, "Cannot switch activity while a workout is in progress.", Toast.LENGTH_SHORT).show()
-                        } else if (isChallengeActive && activeChallenge != null) {
-                            Toast.makeText(
-                                context,
-                                "A ${activeChallenge.activityType.lowercase()} challenge is currently active. You must complete it through a workout or cancel it before switching activities.",
-                                Toast.LENGTH_LONG
-                            ).show()
                         } else {
                             val newActivity = when (activityType) {
                                 "CYCLING" -> "WALKING"
@@ -119,6 +129,19 @@ fun DashboardScreen(
                 )
             }
 
+            // Digital Twin Readiness + Outdoor Microclimate Card
+            item {
+                if (!uiState.isLoading) {
+                    DigitalTwinDashboardCard(
+                        twinState = uiState.twinState,
+                        isRefreshingWeather = uiState.isRefreshingEnvironment,
+                        onRefreshWeather = { viewModel.onEvent(DashboardUiEvent.RefreshEnvironment) },
+                        onQuickCheckInClick = { showQuickCheckIn = true },
+                        onOpenTwinHub = onOpenTwin
+                    )
+                }
+            }
+
             // Routine Progress Card
             item {
                 if (!uiState.isLoading) {
@@ -126,21 +149,6 @@ fun DashboardScreen(
                         progress = uiState.routineProgress,
                         onConfigureClick = { showRoutineConfig = true }
                     )
-                }
-            }
-
-            // Daily Challenge Card
-            item {
-                if (!uiState.isLoading) {
-                    val challenge = uiState.latestChallenge
-                    if (challenge != null && (challenge.status == ChallengeStatus.PENDING || challenge.status == ChallengeStatus.ACCEPTED || challenge.status == ChallengeStatus.ACTIVE)) {
-                        ChallengeCard(
-                            challenge = challenge,
-                            onAccept = { viewModel.onEvent(DashboardUiEvent.RespondToChallenge(challenge, true)) },
-                            onDeny = { viewModel.onEvent(DashboardUiEvent.RespondToChallenge(challenge, false)) },
-                            onCancel = { viewModel.onEvent(DashboardUiEvent.CancelChallenge(challenge)) }
-                        )
-                    }
                 }
             }
 
@@ -202,7 +210,8 @@ fun DashboardScreen(
                         text = when (activityType) {
                             "WALKING" -> "Recent Walks"
                             "JOGGING" -> "Recent Jogs"
-                            else -> "Recent Rides"
+                            "CYCLING" -> "Recent Rides"
+                            else -> "Recent Workouts"
                         },
                         style = MaterialTheme.typography.headlineSmall,
                         color = TextPrimary,

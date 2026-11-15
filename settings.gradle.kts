@@ -29,5 +29,5 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-rootProject.name = "Smart Cycling Tracker"
+rootProject.name = "Smart Track"
 include(":app")

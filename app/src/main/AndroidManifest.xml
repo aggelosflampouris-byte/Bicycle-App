@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Location Permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -13,7 +14,7 @@
     <!-- Notification Permission (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Network for osmdroid tiles + Gemini API -->
+    <!-- Network for osmdroid tiles + AI Coach API -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -26,15 +27,16 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-    <!-- APK Update Installation (Android 8.0+) -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-
     <!-- Audio Recording for Voice AI Coach -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Emergency SOS Crash Beacon -->
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Optional Hardware Step Cadence for Digital Twin (API 29+) -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <queries>
         <intent>
@@ -48,9 +50,9 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SmartCyclingTracker"
+        android:theme="@style/Theme.SmartTrack"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:name=".CyclingApp">
+        android:name=".SmartTrackApp">
 
         <activity
             android:name=".MainActivity"
@@ -62,20 +64,9 @@
             </intent-filter>
         </activity>
 
-        <!-- FileProvider for installing downloaded APK updates -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
-
         <!-- GPS Tracking Foreground Service -->
         <service
-            android:name=".service.CyclingTrackingService"
+            android:name=".service.OutdoorTrackingService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location" />
@@ -83,6 +74,18 @@
         <!-- Challenge Action Receiver -->
         <receiver android:name=".service.ChallengeActionReceiver"
             android:exported="false" />
+
+        <!-- Disable default WorkManagerInitializer since SmartTrackApp uses Hilt on-demand Configuration.Provider -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
     </application>
 

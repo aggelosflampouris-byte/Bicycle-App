@@ -28,11 +28,27 @@ class PhysicsEngineTest {
     }
 
     @Test
+    fun testTotalWattsAndLegacyNormalization() {
+        val user = UserEntity(weightKg = 75f, age = 30)
+        val wKg = PhysicsEngine.calculateWattsPerKg(18.0, user, "CYCLING")
+        val totalW = PhysicsEngine.calculateWatts(18.0, user, "CYCLING")
+        assertEquals(wKg * 75.0, totalW, 0.01)
+
+        // Legacy row that stored total Watts (> 15.0) should normalize back to W/kg
+        assertEquals(wKg, PhysicsEngine.resolveWattsPerKg(totalW, 75f), 0.01)
+        assertEquals(totalW, PhysicsEngine.resolveTotalWatts(wKg, 75f), 0.01)
+        assertEquals(totalW, PhysicsEngine.resolveTotalWatts(totalW, 75f), 0.01)
+    }
+
+    @Test
     fun testCaloriesCalculationForRealisticDuration() {
         val user = UserEntity(weightKg = 70f, age = 28)
 
         // 1 hour at 18 km/h (MET 8.0) -> 8.0 * 70 * 1.0 = 560 kcal
         val calories = PhysicsEngine.calculateCalories(user, 3600L, 18.0, "CYCLING")
         assertEquals(560.0, calories, 1.0)
+
+        // Zero speed yields zero workout calories
+        assertEquals(0.0, PhysicsEngine.calculateCalories(user, 3600L, 0.0, "JOGGING"), 0.001)
     }
 }

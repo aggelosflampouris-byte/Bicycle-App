@@ -17,7 +17,9 @@ data class BackupData(
     val routines: List<RoutineEntity>?,
     val challenges: List<ChallengeEntity>?,
     val personalRecords: List<PersonalRecordEntity>? = null,
-    val trainingPlan: TrainingPlanEntity? = null
+    val trainingPlan: TrainingPlanEntity? = null,
+    val wellnessCheckIns: List<WellnessCheckInEntity>? = null,
+    val twinSnapshots: List<TwinSnapshotEntity>? = null
 )
 
 class DataBackupManager(private val context: Context, private val db: AppDatabase) {
@@ -34,6 +36,8 @@ class DataBackupManager(private val context: Context, private val db: AppDatabas
             val challenges = db.challengeDao().getAllChallenges()
             val personalRecords = db.personalRecordDao().getAllRecords()
             val trainingPlan = db.trainingPlanDao().getPlan()
+            val wellnessCheckIns = db.wellnessCheckInDao().getAllCheckIns()
+            val twinSnapshots = db.twinSnapshotDao().getAllSnapshots()
 
             val backup = BackupData(
                 user = user,
@@ -41,7 +45,9 @@ class DataBackupManager(private val context: Context, private val db: AppDatabas
                 routines = routines,
                 challenges = challenges,
                 personalRecords = personalRecords,
-                trainingPlan = trainingPlan
+                trainingPlan = trainingPlan,
+                wellnessCheckIns = wellnessCheckIns,
+                twinSnapshots = twinSnapshots
             )
             val json = gson.toJson(backup)
             val jsonBytes = json.toByteArray(Charsets.UTF_8)
@@ -66,9 +72,14 @@ class DataBackupManager(private val context: Context, private val db: AppDatabas
             val backup = gson.fromJson(json, BackupData::class.java)
 
             db.withTransaction {
-                backup.user?.let { 
+                backup.user?.let {
                     val current = db.userDao().getUser()
-                    if (current == null) db.userDao().insertUser(it) else db.userDao().updateUser(it)
+                    if (current == null) {
+                        db.userDao().insertUser(it)
+                    } else {
+                        // Preserve the existing primary key when restoring a backup user profile.
+                        db.userDao().updateUser(it.copy(id = current.id))
+                    }
                 }
                 
                 if (!backup.sessions.isNullOrEmpty()) {
@@ -85,6 +96,12 @@ class DataBackupManager(private val context: Context, private val db: AppDatabas
                 }
                 backup.trainingPlan?.let {
                     db.trainingPlanDao().insertPlan(it)
+                }
+                if (!backup.wellnessCheckIns.isNullOrEmpty()) {
+                    db.wellnessCheckInDao().insertCheckIns(backup.wellnessCheckIns)
+                }
+                if (!backup.twinSnapshots.isNullOrEmpty()) {
+                    db.twinSnapshotDao().upsertSnapshots(backup.twinSnapshots)
                 }
             }
             Result.success(Unit)

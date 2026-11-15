@@ -1,51 +1,50 @@
 package com.fitnessapp.tracker.ui.dashboard.components
-import com.fitnessapp.tracker.ui.dashboard.*
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
-import com.fitnessapp.tracker.engine.PhysicsEngine
-import com.fitnessapp.tracker.theme.*
-import java.text.SimpleDateFormat
-import java.util.*
-import com.fitnessapp.tracker.data.local.entity.DailyPlan
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-
-import com.fitnessapp.tracker.service.CyclingTrackingService
-import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
-import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
-import com.fitnessapp.tracker.data.local.entity.RoutineInterval
-import com.fitnessapp.tracker.data.local.entity.RoutineMetric
-import android.widget.Toast
-
-
-import com.fitnessapp.tracker.ui.dashboard.components.*
+import com.fitnessapp.tracker.theme.ElectricGreen
+import com.fitnessapp.tracker.theme.GlassBorder
+import com.fitnessapp.tracker.theme.NavyCard
+import com.fitnessapp.tracker.theme.SpeedRed
+import com.fitnessapp.tracker.theme.TextPrimary
+import com.fitnessapp.tracker.theme.TextSecondary
+import com.fitnessapp.tracker.theme.VividCyan
+import com.fitnessapp.tracker.theme.WarningAmber
+import com.fitnessapp.tracker.ui.dashboard.DashboardUiState
 @Composable
 fun StatsRow(uiState: DashboardUiState, activityType: String) {
     Row(
@@ -79,18 +78,21 @@ fun StatsRow(uiState: DashboardUiState, activityType: String) {
             label = when (activityType) {
                 "WALKING" -> "Total Walks"
                 "JOGGING" -> "Total Jogs"
-                else -> "Total Rides"
+                "CYCLING" -> "Total Rides"
+                else -> "Total Workouts"
             },
             value = "${uiState.totalSessions}",
             unit = when (activityType) {
                 "WALKING" -> "walks"
                 "JOGGING" -> "jogs"
-                else -> "rides"
+                "CYCLING" -> "rides"
+                else -> "workouts"
             },
             icon = when (activityType) {
                 "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
                 "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
-                else -> Icons.AutoMirrored.Filled.DirectionsBike
+                "CYCLING" -> Icons.AutoMirrored.Filled.DirectionsBike
+                else -> Icons.Default.FitnessCenter
             },
             iconTint = WarningAmber
         )

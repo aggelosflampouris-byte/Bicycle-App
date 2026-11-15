@@ -82,10 +82,10 @@ class WorkoutReminderWorker @AssistedInject constructor(
     }
 
     private fun getRecommendedActivity(recentActivityTypes: List<String>): String {
-        if (recentActivityTypes.isEmpty()) return "CYCLING"
+        if (recentActivityTypes.isEmpty()) return "WALKING"
         
         // Count frequencies of recent activity types
         val counts = recentActivityTypes.groupingBy { it }.eachCount()
-        return counts.maxByOrNull { it.value }?.key ?: "CYCLING"
+        return counts.maxByOrNull { it.value }?.key ?: "WALKING"
     }
 }

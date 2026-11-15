@@ -9,17 +9,20 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.net.Uri
-import com.fitnessapp.tracker.util.DataBackupManager
-
+import com.fitnessapp.tracker.data.local.AppDatabase
 import com.fitnessapp.tracker.data.local.CoachLanguage
 import com.fitnessapp.tracker.data.local.CoachPersona
+import com.fitnessapp.tracker.data.remote.AuthRepository
+import com.fitnessapp.tracker.util.DataBackupManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val coachPersona: CoachPersona = CoachPersona.SUPPORTIVE,
     val coachLanguage: CoachLanguage = CoachLanguage.AUTO,
-    val challengesEnabled: Boolean = true,
     val voiceCoachingEnabled: Boolean = true,
+    val twinVoiceNudgesEnabled: Boolean = true,
     val lockPortraitModeEnabled: Boolean = true,
     val isCrashDetectionEnabled: Boolean = true,
     val emergencyContactName: String = "",
@@ -28,10 +31,19 @@ data class SettingsUiState(
     val backupMessage: String? = null
 )
 
+private data class CoachingPrefs(
+    val persona: CoachPersona,
+    val language: CoachLanguage,
+    val voiceEnabled: Boolean,
+    val twinNudgesEnabled: Boolean
+)
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
-    private val backupManager: DataBackupManager
+    private val backupManager: DataBackupManager,
+    private val db: AppDatabase,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -42,9 +54,10 @@ class SettingsViewModel @Inject constructor(
             val coachingPrefsFlow = combine(
                 settingsRepository.coachPersona,
                 settingsRepository.coachLanguage,
-                settingsRepository.isVoiceCoachingEnabled
-            ) { persona, language, voiceEnabled ->
-                Triple(persona, language, voiceEnabled)
+                settingsRepository.isVoiceCoachingEnabled,
+                settingsRepository.isTwinVoiceNudgesEnabled
+            ) { persona, language, voiceEnabled, twinNudgesEnabled ->
+                CoachingPrefs(persona, language, voiceEnabled, twinNudgesEnabled)
             }
 
             val safetyPrefsFlow = combine(
@@ -57,17 +70,16 @@ class SettingsViewModel @Inject constructor(
 
             combine(
                 settingsRepository.themeMode,
-                settingsRepository.challengesEnabled,
                 settingsRepository.isLockPortraitModeEnabled,
                 coachingPrefsFlow,
                 safetyPrefsFlow
-            ) { theme, challengesEnabled, lockPortraitModeEnabled, (persona, language, voiceEnabled), (crashEnabled, contactName, contactPhone) ->
+            ) { theme, lockPortraitModeEnabled, coaching, (crashEnabled, contactName, contactPhone) ->
                 SettingsUiState(
                     themeMode = theme,
-                    coachPersona = persona,
-                    coachLanguage = language,
-                    challengesEnabled = challengesEnabled,
-                    voiceCoachingEnabled = voiceEnabled,
+                    coachPersona = coaching.persona,
+                    coachLanguage = coaching.language,
+                    voiceCoachingEnabled = coaching.voiceEnabled,
+                    twinVoiceNudgesEnabled = coaching.twinNudgesEnabled,
                     lockPortraitModeEnabled = lockPortraitModeEnabled,
                     isCrashDetectionEnabled = crashEnabled,
                     emergencyContactName = contactName,
@@ -95,12 +107,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setActivityType(type) }
     }
 
-    fun setChallengesEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setChallengesEnabled(enabled) }
-    }
-
     fun setVoiceCoachingEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setVoiceCoachingEnabled(enabled) }
+    }
+
+    fun setTwinVoiceNudgesEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setTwinVoiceNudgesEnabled(enabled) }
     }
 
     fun setLockPortraitModeEnabled(enabled: Boolean) {
@@ -139,5 +151,16 @@ class SettingsViewModel @Inject constructor(
     
     fun clearBackupMessage() {
         _uiState.value = _uiState.value.copy(backupMessage = null)
+    }
+
+    fun logout(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            authRepository.signOut()
+            // Purge user-scoped Room cache before returning to the login screen.
+            withContext(Dispatchers.IO) {
+                db.clearAllTables()
+            }
+            onComplete()
+        }
     }
 }

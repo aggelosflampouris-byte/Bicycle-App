@@ -1,51 +1,32 @@
 package com.fitnessapp.tracker.ui.dashboard.components
-import com.fitnessapp.tracker.ui.dashboard.*
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity
-import com.fitnessapp.tracker.engine.PhysicsEngine
-import com.fitnessapp.tracker.theme.*
-import java.text.SimpleDateFormat
-import java.util.*
-import com.fitnessapp.tracker.data.local.entity.DailyPlan
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-
-import com.fitnessapp.tracker.service.CyclingTrackingService
-import com.fitnessapp.tracker.data.local.entity.ChallengeStatus
-import com.fitnessapp.tracker.data.local.entity.ChallengeMetric
-import com.fitnessapp.tracker.data.local.entity.RoutineInterval
-import com.fitnessapp.tracker.data.local.entity.RoutineMetric
-import android.widget.Toast
-
-
-import com.fitnessapp.tracker.ui.dashboard.components.*
+import com.fitnessapp.tracker.theme.NavyCard
+import com.fitnessapp.tracker.theme.TextPrimary
+import com.fitnessapp.tracker.theme.TextSecondary
 @Composable
 fun DashboardHeader(
     userName: String,
@@ -70,7 +51,8 @@ fun DashboardHeader(
             val subtitleText = when (activityType) {
                 "WALKING" -> "Ready to walk?"
                 "JOGGING" -> "Ready to jog?"
-                else -> "Ready to ride?"
+                "CYCLING" -> "Ready to ride?"
+                else -> "Ready to move?"
             }
             Text(
                 text = subtitleText,
@@ -89,7 +71,8 @@ fun DashboardHeader(
                     val icon = when (type) {
                         "WALKING" -> Icons.AutoMirrored.Filled.DirectionsWalk
                         "JOGGING" -> Icons.AutoMirrored.Filled.DirectionsRun
-                        else -> Icons.AutoMirrored.Filled.DirectionsBike
+                        "CYCLING" -> Icons.AutoMirrored.Filled.DirectionsBike
+                        else -> Icons.Default.FitnessCenter
                     }
                     Icon(
                         imageVector = icon,

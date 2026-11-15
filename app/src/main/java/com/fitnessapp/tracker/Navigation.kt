@@ -5,28 +5,22 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import com.fitnessapp.tracker.theme.LocalActivityTheme
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.fitnessapp.tracker.ui.chat.AiChatScreen
-import com.fitnessapp.tracker.ui.dashboard.DashboardScreen
-import com.fitnessapp.tracker.ui.main.ActivitySelectionScreen
 import com.fitnessapp.tracker.ui.main.MainScreen
-import com.fitnessapp.tracker.ui.settings.SettingsScreen
-import com.fitnessapp.tracker.ui.settings.SettingsViewModel
+import com.fitnessapp.tracker.ui.onboarding.OnboardingScreen
 import com.fitnessapp.tracker.ui.summary.PostWorkoutSummaryScreen
 import com.fitnessapp.tracker.ui.tracking.LiveTrackingScreen
+import com.google.firebase.auth.FirebaseAuth
 
 sealed class Screen(val route: String) {
     object Auth : Screen("auth")
     object Onboarding : Screen("onboarding")
-    object ActivitySelection : Screen("activity_selection")
     object Main : Screen("main")
-    object Settings : Screen("settings")
     object LiveTracking : Screen("tracking")
     object PostWorkoutSummary : Screen("summary/{sessionId}") {
         fun createRoute(sessionId: Long) = "summary/$sessionId"
@@ -37,7 +31,7 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun CyclingNavGraph(
+fun AppNavGraph(
     startDestination: String = Screen.Onboarding.route
 ) {
     val navController = rememberNavController()
@@ -72,34 +66,33 @@ fun CyclingNavGraph(
     ) {
         composable(Screen.Auth.route) {
             com.fitnessapp.tracker.ui.auth.AuthScreen(
-                // Existing user: skip onboarding, go straight to the main dashboard
-                onLoginSuccess = {
-                    navController.navigate(Screen.Main.route) {
+                onLoginSuccess = { hasProfile ->
+                    val nextRoute = if (hasProfile) Screen.Main.route else Screen.Onboarding.route
+                    navController.navigate(nextRoute) {
                         popUpTo(Screen.Auth.route) { inclusive = true }
                     }
                 },
-                onSignUpSuccess = {
-                    navController.navigate(Screen.Main.route) {
+                onSignUpSuccess = { hasProfile ->
+                    val nextRoute = if (hasProfile) Screen.Main.route else Screen.Onboarding.route
+                    navController.navigate(nextRoute) {
                         popUpTo(Screen.Auth.route) { inclusive = true }
                     }
                 }
             )
         }
 
-
-        composable(Screen.ActivitySelection.route) {
-            val settingsViewModel = hiltViewModel<SettingsViewModel>()
-            val currentActivityType = LocalActivityTheme.current
-            ActivitySelectionScreen(
-                currentActivityType = currentActivityType,
-                onActivitySelected = { activityType ->
-                    settingsViewModel.setActivityType(activityType.name)
-                    navController.navigate(Screen.Main.route) {
-                        popUpTo(Screen.ActivitySelection.route) { inclusive = true }
+        composable(Screen.Onboarding.route) {
+            OnboardingScreen(
+                onComplete = {
+                    val isLoggedIn = FirebaseAuth.getInstance().currentUser != null
+                    val nextRoute = if (isLoggedIn) Screen.Main.route else Screen.Auth.route
+                    navController.navigate(nextRoute) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }
             )
         }
+
 
         composable(
             route = Screen.Main.route
@@ -111,19 +104,6 @@ fun CyclingNavGraph(
                 onSessionClick = { sessionId ->
                     navController.navigate(Screen.PostWorkoutSummary.createRoute(sessionId))
                 },
-                onOpenSettings = {
-                    navController.navigate(Screen.Settings.route)
-                },
-                onLogout = {
-                    navController.navigate(Screen.Auth.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        composable(route = Screen.Settings.route) {
-            SettingsScreen(
                 onLogout = {
                     navController.navigate(Screen.Auth.route) {
                         popUpTo(0) { inclusive = true }
@@ -134,9 +114,8 @@ fun CyclingNavGraph(
 
         composable(
             route = Screen.LiveTracking.route,
-            deepLinks = listOf(androidx.navigation.navDeepLink { uriPattern = "smartcyclingtracker://live_tracking" })
+            deepLinks = listOf(androidx.navigation.navDeepLink { uriPattern = "smarttrack://live_tracking" })
         ) {
-            // Read the activity type chosen on ActivitySelectionScreen (stored in LocalActivityTheme)
             val activityType = LocalActivityTheme.current
             LiveTrackingScreen(
                 activityType = activityType,

@@ -37,11 +37,13 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fitnessapp.tracker.engine.PhysicsEngine
+import com.fitnessapp.tracker.safety.CrashState
 import com.fitnessapp.tracker.theme.*
 import com.fitnessapp.tracker.ui.components.DeleteConfirmationDialog
 import com.fitnessapp.tracker.util.TtsManager
 import com.fitnessapp.tracker.util.VoiceInteractionManager
 import com.fitnessapp.tracker.util.VoiceState
+import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -122,6 +124,7 @@ fun LiveTrackingScreen(
 
     var showFinishDialog by remember { mutableStateOf(false) }
     var showDiscardConfirmDialog by remember { mutableStateOf(false) }
+    var hasExitedTracking by remember { mutableStateOf(false) }
     var lastCompletedLapMessage by remember { mutableStateOf<String?>(null) }
     var lastSeenLap by remember { mutableIntStateOf(1) }
 
@@ -156,7 +159,8 @@ fun LiveTrackingScreen(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        if (hasLocationPermission && isGpsEnabled && !isTracking) {
+        val liveState = viewModel.trackingState.value
+        if (hasLocationPermission && isGpsEnabled && !liveState.isTracking && !hasExitedTracking && liveState.lastSavedSessionId == null) {
             viewModel.startTracking(context, activityType)
         }
     }
@@ -166,7 +170,8 @@ fun LiveTrackingScreen(
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
-                if (hasLocationPermission && isGpsEnabled && !isTracking) {
+                val liveState = viewModel.trackingState.value
+                if (hasLocationPermission && isGpsEnabled && !liveState.isTracking && !hasExitedTracking && liveState.lastSavedSessionId == null) {
                     viewModel.startTracking(context, activityType)
                 }
             }
@@ -194,7 +199,7 @@ fun LiveTrackingScreen(
 
     // Update map with GPS points incrementally
     val lapPolylines = remember { mutableMapOf<Int, Polyline>() }
-    var lastProcessedIndex by remember { mutableStateOf(0) }
+    var lastProcessedIndex by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         viewModel.routePoints.collect { routePoints ->
@@ -261,14 +266,14 @@ fun LiveTrackingScreen(
         }
     }
 
-    // Ghost Rider Marker on Map
+    // Ghost Pacer Marker on Map
     var ghostMarkerRef by remember { mutableStateOf<org.osmdroid.views.overlay.Marker?>(null) }
     LaunchedEffect(trackingState.ghostPacerState, mapViewRef) {
         val ghost = trackingState.ghostPacerState
         mapViewRef?.let { map ->
             if (ghost.isActive && ghost.ghostLat != 0.0) {
                 val marker = ghostMarkerRef ?: org.osmdroid.views.overlay.Marker(map).apply {
-                    title = "👻 Ghost Rider (${ghost.ghostSpeedKmh.toInt()} km/h)"
+                    title = "👻 Ghost Pacer (${ghost.ghostSpeedKmh.toInt()} km/h)"
                     setAnchor(org.osmdroid.views.overlay.Marker.ANCHOR_CENTER, org.osmdroid.views.overlay.Marker.ANCHOR_BOTTOM)
                     map.overlays.add(this)
                     ghostMarkerRef = this
@@ -531,12 +536,14 @@ fun LiveTrackingScreen(
                         }
                         Button(
                             onClick = {
-                                permissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    )
-                                )
+                                val perms = buildList {
+                                    add(Manifest.permission.ACCESS_FINE_LOCATION)
+                                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                                        add(Manifest.permission.ACTIVITY_RECOGNITION)
+                                    }
+                                }.toTypedArray()
+                                permissionLauncher.launch(perms)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = WarningAmber, contentColor = DeepNavy),
                             shape = RoundedCornerShape(8.dp)
@@ -571,7 +578,8 @@ fun LiveTrackingScreen(
                                 when (activityType) {
                                     "WALKING" -> "Turn on Location Services to track your walk."
                                     "JOGGING" -> "Turn on Location Services to track your jog."
-                                    else -> "Turn on Location Services to track your ride."
+                                    "CYCLING" -> "Turn on Location Services to track your ride."
+                                    else -> "Turn on Location Services to track your workout."
                                 },
                                 color = TextPrimary,
                                 style = MaterialTheme.typography.bodySmall
@@ -625,6 +633,198 @@ fun LiveTrackingScreen(
                     trackingState = trackingState,
                     elapsedSeconds = elapsedSeconds
                 )
+            }
+
+            // Compact Live Climb & Ghost Pacer HUD chips
+            val liveClimb = trackingState.liveClimb
+            val ghost = trackingState.ghostPacerState
+            if (liveClimb != null || ghost.isActive) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (liveClimb != null) {
+                        val climbText = if (liveClimb.isAscending) {
+                            "${liveClimb.climb.category} • ${"%.1f".format(liveClimb.climb.avgGradientPct)}% • ${liveClimb.distanceToSummitMeters.toInt()}m (${liveClimb.progressPct}%)"
+                        } else {
+                            "${liveClimb.climb.category} in ${liveClimb.distanceToStartMeters.toInt()}m"
+                        }
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            color = WarningAmber.copy(alpha = 0.16f),
+                            border = BorderStroke(1.dp, WarningAmber.copy(alpha = 0.6f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(Icons.Default.Terrain, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(16.dp))
+                                Text(
+                                    text = climbText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = WarningAmber,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                    if (ghost.isActive) {
+                        val ghostTint = if (ghost.isAhead) ElectricGreen else SpeedRed
+                        val deltaSec = abs(ghost.timeDeltaSeconds.toInt())
+                        val deltaDist = abs(ghost.distanceDeltaMeters.toInt())
+                        val deltaSign = if (ghost.isAhead) "+" else "-"
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            color = ghostTint.copy(alpha = 0.16f),
+                            border = BorderStroke(1.dp, ghostTint.copy(alpha = 0.6f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null, tint = ghostTint, modifier = Modifier.size(16.dp))
+                                Text(
+                                    text = "Ghost $deltaSign${deltaSec}s (${deltaSign}${deltaDist}m)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ghostTint,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Active Digital Twin Voice/Sensor Nudge Banner
+            trackingState.activeTwinNudge?.let { nudgeMsg ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = VividCyan.copy(alpha = 0.16f)),
+                    border = BorderStroke(1.dp, VividCyan),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Sensors, contentDescription = null, tint = VividCyan, modifier = Modifier.size(18.dp))
+                        Text(
+                            text = nudgeMsg,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        IconButton(
+                            onClick = { viewModel.dismissTwinNudge() },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Dismiss nudge", tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+
+            // Compact Live Digital Twin Telemetry & 1-Tap Effort Tag Bar
+            val hasWeather = !trackingState.currentWeatherSummary.isNullOrBlank()
+            val hasCadence = trackingState.liveCadenceSpm > 0.0
+            val stability = trackingState.gaitStabilityScore
+            if (isTracking) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (hasWeather || hasCadence || stability != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            trackingState.currentWeatherSummary?.let { weather ->
+                                TwinStatusPill(
+                                    label = weather,
+                                    tint = VividCyan
+                                )
+                            }
+                            if (hasCadence) {
+                                TwinStatusPill(
+                                    label = "${"%.0f".format(trackingState.liveCadenceSpm)} spm",
+                                    tint = ElectricGreen
+                                )
+                            }
+                            stability?.let { score ->
+                                val tint = if (score >= 70.0) ElectricGreen else WarningAmber
+                                TwinStatusPill(
+                                    label = "Form ${"%.0f".format(score)}%",
+                                    tint = tint
+                                )
+                            }
+                            if (trackingState.isLowLightWarning) {
+                                TwinStatusPill(
+                                    label = "Low Light",
+                                    tint = WarningAmber
+                                )
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Effort:",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        val rpeOptions = listOf(
+                            3 to "Easy",
+                            5 to "Steady",
+                            7 to "Hard",
+                            9 to "Max"
+                        )
+                        rpeOptions.forEach { (rpeVal, label) ->
+                            val selected = trackingState.liveRpeTag == rpeVal
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        viewModel.setLiveRpe(if (selected) null else rpeVal)
+                                    },
+                                color = if (selected) ElectricGreen.copy(alpha = 0.22f) else NavyCard,
+                                border = BorderStroke(1.dp, if (selected) ElectricGreen else GlassBorder),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    modifier = Modifier.padding(vertical = 5.dp),
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selected) ElectricGreen else TextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             // Top stats panel
@@ -744,14 +944,15 @@ fun LiveTrackingScreen(
         if (showFinishDialog) {
             FinishWorkoutDialog(
                 activityType = activityType,
-                distanceMeters = viewModel.trackingState.value.distanceMeters,
-                elapsedSeconds = viewModel.elapsedSeconds.value,
-                calories = viewModel.trackingState.value.calories,
+                distanceMeters = trackingState.distanceMeters,
+                elapsedSeconds = elapsedSeconds,
+                calories = trackingState.calories,
                 onResume = { showFinishDialog = false },
                 onDiscard = {
                     showDiscardConfirmDialog = true
                 },
                 onSaveAndFinish = {
+                    hasExitedTracking = true
                     showFinishDialog = false
                     viewModel.stopTracking(context)
                 }
@@ -765,6 +966,7 @@ fun LiveTrackingScreen(
                 message = "Are you sure you want to discard this workout session? All recorded data and progress for this workout will be permanently deleted and cannot be recovered.",
                 confirmButtonText = "Discard",
                 onConfirm = {
+                    hasExitedTracking = true
                     showDiscardConfirmDialog = false
                     showFinishDialog = false
                     viewModel.discardTracking(context)
@@ -775,6 +977,105 @@ fun LiveTrackingScreen(
                 }
             )
         }
+
+        // Interactive Crash SOS Emergency Overlay
+        val crashState = trackingState.crashState
+        if (crashState is CrashState.ImpactDetected ||
+            crashState is CrashState.Countdown ||
+            crashState is CrashState.SosDispatched
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.82f))
+                    .zIndex(50f)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = NavyCard),
+                    border = BorderStroke(2.dp, SpeedRed)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = SpeedRed,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        val titleText = when (crashState) {
+                            is CrashState.ImpactDetected -> "Crash Impact Detected"
+                            is CrashState.Countdown -> "Emergency SOS in ${crashState.secondsRemaining}s"
+                            is CrashState.SosDispatched -> "Emergency SOS Sent"
+                            else -> ""
+                        }
+                        val subtitleText = when (crashState) {
+                            is CrashState.ImpactDetected -> "Monitoring movement before starting the SOS countdown."
+                            is CrashState.Countdown -> {
+                                val target = emergencyContactPhone.ifBlank { emergencyContactName.ifBlank { "emergency contact" } }
+                                "An emergency SMS with your GPS coordinates will be sent to $target unless cancelled."
+                            }
+                            is CrashState.SosDispatched -> "Distress SMS dispatched to ${crashState.contactPhone.ifBlank { "emergency contact" }}."
+                            else -> ""
+                        }
+                        Text(
+                            text = titleText,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = SpeedRed,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = subtitleText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextPrimary,
+                            textAlign = TextAlign.Center
+                        )
+                        Button(
+                            onClick = { viewModel.cancelSos() },
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (crashState is CrashState.SosDispatched) VividCyan else ElectricGreen,
+                                contentColor = DeepNavy
+                            )
+                        ) {
+                            Text(
+                                text = if (crashState is CrashState.SosDispatched) "DISMISS ALERT" else "I'M OK — CANCEL SOS",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TwinStatusPill(
+    label: String,
+    tint: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = tint.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, tint.copy(alpha = 0.45f))
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = tint,
+            maxLines = 1
+        )
     }
 }
 
@@ -901,9 +1202,10 @@ private fun FinishWorkoutDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     when (activityType) {
-                        "WALKING" -> "Great walk! Are you ready to save your workout summary and get feedback from AI Coach AI?"
-                        "JOGGING" -> "Great jog! Are you ready to save your workout summary and get feedback from AI Coach AI?"
-                        else -> "Great ride! Are you ready to save your workout summary and get feedback from AI Coach AI?"
+                        "WALKING" -> "Great walk! Are you ready to save your workout summary and get feedback from your AI Coach?"
+                        "JOGGING" -> "Great jog! Are you ready to save your workout summary and get feedback from your AI Coach?"
+                        "CYCLING" -> "Great ride! Are you ready to save your workout summary and get feedback from your AI Coach?"
+                        else -> "Great workout! Are you ready to save your workout summary and get feedback from your AI Coach?"
                     },
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
@@ -1094,7 +1396,7 @@ private fun OsmMapView(
                 ctx.getSharedPreferences("osmdroid", android.content.Context.MODE_PRIVATE)
             )
             osmConfig.userAgentValue =
-                "${ctx.packageName}/1.0 (Android; Smart Track cycling app; contact@velotrack.app)"
+                "${ctx.packageName}/1.0 (Android; Smart Track outdoor workout app)"
 
             val cartoDbTileSource = org.osmdroid.tileprovider.tilesource.XYTileSource(
                 "CartoDB-Voyager",

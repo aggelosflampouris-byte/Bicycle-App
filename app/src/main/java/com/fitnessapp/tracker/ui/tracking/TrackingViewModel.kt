@@ -8,8 +8,8 @@ import com.fitnessapp.tracker.data.local.CoachLanguage
 import com.fitnessapp.tracker.data.local.SettingsRepository
 import com.fitnessapp.tracker.data.local.dao.UserDao
 import com.fitnessapp.tracker.data.local.entity.UserEntity
-import com.fitnessapp.tracker.data.remote.GeminiRepository
-import com.fitnessapp.tracker.service.CyclingTrackingService
+import com.fitnessapp.tracker.data.remote.AiCoachRepository
+import com.fitnessapp.tracker.service.OutdoorTrackingService
 import com.fitnessapp.tracker.service.RoutePoint
 import com.fitnessapp.tracker.service.TrackingState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,13 +26,13 @@ data class InFlightVoiceQueryState(
 @HiltViewModel
 class TrackingViewModel @Inject constructor(
     private val userDao: UserDao,
-    private val geminiRepository: GeminiRepository,
+    private val aiCoachRepository: AiCoachRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    val trackingState: StateFlow<TrackingState> = CyclingTrackingService.trackingState
-    val elapsedSeconds: StateFlow<Long> = CyclingTrackingService.elapsedSecondsFlow
-    val routePoints: StateFlow<List<RoutePoint>> = CyclingTrackingService.routePointsFlow
+    val trackingState: StateFlow<TrackingState> = OutdoorTrackingService.trackingState
+    val elapsedSeconds: StateFlow<Long> = OutdoorTrackingService.elapsedSecondsFlow
+    val routePoints: StateFlow<List<RoutePoint>> = OutdoorTrackingService.routePointsFlow
 
     val coachLanguage: StateFlow<CoachLanguage> = settingsRepository.coachLanguage
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CoachLanguage.AUTO)
@@ -66,20 +66,33 @@ class TrackingViewModel @Inject constructor(
             val elevationM = "%.0f".format(state.elevationGainMeters)
             val calories = "%.0f".format(state.calories)
 
-            val inFlightTelemetry = """
-                [CURRENT LIVE RIDE TELEMETRY]
-                - Activity: $activityType
-                - Distance: ${distanceKm} km
-                - Current Speed: ${speedKmh} km/h
-                - Elapsed Time: ${durationMins} minutes
-                - Elevation Gain: ${elevationM} meters
-                - Energy Burned: ${calories} kcal
-                
-                The user is currently mid-workout and asked you a quick question via voice.
-                Provide a short, direct, motivational 1-2 sentence answer tailored to their live telemetry. Keep it under 35 words so it can be read easily via audio TTS.
-            """.trimIndent()
+            val telemetryLines = buildString {
+                appendLine("[CURRENT LIVE WORKOUT TELEMETRY]")
+                appendLine("- Activity: $activityType")
+                appendLine("- Distance: ${distanceKm} km")
+                appendLine("- Current Speed: ${speedKmh} km/h")
+                appendLine("- Elapsed Time: ${durationMins} minutes")
+                appendLine("- Elevation Gain: ${elevationM} meters")
+                appendLine("- Energy Burned: ${calories} kcal")
+                if (state.liveCadenceSpm > 0.0) {
+                    appendLine("- Live Cadence: ${"%.0f".format(state.liveCadenceSpm)} spm")
+                }
+                state.gaitStabilityScore?.let {
+                    appendLine("- Sensor Stability Score: ${"%.0f".format(it)}/100")
+                }
+                state.currentWeatherSummary?.let {
+                    appendLine("- Outdoor Weather: $it")
+                }
+                state.liveRpeTag?.let {
+                    appendLine("- Self-Reported Effort (RPE): $it/10")
+                }
+                appendLine()
+                append("The user is currently mid-workout and asked you a quick question via voice. Provide a short, direct, motivational 1-2 sentence answer tailored to their live Digital Twin telemetry. Keep it under 35 words so it can be read easily via audio TTS.")
+            }
 
-            val fullSystemPrompt = geminiRepository.buildSystemPrompt(
+            val inFlightTelemetry = telemetryLines
+
+            val fullSystemPrompt = aiCoachRepository.buildSystemPrompt(
                 user = cachedUser,
                 session = null,
                 activityType = activityType,
@@ -89,7 +102,7 @@ class TrackingViewModel @Inject constructor(
 
             var responseAccumulator = ""
             try {
-                geminiRepository.streamChat(
+                aiCoachRepository.streamChat(
                     userMessage = spokenQuery,
                     systemPrompt = fullSystemPrompt,
                     history = emptyList()
@@ -109,12 +122,12 @@ class TrackingViewModel @Inject constructor(
     }
 
     fun startTracking(context: Context, activityType: String) {
-        val intent = Intent(context, CyclingTrackingService::class.java).apply {
-            action = CyclingTrackingService.ACTION_START
-            putExtra(CyclingTrackingService.EXTRA_WEIGHT, cachedUser.weightKg)
-            putExtra(CyclingTrackingService.EXTRA_GENDER, cachedUser.gender)
-            putExtra(CyclingTrackingService.EXTRA_AGE, cachedUser.age)
-            putExtra(CyclingTrackingService.EXTRA_ACTIVITY_TYPE, activityType)
+        val intent = Intent(context, OutdoorTrackingService::class.java).apply {
+            action = OutdoorTrackingService.ACTION_START
+            putExtra(OutdoorTrackingService.EXTRA_WEIGHT, cachedUser.weightKg)
+            putExtra(OutdoorTrackingService.EXTRA_GENDER, cachedUser.gender)
+            putExtra(OutdoorTrackingService.EXTRA_AGE, cachedUser.age)
+            putExtra(OutdoorTrackingService.EXTRA_ACTIVITY_TYPE, activityType)
         }
         context.startForegroundService(intent)
     }
@@ -122,29 +135,29 @@ class TrackingViewModel @Inject constructor(
 
 
     fun togglePause(context: Context) {
-        val intent = Intent(context, CyclingTrackingService::class.java).apply {
-            action = CyclingTrackingService.ACTION_TOGGLE_PAUSE
+        val intent = Intent(context, OutdoorTrackingService::class.java).apply {
+            action = OutdoorTrackingService.ACTION_TOGGLE_PAUSE
         }
         context.startService(intent)
     }
 
     fun markLap(context: Context) {
-        val intent = Intent(context, CyclingTrackingService::class.java).apply {
-            action = CyclingTrackingService.ACTION_LAP
+        val intent = Intent(context, OutdoorTrackingService::class.java).apply {
+            action = OutdoorTrackingService.ACTION_LAP
         }
         context.startService(intent)
     }
 
     fun stopTracking(context: Context) {
-        val intent = Intent(context, CyclingTrackingService::class.java).apply {
-            action = CyclingTrackingService.ACTION_STOP
+        val intent = Intent(context, OutdoorTrackingService::class.java).apply {
+            action = OutdoorTrackingService.ACTION_STOP
         }
         context.startService(intent)
     }
 
     fun discardTracking(context: Context) {
-        val intent = Intent(context, CyclingTrackingService::class.java).apply {
-            action = CyclingTrackingService.ACTION_DISCARD
+        val intent = Intent(context, OutdoorTrackingService::class.java).apply {
+            action = OutdoorTrackingService.ACTION_DISCARD
         }
         context.startService(intent)
     }
@@ -163,7 +176,7 @@ class TrackingViewModel @Inject constructor(
             try {
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     val route = com.fitnessapp.tracker.navigation.GpxParser.parse(inputStream)
-                    CyclingTrackingService.setGpxRoute(route)
+                    OutdoorTrackingService.setGpxRoute(route)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("TrackingViewModel", "Error loading GPX file", e)
@@ -172,11 +185,19 @@ class TrackingViewModel @Inject constructor(
     }
 
     fun clearGpxRoute() {
-        CyclingTrackingService.setGpxRoute(null)
+        OutdoorTrackingService.setGpxRoute(null)
     }
 
     fun cancelSos() {
-        CyclingTrackingService.cancelCrashSos()
+        OutdoorTrackingService.cancelCrashSos()
+    }
+
+    fun setLiveRpe(rpe: Int?) {
+        OutdoorTrackingService.setLiveRpe(rpe)
+    }
+
+    fun dismissTwinNudge() {
+        OutdoorTrackingService.dismissTwinNudge()
     }
 
 
@@ -189,6 +210,6 @@ class TrackingViewModel @Inject constructor(
     }
 
     fun clearLastSavedSessionId() {
-        CyclingTrackingService.clearLastSavedSessionId()
+        OutdoorTrackingService.clearLastSavedSessionId()
     }
 }

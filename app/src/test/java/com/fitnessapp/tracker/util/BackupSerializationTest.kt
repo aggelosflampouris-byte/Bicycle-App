@@ -32,7 +32,16 @@ class BackupSerializationTest {
                 wattsPerKg = 2.4,
                 routePointsJson = encryptedGpsRoute,
                 activityType = "CYCLING",
-                isChallengeCompletion = true
+                isChallengeCompletion = true,
+                rpe = 7,
+                wellnessFeel = 4,
+                avgCadenceSpm = 88.0,
+                gaitStabilityScore = 92.5,
+                weatherTempC = 24.5,
+                weatherWindKmh = 12.0,
+                weatherHumidityPct = 55.0,
+                environmentStressFactor = 1.08,
+                perceivedNotes = "Strong legs in tailwind finish"
             )
         )
 
@@ -80,13 +89,47 @@ class BackupSerializationTest {
             planJson = "{\"goal\":\"Build Endurance\",\"days\":[]}"
         )
 
+        val wellnessCheckIns = listOf(
+            WellnessCheckInEntity(
+                id = 1L,
+                timestampMs = 1700000000000L,
+                type = CheckInType.PRE_WORKOUT,
+                sleepQuality = 4,
+                energyLevel = 4,
+                muscleSoreness = 2,
+                stressLevel = 2,
+                hydrationScore = 4,
+                notes = "Ready"
+            )
+        )
+
+        val twinSnapshots = listOf(
+            TwinSnapshotEntity(
+                dateKey = "2023-11-14",
+                updatedAtMs = 1700003600000L,
+                readinessScore = 82,
+                bodyBattery = 79,
+                acuteLoad = 64.0,
+                chronicLoad = 58.0,
+                acwr = 1.10,
+                strainScore = 54.0,
+                recommendedIntensity = "TEMPO",
+                weatherTempC = 24.5,
+                windSpeedKmh = 12.0,
+                humidityPct = 55.0,
+                uvIndex = 4.2
+            )
+        )
+
         val backup = BackupData(
             user = user,
             sessions = sessions,
             routines = routines,
             challenges = challenges,
             personalRecords = personalRecords,
-            trainingPlan = trainingPlan
+            trainingPlan = trainingPlan,
+            wellnessCheckIns = wellnessCheckIns,
+            twinSnapshots = twinSnapshots
         )
 
         val json = gson.toJson(backup)
@@ -94,14 +137,20 @@ class BackupSerializationTest {
         assertTrue(json.contains(encryptedGpsRoute))
         assertTrue(json.contains("FASTEST_10KM"))
         assertTrue(json.contains("Build Endurance"))
+        assertTrue(json.contains("PRE_WORKOUT"))
 
         val deserialized = gson.fromJson(json, BackupData::class.java)
         assertEquals(1, deserialized.sessions?.size)
         assertEquals(encryptedGpsRoute, deserialized.sessions?.first()?.routePointsJson)
+        assertEquals(7, deserialized.sessions?.first()?.rpe)
+        assertEquals(92.5, deserialized.sessions?.first()?.gaitStabilityScore ?: 0.0, 0.01)
         assertEquals(1, deserialized.personalRecords?.size)
         assertEquals(PersonalRecordType.FASTEST_10KM, deserialized.personalRecords?.first()?.recordType)
         assertNotNull(deserialized.trainingPlan)
         assertEquals(1, deserialized.trainingPlan?.id)
+        assertEquals(1, deserialized.wellnessCheckIns?.size)
+        assertEquals(1, deserialized.twinSnapshots?.size)
+        assertEquals(82, deserialized.twinSnapshots?.first()?.readinessScore)
     }
 
     @Test

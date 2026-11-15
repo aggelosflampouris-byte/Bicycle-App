@@ -1,18 +1,24 @@
 package com.fitnessapp.tracker.ui.dashboard
 
-import com.fitnessapp.tracker.data.local.entity.ChallengeEntity
+import com.fitnessapp.tracker.data.local.entity.CheckInType
 import com.fitnessapp.tracker.data.local.entity.RoutineInterval
 import com.fitnessapp.tracker.data.local.entity.RoutineMetric
 
 sealed class DashboardUiEvent {
     data class SetActivityType(val type: String) : DashboardUiEvent()
     data class DeleteSession(val sessionId: Long) : DashboardUiEvent()
-    
-    // Challenges
-    object GenerateNewChallenge : DashboardUiEvent()
-    object DismissChallenge : DashboardUiEvent()
-    data class RespondToChallenge(val challenge: ChallengeEntity, val accept: Boolean) : DashboardUiEvent()
-    data class CancelChallenge(val challenge: ChallengeEntity) : DashboardUiEvent()
+
+    // Digital Twin & Environment
+    object RefreshEnvironment : DashboardUiEvent()
+    data class SubmitWellnessCheckIn(
+        val sleepQuality: Int,
+        val energyLevel: Int,
+        val muscleSoreness: Int,
+        val stressLevel: Int,
+        val hydrationScore: Int,
+        val notes: String = "",
+        val type: CheckInType = CheckInType.PRE_WORKOUT
+    ) : DashboardUiEvent()
     
     // Training Plan
     data class GenerateTrainingPlan(val goalPrompt: String) : DashboardUiEvent()

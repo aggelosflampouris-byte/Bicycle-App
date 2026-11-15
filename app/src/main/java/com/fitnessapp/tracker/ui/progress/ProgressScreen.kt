@@ -82,6 +82,7 @@ fun ProgressScreen(
                         MetricFilter.DISTANCE -> "Distance Over Time"
                         MetricFilter.SPEED -> "Average Speed Over Time"
                         MetricFilter.CALORIES -> "Calories Burned Over Time"
+                        MetricFilter.STRAIN -> "Digital Twin Strain Over Time"
                     },
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary,
@@ -139,8 +140,12 @@ fun ProgressScreen(
                 value = "${"%.0f".format(uiState.totalCalories)} kcal",
                 diffPercent = uiState.caloriesDiffPercent
             )
-            // Empty space for layout balance
-            Spacer(modifier = Modifier.weight(1f))
+            ComparisonCard(
+                modifier = Modifier.weight(1f),
+                label = "Twin Strain",
+                value = "${"%.0f".format(uiState.totalStrain)} pts",
+                diffPercent = uiState.strainDiffPercent
+            )
         }
 
         Spacer(modifier = Modifier.height(80.dp))
@@ -270,7 +275,8 @@ fun MetricFilterSelector(
                     text = metric.name.lowercase().replaceFirstChar { it.uppercase() },
                     color = if (isSelected) VividCyan else TextSecondary,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 14.sp
+                    fontSize = 12.sp,
+                    maxLines = 1
                 )
             }
         }

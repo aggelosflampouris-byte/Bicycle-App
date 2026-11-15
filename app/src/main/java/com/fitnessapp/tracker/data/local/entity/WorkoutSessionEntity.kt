@@ -22,6 +22,15 @@ data class WorkoutSessionEntity(
     val caloriesBurned: Double = 0.0,       // Calculated calories
     val wattsPerKg: Double = 0.0,           // Estimated power-to-weight ratio
     val routePointsJson: String = "[]",     // JSON array of {lat, lng, alt, timestamp}
-    val activityType: String = ActivityType.CYCLING.name, // "CYCLING" or "WALKING"
-    val isChallengeCompletion: Boolean = false // True if this session completed a challenge
+    val activityType: String = ActivityType.CYCLING.name, // "CYCLING", "WALKING", or "JOGGING"
+    val isChallengeCompletion: Boolean = false, // Legacy challenge compatibility flag
+    val rpe: Int? = null,                   // 1..10 Rating of Perceived Exertion
+    val wellnessFeel: Int? = null,          // 1..5 post-workout subjective feel
+    val avgCadenceSpm: Double? = null,      // Sensor steps or pedal bounce cadence
+    val gaitStabilityScore: Double? = null, // 0..100 accelerometer stability index
+    val weatherTempC: Double? = null,       // Outdoor ambient temperature (C)
+    val weatherWindKmh: Double? = null,     // Outdoor wind speed (km/h)
+    val weatherHumidityPct: Double? = null, // Relative humidity (%)
+    val environmentStressFactor: Double = 1.0, // Thermal + wind + elevation load modifier
+    val perceivedNotes: String = ""         // Brief post-workout user note
 )
