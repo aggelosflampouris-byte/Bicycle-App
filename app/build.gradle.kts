@@ -14,8 +14,8 @@ android {
         applicationId = "com.fitnessapp.tracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 170
-        versionName = "1.2.0"
+        versionCode = 171
+        versionName = "1.2.1"
 
         // API key is read from local.properties (gitignored — never committed)
         // or from AI_COACH_API_KEY / GEMINI_API_KEY environment variables.
@@ -64,6 +64,9 @@ android {
       resources {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
       }
+    }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -133,6 +136,8 @@ dependencies {
 
   // Tests
   testImplementation(libs.junit)
+  testImplementation(libs.robolectric)
+  testImplementation(libs.androidx.test.core)
   testImplementation(libs.kotlinx.coroutines.test)
   androidTestImplementation(libs.androidx.test.core)
   androidTestImplementation(libs.androidx.test.ext.junit)
