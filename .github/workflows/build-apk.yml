@@ -31,8 +31,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # Write the Gemini API key into local.properties so build.gradle.kts
-      # can read it exactly the same way as on a local dev machine.
+      # Write the AI Coach API key into local.properties so build.gradle.kts
+      # can read it cleanly while preserving the existing GEMINI_API_KEY secret.
       # local.properties is gitignored so the key is never committed.
       - name: Inject API key into local.properties
         run: |
@@ -48,15 +48,31 @@ jobs:
             echo "Warning: GOOGLE_SERVICES_JSON_B64 secret is missing. The build may fail."
           fi
 
-      - name: Build Debug APK
+      - name: Run Unit Tests
         run: |
           # Retry up to 3 times to mitigate transient Gradle download failures
           for i in 1 2 3; do
-            ./gradlew assembleDebug --stacktrace && exit 0
-            echo "Build failed, retrying in 15 seconds... (Attempt $i of 3)"
+            ./gradlew testDebugUnitTest --stacktrace && exit 0
+            echo "Unit tests failed, retrying in 15 seconds... (Attempt $i of 3)"
             sleep 15
           done
           exit 1
+
+      - name: Run Android Lint
+        run: ./gradlew lintDebug --stacktrace
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload Test & Lint Reports on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CI-Diagnostic-Reports
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/reports/lint-results-debug.html
+          retention-days: 7
 
       - name: Rename APK
         run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/smart-track.apk
