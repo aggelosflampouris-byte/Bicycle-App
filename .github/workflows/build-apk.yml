@@ -43,9 +43,15 @@ jobs:
 
       - name: Run Unit Tests
         run: |
-          # Retry up to 3 times to mitigate transient Gradle download failures
+          # Retry up to 3 times to mitigate transient Gradle download failures;
+          # refresh dependencies on retries so cached resolution errors are cleared.
           for i in 1 2 3; do
-            ./gradlew testDebugUnitTest --stacktrace && exit 0
+            if [ "$i" -eq 1 ]; then
+              ./gradlew testDebugUnitTest --stacktrace && exit 0
+            else
+              ./gradlew --stop
+              ./gradlew testDebugUnitTest --refresh-dependencies --stacktrace && exit 0
+            fi
             echo "Unit tests failed, retrying in 15 seconds... (Attempt $i of 3)"
             sleep 15
           done

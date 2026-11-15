@@ -5,6 +5,9 @@ pluginManagement {
                 includeGroupByRegex("androidx.*")
                 includeGroupByRegex("com\\.android.*")
                 includeGroupByRegex("com\\.google.*")
+                // KSP and Hilt are published on Maven Central / Gradle Plugin Portal, not Google Maven.
+                excludeGroupByRegex("com\\.google\\.devtools\\.ksp.*")
+                excludeGroupByRegex("com\\.google\\.dagger.*")
             }
         }
         mavenCentral()
@@ -19,6 +22,8 @@ dependencyResolutionManagement {
                 includeGroupByRegex("androidx.*")
                 includeGroupByRegex("com\\.android.*")
                 includeGroupByRegex("com\\.google.*")
+                excludeGroupByRegex("com\\.google\\.devtools\\.ksp.*")
+                excludeGroupByRegex("com\\.google\\.dagger.*")
             }
         }
         mavenCentral()
