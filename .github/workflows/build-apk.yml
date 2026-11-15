@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Debug APK
+    name: Build & Verify Android APKs
     runs-on: ubuntu-latest
 
     steps:
@@ -64,6 +64,32 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
+      - name: Build R8 Release APK
+        run: |
+          ./gradlew --stop
+          ./gradlew assembleRelease --stacktrace
+
+      - name: Verify R8 Keep Rules
+        run: |
+          MAPPING="app/build/outputs/mapping/release/mapping.txt"
+          for cls in \
+            "com.fitnessapp.tracker.data.remote.api.OpenMeteoApiService" \
+            "com.fitnessapp.tracker.data.remote.api.AiCoachApiService" \
+            "com.fitnessapp.tracker.data.remote.model.OpenMeteoResponse" \
+            "com.fitnessapp.tracker.data.remote.model.AiChatRequest" \
+            "com.fitnessapp.tracker.data.remote.EnvironmentSnapshot" \
+            "com.fitnessapp.tracker.data.local.entity.WorkoutSessionEntity" \
+            "com.fitnessapp.tracker.data.local.entity.WellnessCheckInEntity" \
+            "com.fitnessapp.tracker.data.local.entity.TwinSnapshotEntity" \
+            "com.fitnessapp.tracker.service.RoutePoint" \
+            "com.fitnessapp.tracker.util.BackupData"; do
+            if ! grep -Fxq "${cls} -> ${cls}:" "$MAPPING"; then
+              echo "::error::Missing R8 keep rule for ${cls}"
+              exit 1
+            fi
+          done
+          echo "All critical models & APIs verified un-obfuscated in R8 mapping."
+
       - name: Upload Test & Lint Reports on Failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -74,21 +100,28 @@ jobs:
             app/build/reports/lint-results-debug.html
           retention-days: 7
 
-      - name: Rename APK
-        run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/smart-track.apk
+      - name: Rename APKs
+        run: |
+          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/smart-track.apk
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/smart-track-release.apk
 
-      - name: Upload APK Artifact
+      - name: Upload APK & Mapping Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: SmartTrack-APK
-          path: app/build/outputs/apk/debug/smart-track.apk
+          path: |
+            app/build/outputs/apk/debug/smart-track.apk
+            app/build/outputs/apk/release/smart-track-release.apk
+            app/build/outputs/mapping/release/mapping.txt
           retention-days: 30
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/debug/smart-track.apk
+          files: |
+            app/build/outputs/apk/debug/smart-track.apk
+            app/build/outputs/apk/release/smart-track-release.apk
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
